@@ -1,0 +1,46 @@
+"""Módulo canónico: Reservas y Traslados (CU08, CU09, CU10, CU24 / previsto CU29)."""
+from backend.app.core.modules.reservas_traslados.models import (
+    Reserva,
+    DetalleReserva,
+    EstadoReserva,
+    ESTADOS_LINEA_RESERVA,
+    Traslado,
+    DetalleTraslado,
+    EstadoTraslado,
+)
+from backend.app.core.modules.reservas_traslados.schemas import (
+    LineaReservaCrearDTO,
+    ReservaCrearDTO,
+    DetalleReservaDTO,
+    TrasladoResumenDTO,
+    ReservaDTO,
+    ReservaListaDTO,
+    ExpiracionResultadoDTO,
+    TrasladoSolicitarDTO,
+    TrasladoRechazarDTO,
+    DetalleTrasladoDTO,
+    TrasladoDTO,
+    TrasladoListaDTO,
+)
+
+__all__ = [
+    "Reserva",
+    "DetalleReserva",
+    "EstadoReserva",
+    "ESTADOS_LINEA_RESERVA",
+    "Traslado",
+    "DetalleTraslado",
+    "EstadoTraslado",
+    "LineaReservaCrearDTO",
+    "ReservaCrearDTO",
+    "DetalleReservaDTO",
+    "TrasladoResumenDTO",
+    "ReservaDTO",
+    "ReservaListaDTO",
+    "ExpiracionResultadoDTO",
+    "TrasladoSolicitarDTO",
+    "TrasladoRechazarDTO",
+    "DetalleTrasladoDTO",
+    "TrasladoDTO",
+    "TrasladoListaDTO",
+]

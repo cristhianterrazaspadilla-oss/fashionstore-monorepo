@@ -1,0 +1,321 @@
+<section class="cycle-page checkout">
+  <div class="cycle-hero">
+    <div>
+      <p class="cycle-kicker">Compra segura</p>
+      <h1>Checkout</h1>
+    </div>
+  </div>
+
+  <div *ngIf="cargando" class="cycle-state" role="status">
+    <p>Preparando tu compra…</p>
+  </div>
+
+  <div *ngIf="error && !cargando" class="cycle-alert danger" role="alert">
+    {{ error }}
+    <button type="button" class="cycle-link" (click)="cargarDatos()">Reintentar</button>
+  </div>
+
+  <div *ngIf="!cargando && esVacio" class="cycle-state">
+    <p>Tu carrito está vacío</p>
+    <a routerLink="/catalogo" class="cycle-primary btn-volver-catalogo">Ver catálogo</a>
+  </div>
+
+  <!-- Pasos de checkout -->
+  <div *ngIf="!cargando && !esVacio" class="checkout-steps" [formGroup]="checkoutForm">
+    <div class="steps-indicator" role="tablist" aria-label="Pasos de la compra">
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="paso === 'resumen'"
+        [class.active]="paso === 'resumen'"
+        (click)="paso = 'resumen'"
+      >
+        1. Resumen
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="paso === 'entrega'"
+        [class.active]="paso === 'entrega'"
+        (click)="paso = 'entrega'"
+        [disabled]="!checkoutForm.controls.sucursalId.valid"
+      >
+        2. Entrega
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="paso === 'confirmacion'"
+        [class.active]="paso === 'confirmacion'"
+        (click)="paso = 'confirmacion'"
+        [disabled]="!puedeConfirmar"
+      >
+        3. Confirmar
+      </button>
+    </div>
+
+    <!-- PASO 1: Resumen -->
+    <div *ngIf="paso === 'resumen'" class="step-content">
+      <div class="checkout-lineas">
+        <div *ngFor="let linea of carrito!.lineas" class="checkout-linea">
+          <div class="linea-info-col">
+            <span class="linea-nombre">{{ nombrePrenda(linea.variante_id) }}</span>
+            <span class="linea-sku">SKU: {{ skuPrenda(linea.variante_id) }}</span>
+          </div>
+          <span class="linea-cantidad">×{{ linea.cantidad }}</span>
+          <span class="linea-precio">{{ bs(linea.subtotal) }}</span>
+        </div>
+      </div>
+
+      <div class="checkout-totales">
+        <div><span>Subtotal</span><span>{{ bs(carrito!.subtotal) }}</span></div>
+        <div *ngIf="tieneDescuento">
+          <span>Descuento</span>
+          <span class="text-success">−{{ bs(carrito!.descuento_total) }}</span>
+        </div>
+        <div class="total-row"><span>Total productos</span><span>{{ bs(carrito!.total) }}</span></div>
+      </div>
+
+      <div class="campo-sucursal">
+        <label for="sucursalSelect"><span>Sucursal de origen</span></label>
+        <select
+          id="sucursalSelect"
+          formControlName="sucursalId"
+          [attr.aria-invalid]="checkoutForm.controls.sucursalId.touched && !checkoutForm.controls.sucursalId.valid"
+        >
+          <option value="" disabled>Selecciona una sucursal con stock</option>
+          <option *ngFor="let s of sucursalesConCobertura()" [value]="s.sucursal_id">
+            {{ s.sucursal_nombre }}
+          </option>
+        </select>
+        <p
+          *ngIf="checkoutForm.controls.sucursalId.touched && !checkoutForm.controls.sucursalId.valid"
+          class="field-error"
+          role="alert"
+        >
+          Debes seleccionar una sucursal para continuar.
+        </p>
+      </div>
+
+      <p *ngIf="cobertura && !sucursalesConCobertura().length" class="cycle-alert danger" role="alert">
+        Ninguna sucursal cuenta con stock suficiente para cubrir todas las prendas de tu carrito al mismo tiempo.
+      </p>
+
+      <button
+        type="button"
+        class="cycle-primary btn-continuar-paso"
+        (click)="avanzar()"
+        [disabled]="!checkoutForm.controls.sucursalId.valid"
+      >
+        Continuar con la entrega
+      </button>
+    </div>
+
+    <!-- PASO 2: Entrega -->
+    <div *ngIf="paso === 'entrega'" class="step-content">
+      <div class="modalidad-selector">
+        <label class="radio-card" [class.selected]="modalidadSeleccionada === 'RECOJO'">
+          <input
+            type="radio"
+            formControlName="modalidad"
+            value="RECOJO"
+          />
+          <span class="radio-title">Recojo en tienda</span>
+          <span class="radio-desc">Pasa a recoger tu pedido sin costo adicional de envío</span>
+        </label>
+
+        <label
+          class="radio-card"
+          [class.selected]="modalidadSeleccionada === 'DELIVERY'"
+          [class.disabled]="!sucursalObj(sucursalSeleccionada)?.delivery_activo"
+        >
+          <input
+            type="radio"
+            formControlName="modalidad"
+            value="DELIVERY"
+            [disabled]="!sucursalObj(sucursalSeleccionada)?.delivery_activo"
+          />
+          <span class="radio-title">Delivery</span>
+          <span class="radio-desc">
+            {{ sucursalObj(sucursalSeleccionada)?.delivery_activo
+              ? 'Entrega a domicilio en tu ciudad'
+              : 'Delivery no disponible en la sucursal seleccionada' }}
+          </span>
+        </label>
+      </div>
+
+      <!-- Campos exclusivos de Delivery -->
+      <div *ngIf="modalidadSeleccionada === 'DELIVERY'" class="delivery-fields">
+        <label for="direccionInput">
+          <span>Dirección de entrega</span>
+          <input
+            id="direccionInput"
+            type="text"
+            formControlName="direccion"
+            placeholder="Av. principal #123, entre calles X e Y…"
+            [attr.aria-invalid]="checkoutForm.controls.direccion.touched && !checkoutForm.controls.direccion.valid"
+          />
+        </label>
+        <p
+          *ngIf="checkoutForm.controls.direccion.touched && !checkoutForm.controls.direccion.valid"
+          class="field-error"
+          role="alert"
+        >
+          Ingresa una dirección clara para el envío.
+        </p>
+
+        <label for="anilloSelect">
+          <span>Anillo de destino</span>
+          <select
+            id="anilloSelect"
+            formControlName="anilloDestino"
+            (change)="cotizar()"
+            [attr.aria-invalid]="checkoutForm.controls.anilloDestino.touched && !checkoutForm.controls.anilloDestino.valid"
+          >
+            <option [ngValue]="null" disabled>Selecciona el anillo de entrega</option>
+            <option *ngFor="let a of [1,2,3,4,5,6,7,8,9,10,11,12]" [ngValue]="a">
+              Anillo {{ a }}
+            </option>
+          </select>
+        </label>
+        <p
+          *ngIf="checkoutForm.controls.anilloDestino.touched && !checkoutForm.controls.anilloDestino.valid"
+          class="field-error"
+          role="alert"
+        >
+          El anillo de destino es obligatorio para calcular la tarifa.
+        </p>
+
+        <div *ngIf="cotizando" class="cycle-state cotizando-badge" role="status">
+          <p>Calculando costo de entrega…</p>
+        </div>
+
+        <div *ngIf="requiereRecalcularCotizacion && !cotizando" class="cycle-alert" role="status">
+          <p>La selección cambió. Por favor, vuelve a cotizar el costo de delivery.</p>
+        </div>
+
+        <div *ngIf="cotizacion && cotizacionEsVigente" class="cotizacion-result cycle-card">
+          <dl class="cycle-facts">
+            <div><dt>Tarifa base</dt><dd>{{ bs(cotizacion.tarifa_base) }}</dd></div>
+            <div><dt>Incremento por distancia</dt><dd>{{ bs(cotizacion.incremento_anillo) }}</dd></div>
+            <div><dt>Costo delivery</dt><dd class="text-brass">{{ bs(cotizacion.costo_entrega) }}</dd></div>
+          </dl>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button type="button" class="cycle-secondary" (click)="retroceder()">Atrás</button>
+        <button
+          type="button"
+          class="cycle-primary"
+          (click)="avanzar()"
+          [disabled]="!puedeConfirmar"
+        >
+          Revisar y confirmar
+        </button>
+      </div>
+    </div>
+
+    <!-- PASO 3: Confirmación -->
+    <div *ngIf="paso === 'confirmacion'" class="step-content">
+      <div class="confirm-summary cycle-card">
+        <h2>Resumen de la orden</h2>
+        <div class="confirm-datos">
+          <p><strong>Sucursal de despacho:</strong> {{ sucursalNombre(sucursalSeleccionada) }}</p>
+          <p><strong>Modalidad:</strong> {{ modalidadSeleccionada === 'RECOJO' ? 'Recojo en tienda' : 'Delivery a domicilio' }}</p>
+          <p *ngIf="modalidadSeleccionada === 'DELIVERY'"><strong>Dirección:</strong> {{ direccionValor }}</p>
+          <p *ngIf="modalidadSeleccionada === 'DELIVERY' && cotizacion && cotizacionEsVigente">
+            <strong>Costo de envío:</strong> {{ bs(cotizacion.costo_entrega) }}
+          </p>
+          <p class="total-confirm">
+            <strong>Total a pagar:</strong> {{ bs(totalVisible) }}
+          </p>
+        </div>
+
+        <!-- Consentimiento y preparación de método de cobro v3 -->
+        <div class="consentimiento-v3-box">
+          <label class="consentimiento-checkbox">
+            <input
+              type="checkbox"
+              [checked]="consentimientoCobroV3"
+              (change)="consentimientoCobroV3 = $any($event.target).checked"
+            >
+            <span>
+              Autorizo el cobro diferido o automático con mi método de pago preparado cuando se confirme la orden o al reconectar.
+            </span>
+          </label>
+
+          <div class="preparacion-metodo-fila" *ngIf="estaEnLinea">
+            <button
+              type="button"
+              class="cycle-secondary btn-preparar-metodo"
+              [disabled]="preparandoMetodo || metodoPreparadoExito || mostrandoFormularioTarjeta"
+              (click)="prepararMetodoPago()"
+            >
+              {{ preparandoMetodo ? 'Preparando método seguro…' : (metodoPreparadoExito ? '✓ Método de pago preparado' : 'Preparar método de pago seguro') }}
+            </button>
+            <span *ngIf="metodoPreparadoExito" class="metodo-preparado-nota">
+              Método vinculado de forma segura con Stripe para compras conectadas y diferidas.
+            </span>
+          </div>
+
+          <!-- Formulario Stripe Elements (CU22) -->
+          <div *ngIf="mostrandoFormularioTarjeta" class="formulario-tarjeta-box cycle-card">
+            <p class="formulario-tarjeta-titulo">Ingresa los datos de tu tarjeta para vincularla de forma segura:</p>
+            <div id="stripe-card-element" class="stripe-card-container">
+              <div id="card-element"></div>
+            </div>
+            <p *ngIf="errorTarjeta" class="field-error" role="alert">{{ errorTarjeta }}</p>
+            <div class="formulario-tarjeta-acciones">
+              <button
+                type="button"
+                class="cycle-primary btn-confirmar-tarjeta"
+                [disabled]="!cardElementValido || confirmandoTarjeta"
+                (click)="confirmarTarjetaStripe()"
+              >
+                {{ confirmandoTarjeta ? 'Validando tarjeta…' : 'Guardar y vincular tarjeta' }}
+              </button>
+              <button
+                type="button"
+                class="cycle-secondary btn-cancelar-tarjeta"
+                [disabled]="confirmandoTarjeta"
+                (click)="cancelarFormularioTarjeta()"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Advertencia si no hay tasa de cambio vigente -->
+        <div *ngIf="!tieneTasaValida" class="cycle-alert warning tasa-advertencia" role="alert">
+          <p>
+            <strong>Tasa de cambio no disponible:</strong> No se pudo obtener la tasa oficial vigente.
+            Por seguridad, la autorización de cobro automático al reconectar ha sido desactivada.
+            Tu compra se registrará fuera de línea y podrás pagar al recuperar la conexión y la tasa oficial.
+          </p>
+          <button type="button" class="cycle-link btn-reintentar-tasa" (click)="reintentarObtenerTasa()">
+            Reintentar obtener tasa
+          </button>
+        </div>
+
+        <!-- Aviso para modo fuera de línea -->
+        <div *ngIf="!estaEnLinea" class="cycle-alert warning" role="status">
+          <p><strong>Modo fuera de línea:</strong> No detectamos conexión activa. Tu orden con autorización de cobro se guardará de forma segura en este dispositivo y se procesará automáticamente al reconectar.</p>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button type="button" class="cycle-secondary" (click)="retroceder()">Atrás</button>
+        <button
+          type="button"
+          class="cycle-primary btn-confirmar-final"
+          (click)="confirmarCheckout()"
+          [disabled]="procesando"
+        >
+          {{ procesando ? 'Procesando compra…' : (!estaEnLinea ? 'Guardar compra fuera de línea' : 'Confirmar y pagar con Stripe') }}
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

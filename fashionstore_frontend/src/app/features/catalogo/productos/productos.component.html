@@ -1,0 +1,567 @@
+<div class="p-container">
+  <div class="p-header">
+    <div>
+      <h1 class="p-title">Catálogo y Administración</h1>
+      <p class="p-sub">Gestiona productos, variantes con precios vendibles, galería fotográfica y tablas maestras.</p>
+    </div>
+  </div>
+
+  <div *ngIf="mensajeError" class="alert error" role="alert">
+    {{ mensajeError }}
+    <button type="button" class="btn-close-alert" (click)="mensajeError = null">&times;</button>
+  </div>
+  <div *ngIf="mensajeExito" class="alert success" role="status">
+    {{ mensajeExito }}
+    <button type="button" class="btn-close-alert" (click)="mensajeExito = null">&times;</button>
+  </div>
+
+  <!-- Pestañas de navegación interna -->
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" [attr.aria-selected]="activeTab === 'productos'" [class.active]="activeTab === 'productos'" (click)="activeTab = 'productos'">Productos</button>
+    <button type="button" role="tab" [attr.aria-selected]="activeTab === 'variantes'" [class.active]="activeTab === 'variantes'" (click)="activeTab = 'variantes'">Variantes y Precios</button>
+    <button type="button" role="tab" [attr.aria-selected]="activeTab === 'maestros'" [class.active]="activeTab === 'maestros'" (click)="activeTab = 'maestros'">Tablas Maestras</button>
+  </div>
+
+  <!-- ================= TAB PRODUCTOS ================= -->
+  <div *ngIf="activeTab === 'productos'" class="tab-content">
+    <div class="card p-card">
+      <h2>Nuevo Producto</h2>
+      <div class="form-grid">
+        <div class="f">
+          <label for="prodNuevoNombre">Nombre *</label>
+          <input id="prodNuevoNombre" [(ngModel)]="productoForm.nombre" placeholder="Ej. Camisa Lino Manga Larga" />
+        </div>
+        <div class="f">
+          <label for="prodNuevoCat">Categoría</label>
+          <select id="prodNuevoCat" [(ngModel)]="productoForm.categoria_id">
+            <option value="">Seleccione categoría</option>
+            <option *ngFor="let c of categorias" [value]="c.id">{{ c.nombre }}</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="prodNuevoProv">Proveedor Principal</label>
+          <select id="prodNuevoProv" [(ngModel)]="productoForm.proveedor_principal_id">
+            <option value="">Sin proveedor asignado</option>
+            <option *ngFor="let pr of proveedores" [value]="pr.id">{{ pr.razon_social }}</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="prodNuevoGenero">Género</label>
+          <select id="prodNuevoGenero" [(ngModel)]="productoForm.genero">
+            <option value="">Seleccione género</option>
+            <option value="HOMBRE">Hombre</option>
+            <option value="MUJER">Mujer</option>
+            <option value="UNISEX">Unisex</option>
+            <option value="NIÑO">Niño</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="prodNuevoMarca">Marca</label>
+          <input id="prodNuevoMarca" [(ngModel)]="productoForm.marca" placeholder="FashionStore / Exclusivo" />
+        </div>
+        <div class="f">
+          <label for="prodNuevoPrecioBase">Precio Base de Referencia (Bs) *</label>
+          <input id="prodNuevoPrecioBase" type="number" [(ngModel)]="productoForm.precio_base" min="0" step="0.01" />
+          <span class="field-hint">Precio de referencia general del producto</span>
+        </div>
+        <div class="f full">
+          <label for="prodNuevoDesc">Descripción</label>
+          <textarea id="prodNuevoDesc" [(ngModel)]="productoForm.descripcion" rows="2" placeholder="Detalles de corte, composición o tejido..."></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" (click)="crearProducto()" [disabled]="guardandoProd">
+          {{ guardandoProd ? 'Guardando...' : 'Crear Producto' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Lista de productos -->
+    <div class="card p-card mt">
+      <h2>Productos Registrados ({{ productos.length }})</h2>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Categoría</th>
+              <th>Proveedor</th>
+              <th>Género</th>
+              <th>Precio Base</th>
+              <th>Imágenes</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of productos">
+              <td class="font-bold">{{ p.nombre }}</td>
+              <td>{{ nombreCategoria(p.categoria_id) }}</td>
+              <td>{{ nombreProveedor(p.proveedor_principal_id) }}</td>
+              <td>{{ p.genero || '—' }}</td>
+              <td>{{ bs(p.precio_base) }}</td>
+              <td>
+                <span class="badge badge-neutral">{{ p.imagenes.length || 0 }} fotos</span>
+              </td>
+              <td>
+                <span class="badge" [class.badge-success]="p.activo" [class.badge-danger]="!p.activo">
+                  {{ p.activo ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td class="action-cell">
+                <button #btnEditProd type="button" class="btn-sm btn-ghost" (click)="abrirEditarProducto(p, btnEditProd)">Editar</button>
+                <button #btnToggleProd type="button" class="btn-sm" [class.btn-danger]="p.activo" [class.btn-success]="!p.activo"
+                        (click)="solicitarToggleProducto(p, btnToggleProd)">
+                  {{ p.activo ? 'Desactivar' : 'Activar' }}
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="!productos.length">
+              <td colspan="8" class="text-center muted py">No hay productos registrados aún.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB VARIANTES ================= -->
+  <div *ngIf="activeTab === 'variantes'" class="tab-content">
+    <div class="card p-card">
+      <h2>Nueva Variante de Producto</h2>
+      <div class="form-grid">
+        <div class="f full">
+          <label for="varNuevoProd">Producto *</label>
+          <select id="varNuevoProd" [(ngModel)]="varianteForm.producto_id">
+            <option value="">Seleccione el producto al que pertenece</option>
+            <option *ngFor="let p of productos" [value]="p.id">{{ p.nombre }} (Base: {{ bs(p.precio_base) }})</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="varNuevoTalla">Talla *</label>
+          <select id="varNuevoTalla" [(ngModel)]="varianteForm.talla_id">
+            <option value="">Seleccione talla</option>
+            <option *ngFor="let t of tallas" [value]="t.id">{{ t.nombre }}</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="varNuevoColor">Color *</label>
+          <select id="varNuevoColor" [(ngModel)]="varianteForm.color_id">
+            <option value="">Seleccione color</option>
+            <option *ngFor="let c of colores" [value]="c.id">{{ c.nombre }}</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="varNuevoSku">SKU Único *</label>
+          <input id="varNuevoSku" [(ngModel)]="varianteForm.sku" placeholder="BLU-001-M-AZU" class="input-mono" />
+        </div>
+        <div class="f">
+          <label for="varNuevoCb">Código de Barras</label>
+          <input id="varNuevoCb" [(ngModel)]="varianteForm.codigo_barras" placeholder="7771234567890" class="input-mono" />
+        </div>
+        <div class="f">
+          <label for="varNuevoPrecio">Precio Vendible (Bs) *</label>
+          <input id="varNuevoPrecio" type="number" [(ngModel)]="varianteForm.precio" min="0" step="0.01" />
+          <span class="field-hint">Precio final cobrado en compras digitales y en caja</span>
+        </div>
+        <div class="f">
+          <label for="varNuevoPeso">Peso en gramos</label>
+          <input id="varNuevoPeso" type="number" [(ngModel)]="varianteForm.peso_gramos" placeholder="Ej. 250" min="1" />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" (click)="crearVariante()" [disabled]="guardandoVar">
+          {{ guardandoVar ? 'Guardando...' : 'Crear Variante' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Lista de variantes -->
+    <div class="card p-card mt">
+      <div class="flex-between">
+        <h2>Variantes Registradas ({{ variantesFiltradasList.length }})</h2>
+        <div class="filter-box">
+          <label for="filtroProdVar">Filtrar por producto:</label>
+          <select id="filtroProdVar" [(ngModel)]="filtroProductoVariante">
+            <option value="">Todos los productos</option>
+            <option *ngFor="let p of productos" [value]="p.id">{{ p.nombre }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>SKU</th>
+              <th>Talla</th>
+              <th>Color</th>
+              <th>Precio Vendible</th>
+              <th>Código Barras</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let v of variantesFiltradasList">
+              <td class="font-bold">{{ nombreProductoDeVariante(v.producto_id) }}</td>
+              <td class="input-mono">{{ v.sku }}</td>
+              <td><span class="badge badge-neutral">{{ nombreTalla(v.talla_id) }}</span></td>
+              <td>
+                <span class="color-chip">
+                  <span class="color-dot" [style.background-color]="codigoHexColor(v.color_id)"></span>
+                  {{ nombreColor(v.color_id) }}
+                </span>
+              </td>
+              <td class="font-bold text-success">{{ bs(v.precio) }}</td>
+              <td class="input-mono">{{ v.codigo_barras || '—' }}</td>
+              <td>
+                <span class="badge" [class.badge-success]="v.activa" [class.badge-danger]="!v.activa">
+                  {{ v.activa ? 'Activa' : 'Inactiva' }}
+                </span>
+              </td>
+              <td class="action-cell">
+                <button #btnEditVar type="button" class="btn-sm btn-ghost" (click)="abrirEditarVariante(v, btnEditVar)">Editar</button>
+                <button #btnToggleVar type="button" class="btn-sm" [class.btn-danger]="v.activa" [class.btn-success]="!v.activa"
+                        (click)="solicitarToggleVariante(v, btnToggleVar)">
+                  {{ v.activa ? 'Desactivar' : 'Activar' }}
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="!variantesFiltradasList.length">
+              <td colspan="8" class="text-center muted py">No hay variantes para este filtro.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB MAESTROS ================= -->
+  <div *ngIf="activeTab === 'maestros'" class="tab-content">
+    <div class="maestros-grid">
+      <!-- Tallas -->
+      <div class="card p-card">
+        <h3>Tallas ({{ tallas.length }})</h3>
+        <div class="inline-add">
+          <input [(ngModel)]="nuevo.talla" placeholder="Ej. XL, 38, 42" />
+          <button type="button" class="btn btn-sm btn-primary" (click)="crearTalla()" [disabled]="guardandoMaestro">+</button>
+        </div>
+        <div class="chips-container">
+          <span *ngFor="let t of tallas" class="chip-item">{{ t.nombre }}</span>
+        </div>
+      </div>
+
+      <!-- Colores -->
+      <div class="card p-card">
+        <h3>Colores ({{ colores.length }})</h3>
+        <div class="inline-add">
+          <input [(ngModel)]="nuevo.color" placeholder="Ej. Azul Marino" />
+          <input type="color" [(ngModel)]="nuevo.colorHex" class="color-picker-input" />
+          <button type="button" class="btn btn-sm btn-primary" (click)="crearColor()" [disabled]="guardandoMaestro">+</button>
+        </div>
+        <div class="chips-container">
+          <span *ngFor="let c of colores" class="chip-item">
+            <span class="color-dot" [style.background-color]="c.codigo_hex"></span>
+            {{ c.nombre }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Categorías -->
+      <div class="card p-card">
+        <h3>Categorías ({{ categorias.length }})</h3>
+        <div class="inline-add">
+          <input [(ngModel)]="nuevo.categoria" placeholder="Ej. Blusas, Pantalones" />
+          <button type="button" class="btn btn-sm btn-primary" (click)="crearCategoria()" [disabled]="guardandoMaestro">+</button>
+        </div>
+        <div class="chips-container">
+          <span *ngFor="let cat of categorias" class="chip-item">{{ cat.nombre }}</span>
+        </div>
+      </div>
+
+      <!-- Temporadas -->
+      <div class="card p-card">
+        <h3>Temporadas ({{ temporadas.length }})</h3>
+        <div class="inline-add">
+          <input [(ngModel)]="nuevo.temporada" placeholder="Ej. Primavera 2026" />
+          <button type="button" class="btn btn-sm btn-primary" (click)="crearTemporada()" [disabled]="guardandoMaestro">+</button>
+        </div>
+        <div class="chips-container">
+          <span *ngFor="let temp of temporadas" class="chip-item">{{ temp.nombre }}</span>
+        </div>
+      </div>
+
+      <!-- Colecciones -->
+      <div class="card p-card">
+        <h3>Colecciones ({{ colecciones.length }})</h3>
+        <div class="inline-add">
+          <input [(ngModel)]="nuevo.coleccion" placeholder="Ej. Edición Limitada" />
+          <button type="button" class="btn btn-sm btn-primary" (click)="crearColeccion()" [disabled]="guardandoMaestro">+</button>
+        </div>
+        <div class="chips-container">
+          <span *ngFor="let col of colecciones" class="chip-item">{{ col.nombre }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL ACCESIBLE: EDICIÓN DE PRODUCTO Y GALERÍA ================= -->
+  <div *ngIf="editandoProducto" class="modal-backdrop" (click)="guardandoEdicionProd ? null : cerrarEditarProducto()" aria-hidden="false">
+    <div
+      #modalProdBox
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-prod-title"
+      class="modal-box modal-lg"
+      (click)="$event.stopPropagation()"
+      tabindex="-1"
+    >
+      <div class="modal-header">
+        <h3 id="modal-prod-title">Editar Producto: {{ editandoProducto.nombre }}</h3>
+        <button type="button" class="btn-close-modal" (click)="cerrarEditarProducto()" [disabled]="guardandoEdicionProd" [attr.aria-disabled]="guardandoEdicionProd" aria-label="Cerrar modal">&times;</button>
+      </div>
+
+      <div class="modal-body" [formGroup]="productoEditForm">
+        <!-- Campos Generales -->
+        <h4 class="section-title">Datos Principales</h4>
+        <div class="form-grid">
+          <div class="f">
+            <label for="editProdNombre">Nombre *</label>
+            <input #nombreEditInput id="editProdNombre" formControlName="nombre" />
+          </div>
+          <div class="f">
+            <label for="editProdCat">Categoría</label>
+            <select id="editProdCat" formControlName="categoria_id">
+              <option value="">Sin categoría</option>
+              <option *ngFor="let c of categorias" [value]="c.id">{{ c.nombre }}</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="editProdProv">Proveedor Principal</label>
+            <select id="editProdProv" formControlName="proveedor_principal_id">
+              <option value="">Sin proveedor asignado</option>
+              <option *ngFor="let pr of proveedores" [value]="pr.id">{{ pr.razon_social }}</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="editProdGenero">Género</label>
+            <select id="editProdGenero" formControlName="genero">
+              <option value="">Seleccione género</option>
+              <option value="HOMBRE">Hombre</option>
+              <option value="MUJER">Mujer</option>
+              <option value="UNISEX">Unisex</option>
+              <option value="NIÑO">Niño</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="editProdMarca">Marca</label>
+            <input id="editProdMarca" formControlName="marca" placeholder="Dejar vacío para borrar marca" />
+          </div>
+          <div class="f">
+            <label for="editProdPrecioBase">Precio Base de Referencia (Bs) *</label>
+            <input id="editProdPrecioBase" type="number" formControlName="precio_base" min="0" step="0.01" />
+            <span class="field-hint">Referencial. El precio cobrado al cliente se define en cada variante.</span>
+          </div>
+          <div class="f full">
+            <label for="editProdDesc">Descripción</label>
+            <textarea id="editProdDesc" formControlName="descripcion" rows="2" placeholder="Dejar vacío para borrar descripción"></textarea>
+          </div>
+          <div class="f check-row">
+            <label class="check-label">
+              <input type="checkbox" formControlName="activo" />
+              <span>Producto habilitado en catálogo</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Temporadas y Colecciones -->
+        <h4 class="section-title mt-lg">Temporadas y Colecciones Asociadas</h4>
+        <div class="tags-picker-row">
+          <div class="tag-group">
+            <span class="tag-group-label">Temporadas:</span>
+            <div class="tag-badges">
+              <button
+                *ngFor="let t of temporadas"
+                type="button"
+                class="tag-toggle-btn"
+                [class.active]="temporadasEditSeleccionadas.includes(t.id)"
+                (click)="toggleTemporadaEdit(t.id)"
+              >
+                {{ t.nombre }}
+              </button>
+            </div>
+          </div>
+          <div class="tag-group">
+            <span class="tag-group-label">Colecciones:</span>
+            <div class="tag-badges">
+              <button
+                *ngFor="let c of colecciones"
+                type="button"
+                class="tag-toggle-btn"
+                [class.active]="coleccionesEditSeleccionadas.includes(c.id)"
+                (click)="toggleColeccionEdit(c.id)"
+              >
+                {{ c.nombre }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Galería de Imágenes -->
+        <h4 class="section-title mt-lg">Galería de Imágenes (URLs Públicas HTTPS)</h4>
+        <p class="gallery-help">Administra las fotos actuales de la prenda. Puedes cambiar su enlace o descripción, elegir la principal, reordenarlas o quitarlas. Los cambios se aplican al guardar el producto.</p>
+        <div class="gallery-list-heading">
+          <h5>Imágenes actuales</h5>
+          <span class="gallery-count" aria-live="polite">{{ imagenesGaleria.length }} {{ imagenesGaleria.length === 1 ? 'imagen' : 'imágenes' }}</span>
+        </div>
+        <div *ngIf="imagenesGaleria.length" class="gallery-list">
+          <div *ngFor="let img of imagenesGaleria; let i = index" class="gallery-item-card">
+            <div class="gallery-thumb-wrap">
+              <img *ngIf="!imagenPreviewError[i]" [src]="img.enlace_imagen" [alt]="img.texto_alternativo || 'Foto ' + (i + 1)"
+                   (error)="onImageError(i)" class="gallery-thumb" />
+              <div *ngIf="imagenPreviewError[i]" class="gallery-thumb-fallback" title="No se pudo cargar la vista previa">⚠️ Falló</div>
+            </div>
+            <div class="gallery-details">
+              <div class="f">
+                <label [for]="'imageUrl_' + i">URL de la imagen {{ i + 1 }}:</label>
+                <input
+                  [id]="'imageUrl_' + i"
+                  type="url"
+                  [ngModel]="img.enlace_imagen"
+                  (ngModelChange)="actualizarUrlImagen(i, $event)"
+                  [ngModelOptions]="{standalone: true}"
+                  placeholder="https://ejemplo.com/prenda.jpg"
+                  class="input-sm"
+                />
+              </div>
+              <div class="f">
+                <label [for]="'altText_' + i">Texto alternativo:</label>
+                <input [id]="'altText_' + i" [(ngModel)]="img.texto_alternativo" [ngModelOptions]="{standalone: true}" placeholder="Descripción de accesibilidad" class="input-sm" />
+              </div>
+            </div>
+            <div class="gallery-item-actions">
+              <button type="button" class="badge-principal-btn" [class.is-principal]="img.es_principal" (click)="marcarPrincipal(i)">
+                {{ img.es_principal ? '★ Principal' : 'Hacer Principal' }}
+              </button>
+              <div class="order-btns">
+                <button type="button" class="btn-icon" (click)="moverImagen(i, 'arriba')" [disabled]="i === 0" title="Subir orden" [attr.aria-label]="'Mover imagen ' + (i + 1) + ' hacia arriba'">▲</button>
+                <button type="button" class="btn-icon" (click)="moverImagen(i, 'abajo')" [disabled]="i === imagenesGaleria.length - 1" title="Bajar orden" [attr.aria-label]="'Mover imagen ' + (i + 1) + ' hacia abajo'">▼</button>
+              </div>
+              <button type="button" class="btn-icon btn-danger" (click)="quitarImagen(i)" title="Quitar imagen" [attr.aria-label]="'Quitar imagen ' + (i + 1)">✕</button>
+            </div>
+          </div>
+        </div>
+        <div *ngIf="!imagenesGaleria.length" class="empty-gallery-state">
+          <p>Este producto no cuenta con fotos en su galería aún.</p>
+        </div>
+
+        <h5 class="gallery-add-title">Agregar nueva imagen</h5>
+        <div class="gallery-add-box">
+          <div class="f flex1">
+            <label for="nuevaFotoUrl">URL de la imagen (HTTPS) *</label>
+            <input id="nuevaFotoUrl" [(ngModel)]="nuevaImagenUrl" [ngModelOptions]="{standalone: true}" placeholder="https://ejemplo.com/prenda.jpg" />
+          </div>
+          <div class="f flex1">
+            <label for="nuevaFotoAlt">Texto alternativo descriptivo</label>
+            <input id="nuevaFotoAlt" [(ngModel)]="nuevaImagenAlt" [ngModelOptions]="{standalone: true}" placeholder="Vista frontal, corte entallado..." />
+          </div>
+          <button type="button" class="btn btn-secondary btn-agregar-foto" (click)="agregarImagen()">+ Agregar</button>
+        </div>
+        <p *ngIf="errorGaleria" class="field-error" role="alert">{{ errorGaleria }}</p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" (click)="cerrarEditarProducto()" [disabled]="guardandoEdicionProd" [attr.aria-disabled]="guardandoEdicionProd">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="guardarEdicionProducto()" [disabled]="guardandoEdicionProd" [attr.aria-disabled]="guardandoEdicionProd">
+          {{ guardandoEdicionProd ? 'Guardando cambios...' : 'Guardar Producto' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL ACCESIBLE: EDICIÓN DE VARIANTE ================= -->
+  <div *ngIf="editandoVariante" class="modal-backdrop" (click)="guardandoEdicionVar ? null : cerrarEditarVariante()" aria-hidden="false">
+    <div
+      #modalVarBox
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-var-title"
+      class="modal-box"
+      (click)="$event.stopPropagation()"
+      tabindex="-1"
+    >
+      <div class="modal-header">
+        <h3 id="modal-var-title">Editar Variante: {{ editandoVariante.sku }}</h3>
+        <button type="button" class="btn-close-modal" (click)="cerrarEditarVariante()" [disabled]="guardandoEdicionVar" [attr.aria-disabled]="guardandoEdicionVar" aria-label="Cerrar modal">&times;</button>
+      </div>
+
+      <div class="modal-body" [formGroup]="varianteEditForm">
+        <!-- Talla y Color inmutables según contrato -->
+        <div class="immutable-attrs-box">
+          <div>
+            <span class="attr-label">Talla asignada:</span>
+            <strong>{{ nombreTalla(editandoVariante.talla_id) }}</strong>
+          </div>
+          <div>
+            <span class="attr-label">Color asignado:</span>
+            <strong>{{ nombreColor(editandoVariante.color_id) }}</strong>
+          </div>
+          <p class="attr-note">La talla y el color identifican de forma inmutable la variante física de la prenda.</p>
+        </div>
+
+        <div class="form-grid">
+          <div class="f">
+            <label for="editVarSku">SKU Único *</label>
+            <input #skuEditInput id="editVarSku" formControlName="sku" class="input-mono" />
+          </div>
+          <div class="f">
+            <label for="editVarPrecio">Precio Vendible (Bs) *</label>
+            <input id="editVarPrecio" type="number" formControlName="precio" min="0" step="0.01" />
+            <span class="field-hint text-success">Precio final de venta en caja y web</span>
+          </div>
+          <div class="f">
+            <label for="editVarCb">Código de Barras</label>
+            <input id="editVarCb" formControlName="codigo_barras" placeholder="Dejar vacío para borrar" class="input-mono" />
+          </div>
+          <div class="f">
+            <label for="editVarPeso">Peso en gramos</label>
+            <input id="editVarPeso" type="number" formControlName="peso_gramos" placeholder="Dejar vacío para borrar" min="1" />
+          </div>
+          <div class="f full">
+            <label for="editVarRecurso">Recurso de Prueba Virtual</label>
+            <input id="editVarRecurso" formControlName="recurso_prueba_virtual" placeholder="Identificador o recurso (opcional)" />
+          </div>
+          <div class="f flex1 check-row mt-lg">
+            <label class="check-label">
+              <input type="checkbox" formControlName="activa" />
+              <span>Variante disponible para la venta</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" (click)="cerrarEditarVariante()" [disabled]="guardandoEdicionVar" [attr.aria-disabled]="guardandoEdicionVar">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="guardarEdicionVariante()" [disabled]="guardandoEdicionVar" [attr.aria-disabled]="guardandoEdicionVar">
+          {{ guardandoEdicionVar ? 'Guardando...' : 'Guardar Variante' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diálogo accesible de confirmación para desactivación -->
+  <app-confirm-dialog
+    [abierto]="dialogConfirmDesactivarAbierto"
+    [titulo]="tipoDesactivacion === 'producto' ? '¿Desactivar producto?' : '¿Desactivar variante?'"
+    [descripcion]="tipoDesactivacion === 'producto'
+      ? 'El producto «' + (productoADesactivar?.nombre || '') + '» dejará de ser visible en el catálogo de clientes.'
+      : 'La variante SKU «' + (varianteADesactivar?.sku || '') + '» no podrá ser seleccionada ni vendida en compras digitales ni en caja.'"
+    textoConfirmar="Sí, desactivar"
+    textoCancelar="Mantener activo"
+    variante="danger"
+    [procesando]="procesandoDesactivacion"
+    (confirmar)="confirmarDesactivacion()"
+    (cancelar)="cancelarDesactivacion()"
+  ></app-confirm-dialog>
+</div>

@@ -1,0 +1,988 @@
+<section class="cycle-page">
+  <header class="cycle-hero">
+    <div>
+      <p class="cycle-kicker">Punto de venta y caja física</p>
+      <h1>Caja y Turnos</h1>
+      <p>Gestión de turno con inventario exclusivo, venta de contado y atención de reservas.</p>
+    </div>
+    <div class="modo-tabs" role="tablist" aria-label="Modo de operación">
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="vistaModo === 'TURNO_OFFLINE'"
+        class="cycle-secondary"
+        [class.active]="vistaModo === 'TURNO_OFFLINE'"
+        (click)="cambiarModo('TURNO_OFFLINE')"
+      >
+        Caja Registradora
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="vistaModo === 'RESERVA'"
+        class="cycle-secondary"
+        [class.active]="vistaModo === 'RESERVA'"
+        (click)="cambiarModo('RESERVA')"
+      >
+        Cobro de Reservas
+      </button>
+    </div>
+  </header>
+
+  <!-- Mensajes de Estado y Alertas -->
+  <div *ngIf="error" class="cycle-alert danger" role="alert">
+    {{ error }}
+  </div>
+  <div *ngIf="mensajeExito" class="cycle-alert success" role="status">
+    {{ mensajeExito }}
+  </div>
+
+  <section class="cycle-card" *ngIf="ventasPendientesSync || diagnosticoLegado || puedeSupervisarCierre">
+    <p *ngIf="ventasPendientesSync">{{ ventasPendientesSync }} ventas propias pendientes, conservadas con su turno original.</p>
+    <p *ngIf="diagnosticoLegado" role="status">{{ diagnosticoLegado }}</p>
+    <button type="button" class="cycle-secondary" *ngIf="ventasPendientesSync" [disabled]="procesando" (click)="sincronizarVentasPendientes()">Sincronizar turnos originales</button>
+    <div *ngIf="puedeSupervisarCierre">
+      <label>Recuperaci?n supervisada online: ID del turno original <input [(ngModel)]="turnoRecuperacionId" name="turnoRecuperacionId"></label>
+      <button type="button" class="cycle-secondary" [disabled]="procesando || !turnoRecuperacionId.trim()" (click)="recuperarPendientesSupervisados()">Recuperar pendientes del turno</button>
+    </div>
+  </section>
+
+  <!-- ========================================== -->
+  <!-- SECCIÓN 1: CAJA REGISTRADORA Y TURNOS       -->
+  <!-- ========================================== -->
+  <ng-container *ngIf="vistaModo === 'TURNO_OFFLINE'">
+    <!-- Alerta de Turno Pendiente de Persistencia Local en IndexedDB -->
+    <section
+      *ngIf="!turnoActivo && turnoPendienteRecuperacion"
+      class="cycle-card banner-pendiente"
+      role="alert"
+      aria-live="assertive"
+    >
+      <div class="banner-pendiente-header">
+        <span class="badge badge-warning">Persistencia local requerida</span>
+        <h2>Turno pendiente de confirmación en el dispositivo</h2>
+        <p>
+          El turno de la caja <strong>{{ turnoPendienteRecuperacion.caja_codigo }}</strong> fue otorgado en el servidor central, pero no se pudo confirmar el almacenamiento transaccional local.
+        </p>
+      </div>
+
+      <div class="banner-pendiente-detalles">
+        <p class="detalle-texto">
+          La caja no está habilitada para operar ventas ni cobros hasta que se confirme la persistencia en el dispositivo. Reintente la persistencia para continuar sin volver a solicitar cupos al servidor.
+        </p>
+        <div class="cupos-pendientes-resumen">
+          <span>Cupos apartados en servidor:</span>
+          <strong>{{ turnoPendienteRecuperacion.cupos.length }} producto(s)</strong>
+        </div>
+      </div>
+
+      <div class="banner-pendiente-acciones">
+        <button
+          type="button"
+          class="cycle-primary"
+          [disabled]="procesando"
+          (click)="reintentarPersistenciaTurno()"
+        >
+          {{ procesando ? 'Reintentando persistencia…' : 'Reintentar persistencia local' }}
+        </button>
+        <button
+          type="button"
+          class="cycle-secondary"
+          [disabled]="procesando"
+          (click)="cancelarTurnoPendiente()"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="cycle-link danger"
+          [disabled]="procesando"
+          (click)="recuperarTurno()"
+        >
+          Reportar fallo al servidor
+        </button>
+      </div>
+    </section>
+
+    <!-- 1.A. Estado sin turno: Habilitar turno de 8 horas con cupos -->
+    <section *ngIf="!turnoActivo && !turnoPendienteRecuperacion" class="cycle-card">
+      <div class="card-header">
+        <h2>Apertura de Turno de Caja</h2>
+        <p>Asigna un código de caja física y aparta los cupos de prendas para operar durante la jornada (vigencia de 8 horas).</p>
+      </div>
+
+      <div class="form-grid">
+        <label>
+          <span>Identificador de caja</span>
+          <input [(ngModel)]="cajaId" placeholder="Ej. CAJA-01" required>
+        </label>
+        <label>
+          <span>Dispositivo</span>
+          <input [value]="dispositivoId" disabled>
+        </label>
+      </div>
+
+      <div class="cupos-builder">
+        <h3>Apartar cupo de prendas para la caja</h3>
+        <div class="line-builder">
+          <select [(ngModel)]="cupoVarianteSeleccionada" aria-label="Seleccionar prenda para cupo">
+            <option value="">Selecciona una prenda</option>
+            <option *ngFor="let v of variantes" [value]="v.id">
+              {{ v.sku }} · Bs {{ v.precio }}
+            </option>
+          </select>
+          <input
+            type="number"
+            min="1"
+            [(ngModel)]="cupoCantidadSolicitada"
+            aria-label="Cantidad de prendas para cupo"
+          >
+          <button type="button" class="cycle-secondary" (click)="agregarCupoSolicitado()">
+            Agregar cupo
+          </button>
+        </div>
+
+        <div class="table-wrap" *ngIf="cuposSolicitados.length">
+          <table class="cycle-table">
+            <thead>
+              <tr>
+                <th>Prenda</th>
+                <th>Cantidad apartada</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of cuposSolicitados; index as i">
+                <td>{{ v(c.variante_id) }}</td>
+                <td>{{ c.cantidad }} unid.</td>
+                <td>
+                  <button type="button" class="cycle-link danger" (click)="quitarCupoSolicitado(i)">
+                    Quitar
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="actions-footer">
+        <button
+          type="button"
+          class="cycle-primary"
+          [disabled]="!cuposSolicitados.length || procesando"
+          (click)="habilitarTurno()"
+        >
+          {{ procesando ? 'Habilitando caja…' : 'Abrir turno e iniciar caja' }}
+        </button>
+      </div>
+    </section>
+
+    <!-- 1.B. Turno activo: Operación de Caja Registradora -->
+    <ng-container *ngIf="turnoActivo">
+      <!-- Tarjeta de Resumen del Turno -->
+      <section class="cycle-card turno-banner">
+        <div *ngIf="turnoActivo.estado === 'CONCILIACION' && !puedeSupervisarCierre" class="cycle-alert warning" role="status">
+          El turno conserva prendas retenidas. Solicita a un supervisor que registre el conteo físico antes de liberar inventario.
+        </div>
+        <div class="turno-info">
+          <div>
+            <span class="badge" [class.badge-open]="turnoActivo.estado === 'ABIERTO'">
+              {{ etiquetaEstadoTurno(turnoActivo.estado) }}
+            </span>
+            <h2>Caja {{ turnoActivo.caja_codigo }}</h2>
+            <p>Vence a las {{ turnoActivo.vence_en | date:'shortTime' }} (jornada de 8 horas)</p>
+          </div>
+          <div class="turno-acciones">
+            <span *ngIf="ventasPendientesSync > 0" class="badge-pendientes">
+              {{ ventasPendientesSync }} venta(s) pendiente(s) de sincronizar
+            </span>
+            <button
+              *ngIf="ventasPendientesSync > 0"
+              type="button"
+              class="cycle-secondary"
+              [disabled]="procesando"
+              (click)="sincronizarVentasPendientes()"
+            >
+              Sincronizar ahora
+            </button>
+            <button
+              *ngIf="turnoActivo.estado !== 'CONCILIACION'"
+              type="button"
+              class="cycle-secondary"
+              [disabled]="procesando"
+              (click)="abrirModalCierre(false)"
+            >
+              Cerrar turno
+            </button>
+            <button
+              *ngIf="turnoActivo.estado === 'CONCILIACION' && puedeSupervisarCierre"
+              type="button"
+              class="cycle-primary"
+              [disabled]="procesando"
+              (click)="abrirModalCierre(true)"
+            >
+              Resolver conciliación
+            </button>
+            <button
+              type="button"
+              class="cycle-link danger"
+              [disabled]="procesando"
+              (click)="recuperarTurno()"
+            >
+              Reportar fallo
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabla de Cupos de Caja -->
+        <div class="table-wrap">
+          <table class="cycle-table">
+            <thead>
+              <tr>
+                <th>Prenda en caja</th>
+                <th>Precio unitario</th>
+                <th>Otorgado</th>
+                <th>Vendido</th>
+                <th>Disponible en caja</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of turnoActivo.cupos">
+                <td>{{ c.sku || v(c.variante_id) }}</td>
+                <td>Bs {{ c.precio_autorizado_bob | number:'1.2-2' }}</td>
+                <td>{{ c.otorgado }}</td>
+                <td>{{ c.consumido }}</td>
+                <td>
+                  <strong>{{ c.otorgado - c.consumido }}</strong>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Formulario de Venta Contado -->
+      <section *ngIf="!comprobanteOffline" class="cycle-card">
+        <h2>Nueva Venta al Contado</h2>
+        <p>Agrega prendas asignadas a esta caja para registrar el cobro en efectivo y entrega de prendas.</p>
+
+        <div class="line-builder">
+          <select [(ngModel)]="varianteVentaOffline" aria-label="Prenda a vender">
+            <option value="">Selecciona prenda del turno</option>
+            <option
+              *ngFor="let c of turnoActivo.cupos"
+              [value]="c.variante_id"
+              [disabled]="(c.otorgado - c.consumido) <= 0"
+            >
+              {{ c.sku || v(c.variante_id) }} · Bs {{ c.precio_autorizado_bob }} (Quedan {{ c.otorgado - c.consumido }})
+            </option>
+          </select>
+          <input
+            type="number"
+            min="1"
+            [(ngModel)]="cantidadVentaOffline"
+            aria-label="Cantidad a vender"
+          >
+          <button type="button" class="cycle-secondary" (click)="agregarLineaVentaOffline()">
+            Agregar
+          </button>
+        </div>
+
+        <div class="table-wrap" *ngIf="lineasVentaOffline.length">
+          <table class="cycle-table">
+            <thead>
+              <tr>
+                <th>Prenda</th>
+                <th>Cantidad</th>
+                <th>Precio unit.</th>
+                <th>Subtotal</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let l of lineasVentaOffline; index as idx">
+                <td>{{ v(l.variante_id) }}</td>
+                <td>{{ l.cantidad }}</td>
+                <td>Bs {{ l.precio_bob | number:'1.2-2' }}</td>
+                <td>Bs {{ (l.cantidad * l.precio_bob) | number:'1.2-2' }}</td>
+                <td>
+                  <button type="button" class="cycle-link danger" (click)="quitarLineaVentaOffline(idx)">
+                    Quitar
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Cobro en Efectivo, Saldo o Tarjeta de prueba -->
+        <div class="cobro-box" *ngIf="lineasVentaOffline.length">
+          <div class="medio-pago-caja">
+            <label>
+              <span>Medio de liquidación</span>
+              <select [(ngModel)]="medioPagoCaja">
+                <option value="EFECTIVO">Efectivo en caja</option>
+                <option value="SALDO">Saldo del cliente</option>
+                <option value="STRIPE_TEST">Tarjeta de prueba (Stripe Test)</option>
+              </select>
+            </label>
+          </div>
+
+          <div *ngIf="medioPagoCaja === 'SALDO'" class="fila-input">
+            <label>
+              <span>Identificador del cliente</span>
+              <input
+                type="text"
+                [(ngModel)]="clienteIdCaja"
+                placeholder="UUID del cliente con saldo disponible"
+              >
+            </label>
+            <p class="campo-ayuda">El saldo se debitará de la cuenta del cliente previa validación en servidor central.</p>
+          </div>
+
+          <div *ngIf="medioPagoCaja === 'STRIPE_TEST'" class="stripe-caja-panel cycle-card">
+            <div *ngIf="!ordenStripeCaja" class="stripe-inicio-caja">
+              <p class="campo-ayuda">Inicia el cobro con Stripe para calcular el monto exacto en USD y congelar la orden en caja.</p>
+              <button
+                type="button"
+                class="cycle-secondary btn-iniciar-stripe"
+                [disabled]="!lineasVentaOffline.length || iniciandoStripeCaja"
+                (click)="iniciarStripeCaja()"
+              >
+                {{ iniciandoStripeCaja ? 'Iniciando orden en servidor…' : 'Iniciar cobro con tarjeta Stripe' }}
+              </button>
+            </div>
+
+            <div *ngIf="ordenStripeCaja" class="stripe-orden-detalle">
+              <div
+                *ngIf="ordenStripeCaja.estado_verificacion === 'NO_VERIFICADO_ERROR_PASARELA'"
+                class="cycle-alert warning stripe-alerta-verificacion"
+                role="alert"
+              >
+                <span>No se pudo verificar el estado en Stripe por problema de red. Reintente la verificación antes de cobrar.</span>
+                <button
+                  type="button"
+                  class="cycle-secondary btn-reintentar-verificacion"
+                  (click)="recuperarOrdenActivaCaja()"
+                >
+                  Reintentar comprobación
+                </button>
+              </div>
+
+              <div
+                *ngIf="esOrdenProvisional(ordenStripeCaja)"
+                class="cycle-alert warning stripe-alerta-provisional"
+                role="alert"
+                aria-live="polite"
+              >
+                <div class="provisional-mensaje">
+                  <p class="provisional-texto">
+                    Orden de pago provisional detectada. Reanude el cobro para obtener la pasarela o cancele la orden.
+                  </p>
+                </div>
+                <div class="provisional-acciones">
+                  <button
+                    type="button"
+                    class="cycle-primary btn-reanudar-stripe"
+                    [disabled]="reanudandoStripeCaja"
+                    (click)="reanudarCobroStripeCaja()"
+                  >
+                    {{ reanudandoStripeCaja ? 'Reanudando cobro…' : 'Reanudar Cobro Stripe' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="cycle-secondary btn-cancelar-provisional"
+                    [disabled]="reanudandoStripeCaja"
+                    (click)="cancelarStripeCaja()"
+                  >
+                    Cancelar orden
+                  </button>
+                </div>
+              </div>
+
+              <div class="stripe-orden-cabecera">
+                <span class="stripe-badge" [class.capturado]="ordenStripeCaja.estado_orden === 'CAPTURADO'">
+                  Estado: {{ ordenStripeCaja.estado_orden }}
+                </span>
+                <button
+                  type="button"
+                  class="cycle-link"
+                  *ngIf="ordenStripeCaja.estado_orden !== 'CAPTURADO'"
+                  (click)="cancelarStripeCaja()"
+                >
+                  Cancelar orden
+                </button>
+              </div>
+              <p class="stripe-dato" *ngIf="ordenStripeCaja.stripe_payment_intent_id">
+                <strong>Intención:</strong> <code>{{ ordenStripeCaja.stripe_payment_intent_id }}</code>
+              </p>
+              <p class="stripe-dato"><strong>Total oficial:</strong> Bs {{ ordenStripeCaja.monto_bob }} ({{ ordenStripeCaja.monto_usd }} USD)</p>
+              <p class="stripe-dato"><strong>Tasa oficial:</strong> Bs {{ ordenStripeCaja.tasa_bob_por_usd }} por USD</p>
+
+              <!-- Contenedor seguro Stripe Card Element -->
+              <div *ngIf="!esOrdenProvisional(ordenStripeCaja) && ordenStripeCaja.estado_orden !== 'CAPTURADO'" class="stripe-element-container">
+                <label class="stripe-element-label" for="stripe-card-element-caja">
+                  Tarjeta de crédito o débito (Stripe Test)
+                </label>
+                <div id="stripe-card-element-caja" class="stripe-card-input"></div>
+                <div
+                  *ngIf="errorTarjetaCaja"
+                  class="stripe-card-error"
+                  role="alert"
+                >
+                  {{ errorTarjetaCaja }}
+                </div>
+              </div>
+
+              <div *ngIf="!esOrdenProvisional(ordenStripeCaja) && ordenStripeCaja.estado_orden !== 'CAPTURADO'" class="stripe-accion-captura">
+                <button
+                  type="button"
+                  class="cycle-primary btn-capturar-stripe"
+                  [disabled]="!cardElementCajaValido || capturandoStripeCaja"
+                  (click)="capturarStripeCaja()"
+                >
+                  {{ capturandoStripeCaja ? 'Confirmando y capturando fondos…' : 'Confirmar captura en Stripe Test' }}
+                </button>
+                <button
+                  type="button"
+                  class="cycle-secondary btn-reintentar-confirmacion"
+                  (click)="reintentarConfirmacionStripeCaja()"
+                >
+                  Sincronizar estado con Stripe
+                </button>
+              </div>
+
+              <div *ngIf="ordenStripeCaja.estado_orden === 'CAPTURADO'" class="stripe-capturado-exito" role="status">
+                <span class="badge badge-success">Cobro capturado exitosamente en pasarela</span>
+                <p>El importe en USD está garantizado. Proceda a liquidar y confirmar la entrega.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="totales-resumen" *ngIf="medioPagoCaja === 'EFECTIVO'">
+            <div class="fila-total">
+              <span>Total a cobrar</span>
+              <strong>Bs {{ totalVentaOffline() | number:'1.2-2' }}</strong>
+            </div>
+            <div class="fila-input">
+              <label>
+                <span>Efectivo recibido</span>
+                <input
+                  type="number"
+                  step="0.50"
+                  min="0"
+                  [(ngModel)]="efectivoRecibido"
+                  (ngModelChange)="calcularCambio()"
+                >
+              </label>
+            </div>
+            <div class="fila-cambio">
+              <span>Cambio a entregar</span>
+              <strong class="cambio-valor">Bs {{ cambioEntregado | number:'1.2-2' }}</strong>
+            </div>
+          </div>
+
+          <div class="totales-resumen" *ngIf="medioPagoCaja !== 'EFECTIVO'">
+            <div class="fila-total">
+              <span>Total a liquidar</span>
+              <strong>Bs {{ totalVentaOffline() | number:'1.2-2' }}</strong>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="cycle-primary btn-cobro"
+            [disabled]="!lineasVentaOffline.length || (medioPagoCaja === 'EFECTIVO' && efectivoRecibido < totalVentaOffline()) || (medioPagoCaja === 'SALDO' && !clienteIdCaja.trim()) || (medioPagoCaja === 'STRIPE_TEST' && (!ordenStripeCaja || ordenStripeCaja.estado_orden !== 'CAPTURADO')) || procesando"
+            (click)="cobrarVentaContado()"
+          >
+            {{ procesando ? 'Liquidando venta…' : (medioPagoCaja === 'EFECTIVO' ? 'Cobrar contado y entregar' : 'Liquidar y confirmar entrega') }}
+          </button>
+        </div>
+      </section>
+
+      <!-- Comprobante de Venta Emitido -->
+      <section *ngIf="comprobanteOffline" class="receipt" aria-live="polite">
+        <div class="receipt-header">
+          <p class="cycle-kicker">Comprobante de entrega y venta</p>
+          <h2>{{ comprobanteOffline.numero }}</h2>
+          <span *ngIf="comprobanteOffline.esOffline" class="badge-offline">
+            Registrado localmente (pendiente de sincronización)
+          </span>
+          <p>{{ comprobanteOffline.fecha | date:'medium' }}</p>
+        </div>
+
+        <table class="receipt-table">
+          <thead>
+            <tr>
+              <th>Prenda</th>
+              <th>Cantidad</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let it of comprobanteOffline.lineas">
+              <td>{{ it.sku }}</td>
+              <td>{{ it.cantidad }}</td>
+              <td>Bs {{ it.subtotal | number:'1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="receipt-total">
+          <span>Total Pagado</span>
+          <strong>Bs {{ comprobanteOffline.total | number:'1.2-2' }}</strong>
+        </div>
+        <div class="receipt-detalles">
+          <p>Efectivo entregado: Bs {{ comprobanteOffline.efectivo | number:'1.2-2' }}</p>
+          <p>Cambio devuelto: Bs {{ comprobanteOffline.cambio | number:'1.2-2' }}</p>
+        </div>
+
+        <div class="receipt-actions">
+          <button type="button" class="cycle-secondary" (click)="imprimir()">
+            Imprimir
+          </button>
+          <button type="button" class="cycle-primary" (click)="nuevaVentaOffline()">
+            Siguiente venta
+          </button>
+        </div>
+      </section>
+
+      <!-- Modal de Cierre de Turno y Conciliación con Arqueo -->
+      <div
+        *ngIf="mostrarDialogoCierre"
+        class="modal-backdrop"
+        (click)="cancelarCierre()"
+        (keydown.escape)="cancelarCierre()"
+        tabindex="-1"
+      >
+        <div
+          class="modal-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-cierre-titulo"
+          (click)="$event.stopPropagation()"
+        >
+          <header class="modal-header">
+            <h3 id="modal-cierre-titulo">
+              {{ cierreSupervisado ? 'Conciliación física supervisada' : 'Cierre de turno y arqueo de caja' }}
+            </h3>
+            <button
+              type="button"
+              class="cycle-link close-btn"
+              aria-label="Cerrar ventana"
+              (click)="cancelarCierre()"
+            >
+              ✕
+            </button>
+          </header>
+
+          <div class="modal-body">
+            <p class="modal-intro" *ngIf="!cierreSupervisado">
+              Se revisarán las ventas locales y el efectivo. Si quedan prendas sin conciliar, permanecerán retenidas hasta que un supervisor verifique el conteo.
+            </p>
+            <p class="modal-intro" *ngIf="cierreSupervisado">
+              Cuenta las prendas sin vender que quedaron físicamente disponibles. Solo esas unidades podrán volver al inventario libre. Los faltantes permanecerán retenidos o se registrarán como merma con motivo.
+            </p>
+
+            <div class="resumen-cierre">
+              <div class="resumen-item">
+                <span>Última secuencia local</span>
+                <strong>#{{ turnoActivo.ultima_secuencia_local || 0 }}</strong>
+              </div>
+              <div class="resumen-item">
+                <span>Total operaciones registradas</span>
+                <strong>{{ turnoActivo.total_operaciones_locales || 0 }}</strong>
+              </div>
+              <div class="resumen-item" [class.alerta-pendientes]="ventasPendientesSync > 0">
+                <span>Ventas pendientes de sincronizar</span>
+                <strong>{{ ventasPendientesSync }}</strong>
+              </div>
+            </div>
+
+            <div *ngIf="ventasPendientesSync > 0" class="cycle-alert danger" role="alert">
+              Atención: Existen {{ ventasPendientesSync }} venta(s) física(s) pendientes de sincronización. El turno pasará a estado de conciliación hasta que todas las operaciones se transmitan al servidor.
+            </div>
+
+            <label class="modal-label">
+              <span>Arqueo de efectivo en caja (Bs)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.50"
+                [(ngModel)]="arqueoEfectivoBob"
+                placeholder="0.00"
+                aria-label="Arqueo de efectivo en caja en Bolivianos"
+              >
+            </label>
+
+            <ng-container *ngIf="cierreSupervisado">
+              <label class="modal-label">
+                <span>Referencia del acta o registro físico</span>
+                <input
+                  type="text"
+                  [(ngModel)]="referenciaActa"
+                  maxlength="120"
+                  aria-label="Referencia del acta o registro físico"
+                  placeholder="Ej. ACTA-CAJA-2026-014"
+                >
+              </label>
+
+              <label class="modal-label">
+                <span>Motivo de la conciliación supervisada</span>
+                <textarea
+                  [(ngModel)]="motivoSupervision"
+                  rows="3"
+                  maxlength="500"
+                  aria-label="Motivo de la conciliación supervisada"
+                  placeholder="Describe por qué se realiza el conteo supervisado"
+                ></textarea>
+              </label>
+
+              <fieldset class="conteo-fisico">
+                <legend>Conteo físico por prenda</legend>
+                <p>Registra las unidades no vendidas que encontraste. El conteo no puede superar el cupo aún pendiente.</p>
+                <div class="conteo-fisico-fila" *ngFor="let cupo of turnoActivo.cupos">
+                  <div class="conteo-fisico-producto">
+                    <strong>{{ cupo.sku || cupo.producto_nombre || v(cupo.variante_id) }}</strong>
+                    <span>Por verificar: {{ Math.max(0, cupo.otorgado - cupo.consumido - cupo.liberado - (cupo.mermado || 0)) }} unid.</span>
+                  </div>
+                  <label class="conteo-fisico-cantidad">
+                    <span>Encontradas</span>
+                    <input
+                      type="number"
+                      min="0"
+                      [max]="Math.max(0, cupo.otorgado - cupo.consumido - cupo.liberado - (cupo.mermado || 0))"
+                      step="1"
+                      [(ngModel)]="conteoFisicoPorVariante[cupo.variante_id]"
+                      [attr.aria-label]="'Unidades encontradas de ' + (cupo.sku || cupo.producto_nombre || v(cupo.variante_id))"
+                    >
+                  </label>
+                </div>
+              </fieldset>
+
+              <section class="faltantes-fisicos" *ngIf="cuposConFaltanteFisico.length">
+                <h4>Resolver prendas faltantes</h4>
+                <p>Indica si esperas recibir una venta pendiente o si confirmas que las prendas no están disponibles.</p>
+                <div class="faltante-fisico-fila" *ngFor="let cupo of cuposConFaltanteFisico">
+                  <strong>{{ cupo.sku || cupo.producto_nombre || v(cupo.variante_id) }}</strong>
+                  <label class="modal-label">
+                    <span>Resolución</span>
+                    <select [(ngModel)]="resolucionFaltantePorVariante[cupo.variante_id]">
+                      <option [ngValue]="undefined">Selecciona una resolución</option>
+                      <option value="PENDIENTE_SINCRONIZACION">Esperar sincronización de venta</option>
+                      <option value="MERMA">Registrar como merma o pérdida</option>
+                    </select>
+                  </label>
+                  <label class="modal-label">
+                    <span>Motivo (mínimo 10 caracteres)</span>
+                    <textarea
+                      [(ngModel)]="motivoFaltantePorVariante[cupo.variante_id]"
+                      rows="2"
+                      maxlength="500"
+                      [attr.aria-label]="'Motivo del faltante para ' + (cupo.sku || cupo.producto_nombre || v(cupo.variante_id))"
+                    ></textarea>
+                  </label>
+                </div>
+              </section>
+              <p class="conteo-fisico-nota" role="status">
+                El servidor libera las unidades encontradas y mantiene retenidas las que esperan sincronización. Las mermas se registran por separado y no vuelven al inventario disponible.
+              </p>
+            </ng-container>
+          </div>
+
+          <footer class="modal-footer">
+            <button
+              type="button"
+              class="cycle-secondary"
+              (click)="cancelarCierre()"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="cycle-primary"
+              [disabled]="procesando || arqueoEfectivoBob < 0 || (cierreSupervisado && !formularioSupervisionValido)"
+              (click)="confirmarCierreTurno()"
+            >
+              {{ procesando ? 'Guardando cierre…' : (cierreSupervisado ? 'Guardar conteo y resolver' : 'Confirmar cierre de turno') }}
+            </button>
+          </footer>
+        </div>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <!-- ========================================== -->
+  <!-- SECCIÓN 2: ATENCIÓN DE RESERVAS (Online)  -->
+  <!-- ========================================== -->
+  <ng-container *ngIf="vistaModo === 'RESERVA'">
+    <header class="cycle-toolbar">
+      <label class="grow">
+        <span>Código de reserva</span>
+        <input
+          [(ngModel)]="codigo"
+          placeholder="FS-XXXXXX"
+          (keyup.enter)="buscar()"
+        >
+      </label>
+      <button
+        type="button"
+        class="cycle-secondary"
+        [disabled]="cargando"
+        (click)="buscar()"
+      >
+        {{ cargando ? 'Buscando…' : 'Buscar reserva' }}
+      </button>
+      <button type="button" class="cycle-secondary" (click)="nueva()">
+        Limpiar
+      </button>
+    </header>
+
+    <div *ngIf="reserva" class="cycle-alert success" role="status">
+      Reserva {{ reserva.codigo }} · {{ reserva.estado.toLowerCase().replaceAll('_', ' ') }}
+    </div>
+
+    <section *ngIf="!comprobante" class="cycle-card">
+      <h2>{{ reserva ? 'Prendas reservadas' : 'Venta directa' }}</h2>
+
+      <div class="line-builder" *ngIf="!reserva">
+        <select [(ngModel)]="variante" aria-label="Variante">
+          <option value="">Selecciona una variante</option>
+          <option *ngFor="let v of variantes" [value]="v.id">
+            {{ v.sku }} · Bs {{ v.precio }}
+          </option>
+        </select>
+        <input
+          type="number"
+          min="1"
+          [(ngModel)]="cantidad"
+          aria-label="Cantidad"
+        >
+        <button type="button" class="cycle-secondary" (click)="agregar()">
+          Agregar
+        </button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="cycle-table">
+          <thead>
+            <tr>
+              <th>Variante</th>
+              <th>Cantidad</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let i of items; index as n">
+              <td>{{ v(i.variante_id) }}</td>
+              <td>
+                <input
+                  type="number"
+                  min="1"
+                  [(ngModel)]="i.cantidad"
+                  aria-label="Cantidad vendida"
+                >
+              </td>
+              <td>
+                <button type="button" class="cycle-link danger" (click)="quitar(n)">
+                  Quitar
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="checkout">
+        <label>
+          <span>Método de pago</span>
+          <select [(ngModel)]="metodo" (ngModelChange)="calcularTotalesPresenciales()">
+            <option value="EFECTIVO">Efectivo en caja</option>
+            <option value="SALDO">Saldo del cliente</option>
+            <option value="STRIPE_TEST">Tarjeta de prueba (Stripe Test)</option>
+            <option value="TARJETA_CAJA">Tarjeta física en POS</option>
+            <option value="QR_CAJA">QR en caja</option>
+            <option value="TRANSFERENCIA">Transferencia bancaria</option>
+          </select>
+        </label>
+
+        <div *ngIf="!reserva && metodo === 'SALDO'" class="presencial-input-campo">
+          <label>
+            <span>Identificador del cliente</span>
+            <input
+              type="text"
+              [(ngModel)]="clienteIdPresencial"
+              placeholder="UUID del cliente para liquidar con saldo"
+            >
+          </label>
+        </div>
+
+        <div *ngIf="!reserva && metodo === 'STRIPE_TEST'" class="stripe-caja-panel cycle-card">
+          <div *ngIf="!ordenStripePresencial" class="stripe-inicio-caja">
+            <p class="campo-ayuda">Inicia el cobro con Stripe para calcular el monto exacto en USD y congelar la orden en caja.</p>
+            <button
+              type="button"
+              class="cycle-secondary btn-iniciar-stripe"
+              [disabled]="!items.length || iniciandoStripePresencial"
+              (click)="iniciarStripePresencial()"
+            >
+              {{ iniciandoStripePresencial ? 'Iniciando orden en servidor…' : 'Iniciar cobro con tarjeta Stripe' }}
+            </button>
+          </div>
+
+          <div *ngIf="ordenStripePresencial" class="stripe-orden-detalle">
+            <div
+              *ngIf="ordenStripePresencial.estado_verificacion === 'NO_VERIFICADO_ERROR_PASARELA'"
+              class="cycle-alert warning stripe-alerta-verificacion"
+              role="alert"
+            >
+              <span>No se pudo verificar el estado en Stripe por problema de red. Reintente la verificación antes de cobrar.</span>
+              <button
+                type="button"
+                class="cycle-secondary btn-reintentar-verificacion"
+                (click)="recuperarOrdenActivaCaja()"
+              >
+                Reintentar comprobación
+              </button>
+            </div>
+
+            <div
+              *ngIf="esOrdenProvisional(ordenStripePresencial)"
+              class="cycle-alert warning stripe-alerta-provisional"
+              role="alert"
+              aria-live="polite"
+            >
+              <div class="provisional-mensaje">
+                <p class="provisional-texto">
+                  Orden de pago provisional detectada. Reanude el cobro para obtener la pasarela o cancele la orden.
+                </p>
+              </div>
+              <div class="provisional-acciones">
+                <button
+                  type="button"
+                  class="cycle-primary btn-reanudar-stripe"
+                  [disabled]="reanudandoStripePresencial"
+                  (click)="reanudarCobroStripePresencial()"
+                >
+                  {{ reanudandoStripePresencial ? 'Reanudando cobro…' : 'Reanudar Cobro Stripe' }}
+                </button>
+                <button
+                  type="button"
+                  class="cycle-secondary btn-cancelar-provisional"
+                  [disabled]="reanudandoStripePresencial"
+                  (click)="cancelarStripePresencial()"
+                >
+                  Cancelar orden
+                </button>
+              </div>
+            </div>
+
+            <div class="stripe-orden-cabecera">
+              <span class="stripe-badge" [class.capturado]="ordenStripePresencial.estado_orden === 'CAPTURADO'">
+                Estado: {{ ordenStripePresencial.estado_orden }}
+              </span>
+              <button
+                type="button"
+                class="cycle-link"
+                *ngIf="ordenStripePresencial.estado_orden !== 'CAPTURADO'"
+                (click)="cancelarStripePresencial()"
+              >
+                Cancelar orden
+              </button>
+            </div>
+            <p class="stripe-dato" *ngIf="ordenStripePresencial.stripe_payment_intent_id">
+              <strong>Intención:</strong> <code>{{ ordenStripePresencial.stripe_payment_intent_id }}</code>
+            </p>
+            <p class="stripe-dato"><strong>Total oficial:</strong> Bs {{ ordenStripePresencial.monto_bob }} ({{ ordenStripePresencial.monto_usd }} USD)</p>
+            <p class="stripe-dato"><strong>Tasa oficial:</strong> Bs {{ ordenStripePresencial.tasa_bob_por_usd }} por USD</p>
+
+            <!-- Contenedor seguro Stripe Card Element -->
+            <div *ngIf="!esOrdenProvisional(ordenStripePresencial) && ordenStripePresencial.estado_orden !== 'CAPTURADO'" class="stripe-element-container">
+              <label class="stripe-element-label" for="stripe-card-element-presencial">
+                Tarjeta de crédito o débito (Stripe Test)
+              </label>
+              <div id="stripe-card-element-presencial" class="stripe-card-input"></div>
+              <div
+                *ngIf="errorTarjetaPresencial"
+                class="stripe-card-error"
+                role="alert"
+              >
+                {{ errorTarjetaPresencial }}
+              </div>
+            </div>
+
+            <div *ngIf="!esOrdenProvisional(ordenStripePresencial) && ordenStripePresencial.estado_orden !== 'CAPTURADO'" class="stripe-accion-captura">
+              <button
+                type="button"
+                class="cycle-primary btn-capturar-stripe"
+                [disabled]="!cardElementPresencialValido || capturandoStripePresencial"
+                (click)="capturarStripePresencial()"
+              >
+                {{ capturandoStripePresencial ? 'Confirmando y capturando fondos…' : 'Confirmar captura en Stripe Test' }}
+              </button>
+              <button
+                type="button"
+                class="cycle-secondary btn-reintentar-confirmacion"
+                (click)="reintentarConfirmacionStripePresencial()"
+              >
+                Sincronizar estado con Stripe
+              </button>
+            </div>
+
+            <div *ngIf="ordenStripePresencial.estado_orden === 'CAPTURADO'" class="stripe-capturado-exito" role="status">
+              <span class="badge badge-success">Cobro capturado exitosamente en pasarela</span>
+              <p>El importe en USD está garantizado. Proceda a liquidar y finalizar la venta.</p>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="!reserva && metodo === 'EFECTIVO'" class="presencial-input-campo">
+          <label>
+            <span>Efectivo recibido en caja (Bs)</span>
+            <input
+              type="number"
+              step="0.50"
+              min="0"
+              [(ngModel)]="efectivoRecibidoPresencial"
+              (ngModelChange)="calcularTotalesPresenciales()"
+              placeholder="0.00"
+            >
+          </label>
+          <p *ngIf="cambioPresencialEstimado > 0" class="cambio-presencial-nota">
+            Cambio estimado a devolver: Bs {{ cambioPresencialEstimado | number:'1.2-2' }}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="cycle-primary"
+          [disabled]="!items.length || (metodo === 'SALDO' && !clienteIdPresencial.trim()) || (metodo === 'STRIPE_TEST' && (!ordenStripePresencial || ordenStripePresencial.estado_orden !== 'CAPTURADO')) || procesando"
+          (click)="vender()"
+        >
+          {{ procesando ? 'Liquidando…' : 'Cobrar y finalizar' }}
+        </button>
+      </div>
+    </section>
+
+    <!-- Comprobante Reserva / Venta -->
+    <section *ngIf="comprobante" class="receipt" aria-live="polite">
+      <p class="cycle-kicker">Venta confirmada</p>
+      <h2>{{ comprobante.numero }}</h2>
+      <p>{{ comprobante.sucursal_nombre }} · {{ comprobante.creada_en | date:'medium' }}</p>
+      <div class="receipt-total">
+        <span>Total confirmado por servidor</span>
+        <strong>Bs {{ comprobante.total | number:'1.2-2' }}</strong>
+      </div>
+      <p *ngIf="ventaLiquidada?.cambio_entregado_bob">
+        Cambio entregado: Bs {{ ventaLiquidada?.cambio_entregado_bob | number:'1.2-2' }}
+      </p>
+      <p *ngIf="comprobante.adelanto_descontado">
+        Adelanto descontado: Bs {{ comprobante.adelanto_descontado | number:'1.2-2' }}
+      </p>
+      <button type="button" class="cycle-secondary" (click)="imprimir()">
+        Imprimir comprobante
+      </button>
+    </section>
+  </ng-container>
+</section>

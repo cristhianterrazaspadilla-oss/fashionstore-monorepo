@@ -1,0 +1,260 @@
+<div class="module-container">
+  <div class="module-header">
+    <div>
+      <div class="badge-tag">Organización & Cobertura</div>
+      <h2>Ciudades, sucursales y delivery</h2>
+      <p>Administra los puntos de venta y sus tarifas de entrega por zona.</p>
+    </div>
+  </div>
+
+  <!-- BANNER DE CAPACIDADES Y PLAN VIGENTE (CU02 / CU15) -->
+  <div class="card-panel plan-banner" *ngIf="miPlan">
+    <div class="plan-info-grid">
+      <div>
+        <span class="plan-label">Plan contratado:</span>
+        <strong>{{ miPlan.plan_nombre }} ({{ miPlan.plan_codigo }})</strong>
+      </div>
+      <div>
+        <span class="plan-label">Sucursales activas:</span>
+        <strong [class.text-danger]="miPlan.sucursales_activas >= miPlan.limite_sucursales">
+          {{ miPlan.sucursales_activas }} de {{ miPlan.limite_sucursales }} permitidas
+        </strong>
+      </div>
+      <div>
+        <span class="plan-label">Estado de cobertura:</span>
+        <span class="badge-estado" [ngClass]="miPlan.estado_efectivo.toLowerCase()">
+          {{ miPlan.estado_efectivo }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="mensajeError" class="alert-box alert-danger" role="alert">
+    {{ mensajeError }}
+  </div>
+
+  <div *ngIf="mensajeExito" class="alert-box alert-success" role="status">
+    {{ mensajeExito }}
+  </div>
+
+  <div class="module-grid">
+    <!-- COLUMNA FORMULARIOS -->
+    <div class="forms-col">
+      <!-- FORM CREAR CIUDAD (SOLO PLATAFORMA CU15) -->
+      <div class="card-panel" *ngIf="esPlataforma">
+        <h3>Registrar Ciudad (Global)</h3>
+        <p class="text-muted">Catálogo central administrado exclusivamente por la plataforma.</p>
+        <form (ngSubmit)="crearCiudad()">
+          <div class="form-group">
+            <label for="ciudadNom">Nombre de la Ciudad *</label>
+            <input
+              type="text"
+              id="ciudadNom"
+              name="ciudadNom"
+              [(ngModel)]="nuevaCiudadNombre"
+              placeholder="Ej. Cochabamba"
+              required
+            />
+          </div>
+          <button type="submit" class="btn-primary" [disabled]="guardandoCiudad">
+            <span *ngIf="!guardandoCiudad">Guardar Ciudad</span>
+            <span *ngIf="guardandoCiudad">Guardando...</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- FORM CREAR SUCURSAL -->
+      <div class="card-panel">
+        <h3>Registrar Sucursal</h3>
+        <form (ngSubmit)="crearSucursal()">
+          <div class="form-group">
+            <label for="ciudadId">Ciudad *</label>
+            <select id="ciudadId" name="ciudadId" [(ngModel)]="nuevaSucursal.ciudad_id" required>
+              <option value="">Seleccione una ciudad...</option>
+              <option *ngFor="let c of ciudades" [value]="c.id">{{ c.nombre }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="sucNombre">Nombre de Sucursal *</label>
+            <input
+              type="text"
+              id="sucNombre"
+              name="sucNombre"
+              [(ngModel)]="nuevaSucursal.nombre"
+              placeholder="Ej. Sucursal Ventura Mall"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="sucDir">Dirección Física *</label>
+            <input
+              type="text"
+              id="sucDir"
+              name="sucDir"
+              [(ngModel)]="nuevaSucursal.direccion"
+              placeholder="4to Anillo esq. Av. San Martín"
+              required
+            />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="sucTel">Teléfono</label>
+              <input
+                type="tel"
+                id="sucTel"
+                name="sucTel"
+                [(ngModel)]="nuevaSucursal.telefono"
+                placeholder="+591 3 3112233"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="sucAnillo">Ubicación (Anillo 1-10)</label>
+              <input
+                type="number"
+                id="sucAnillo"
+                name="sucAnillo"
+                [(ngModel)]="nuevaSucursal.numero_anillo"
+                min="1"
+                max="10"
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="tarifaBase">Tarifa Base Delivery (Bs)</label>
+              <input
+                type="number"
+                id="tarifaBase"
+                name="tarifaBase"
+                [(ngModel)]="nuevaSucursal.tarifa_base_delivery"
+                step="0.5"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="incAnillo">Incremento Anillo (Bs)</label>
+              <input
+                type="number"
+                id="incAnillo"
+                name="incAnillo"
+                [(ngModel)]="nuevaSucursal.incremento_anillo_delivery"
+                step="0.5"
+                required
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="btn-primary"
+            [disabled]="guardandoSucursal || (miPlan && miPlan.sucursales_activas >= miPlan.limite_sucursales)"
+          >
+            <span *ngIf="!guardandoSucursal">Guardar Sucursal</span>
+            <span *ngIf="guardandoSucursal">Registrando...</span>
+          </button>
+          <p
+            *ngIf="miPlan && miPlan.sucursales_activas >= miPlan.limite_sucursales"
+            class="text-danger small-note"
+          >
+            Límite de sucursales activas alcanzado para su plan. Desactive una existente o mejore su plan.
+          </p>
+        </form>
+      </div>
+    </div>
+
+    <!-- COLUMNA LISTADO SUCURSALES -->
+    <div class="card-panel">
+      <div class="filters-bar">
+        <div class="filter-item">
+          <label for="filtroCiudad">Filtrar por Ciudad</label>
+          <select id="filtroCiudad" [(ngModel)]="filtroCiudadId" (change)="cargarSucursales()">
+            <option value="">Todas las ciudades</option>
+            <option *ngFor="let c of ciudades" [value]="c.id">{{ c.nombre }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Sucursal</th>
+              <th>Ciudad</th>
+              <th>Ubicación</th>
+              <th>Tarifas Delivery</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="cargando">
+              <td colspan="6" class="table-empty">Cargando sucursales...</td>
+            </tr>
+            <tr *ngIf="!cargando && sucursales.length === 0">
+              <td colspan="6" class="table-empty">No se encontraron sucursales registradas</td>
+            </tr>
+            <tr *ngFor="let s of sucursales">
+              <td>
+                <div class="suc-name">{{ s.nombre }}</div>
+                <div class="suc-dir">{{ s.direccion }}</div>
+              </td>
+              <td>{{ s.ciudad_nombre || '-' }}</td>
+              <td>
+                <span class="badge-anillo" *ngIf="s.numero_anillo">Anillo {{ s.numero_anillo }}</span>
+                <span *ngIf="!s.numero_anillo" class="text-muted">No especificado</span>
+              </td>
+              <td>
+                <div class="tarifa-val">Base: Bs. {{ s.tarifa_base_delivery }}</div>
+                <div class="tarifa-sub">+Bs. {{ s.incremento_anillo_delivery }}/anillo</div>
+              </td>
+              <td>
+                <span class="badge-estado" [class.activa]="s.activa" [class.inactiva]="!s.activa">
+                  {{ s.activa ? 'Activa' : 'Inactiva' }}
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button type="button" class="btn-action" (click)="ajustarTarifas(s, $event)">Ajustar tarifas</button>
+                <button
+                  type="button"
+                  class="btn-action"
+                  [disabled]="cambiandoEstadoId === s.id"
+                  (click)="alternarEstadoSucursal(s)"
+                >
+                  {{ s.activa ? 'Desactivar' : 'Activar' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="dialog-backdrop" *ngIf="sucursalTarifas" (click)="cerrarTarifas()" (keydown)="alManejarTabModal($event)">
+  <section #modalTarifasBox class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="rates-dialog-title" (click)="$event.stopPropagation()">
+    <p class="dialog-kicker">Configuración de delivery</p>
+    <h3 id="rates-dialog-title">Tarifas de {{ sucursalTarifas.nombre }}</h3>
+    <p>Define el costo inicial y el incremento aplicado por cada anillo.</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="tarifaEdicion">Tarifa base (Bs)</label>
+        <input id="tarifaEdicion" type="number" min="0" step="0.5" [(ngModel)]="tarifaBaseEdicion" />
+      </div>
+      <div class="form-group">
+        <label for="incrementoEdicion">Incremento por anillo (Bs)</label>
+        <input id="incrementoEdicion" type="number" min="0" step="0.5" [(ngModel)]="incrementoEdicion" />
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="dialog-secondary" (click)="cerrarTarifas()">Cancelar</button>
+      <button type="button" class="dialog-primary" [disabled]="guardandoSucursal || tarifaBaseEdicion < 0 || incrementoEdicion < 0" (click)="guardarTarifas()">{{ guardandoSucursal ? 'Guardando…' : 'Guardar tarifas' }}</button>
+    </div>
+  </section>
+</div>

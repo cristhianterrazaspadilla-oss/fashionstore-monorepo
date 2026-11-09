@@ -1,0 +1,146 @@
+<div class="page">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">Auditoría inmutable · Kardex</p>
+      <h1>Kardex & Inventario Valorizado</h1>
+      <p>Auditoría inmutable por variante y sucursal · Costo unitario por movimiento · Valorización total de existencias · Margen comercial</p>
+    </div>
+    <div class="hero-cards">
+      <div class="hcard"><div class="hnum">{{ totalFisico }}</div><div class="hl">Stock físico</div></div>
+      <div class="hcard"><div class="hnum">{{ totalLibre }}</div><div class="hl">Disponible</div></div>
+      <div class="hcard"><div class="hnum">{{ totalReservado }}</div><div class="hl">Reservado</div></div>
+      <div class="hcard"><div class="hnum">{{ totalCupoOffline }}</div><div class="hl">Cupo en caja</div></div>
+      <div class="hcard accent"><div class="hnum">Bs {{ totalValorizacion | number:'1.2-2' }}</div><div class="hl">Valorización</div></div>
+    </div>
+  </div>
+
+  <div class="filters card">
+    <div class="row">
+      <div class="f">
+        <label for="filtro-sucursal">Sucursal</label>
+        <select id="filtro-sucursal" [(ngModel)]="filtroSucursal">
+          <option value="">Todas</option>
+          <option *ngFor="let s of sucursales" [value]="s.id">{{ s.nombre }}</option>
+        </select>
+      </div>
+      <div class="f">
+        <label for="filtro-variante">Variante</label>
+        <select id="filtro-variante" [(ngModel)]="filtroVariante">
+          <option value="">Todas</option>
+          <option *ngFor="let v of variantes" [value]="v.id">{{ v.sku }}</option>
+        </select>
+      </div>
+      <div class="f">
+        <label for="filtro-tipo">Tipo de movimiento</label>
+        <select id="filtro-tipo" [(ngModel)]="filtroTipo">
+          <option value="">Todos</option>
+          <option *ngFor="let t of tipos" [value]="t">{{ etiquetaTipoKardex(t) }}</option>
+        </select>
+      </div>
+      <div class="btns">
+        <button type="button" class="btn-primary" (click)="aplicarFiltros()">Aplicar</button>
+        <button type="button" class="btn-ghost" (click)="limpiar()">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Vistas de inventario">
+    <button type="button" role="tab" [attr.aria-selected]="tab==='kardex'" [class.on]="tab==='kardex'" (click)="tab='kardex'">Kardex</button>
+    <button type="button" role="tab" [attr.aria-selected]="tab==='existencias'" [class.on]="tab==='existencias'" (click)="tab='existencias'">Existencias</button>
+    <button type="button" role="tab" [attr.aria-selected]="tab==='valorizacion'" [class.on]="tab==='valorizacion'" (click)="tab='valorizacion'">Valorización</button>
+  </div>
+
+  <div *ngIf="mensajeError" class="alert err" role="alert">{{ mensajeError }}</div>
+
+  <!-- KARDEX -->
+  <div *ngIf="tab==='kardex'" class="card" role="tabpanel" aria-label="Movimientos de inventario">
+    <h3>Movimientos de Inventario</h3>
+    <p class="desc">Movimientos registrados en orden cronológico con fecha, hora, costo unitario y stock físico disponible.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha y hora</th>
+            <th>Variante</th>
+            <th>Tipo de movimiento</th>
+            <th>Cantidad</th>
+            <th>Costo unitario</th>
+            <th>Stock físico disponible</th>
+            <th>Origen → Destino</th>
+            <th>Referencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of kardex.slice(0, 50)">
+            <td class="mono">{{ m.fecha_hora | date:'short' }}</td>
+            <td class="mono">{{ m.variante_id.slice(0,8) }}…</td>
+            <td><span class="type" [ngClass]="tipoClass(m.tipo)">{{ etiquetaTipoKardex(m.tipo) }}</span></td>
+            <td class="num strong">{{ m.cantidad }}</td>
+            <td class="num">Bs {{ m.costo_unitario | number:'1.2-2' }}</td>
+            <td class="num strong">{{ m.saldo_fisico !== undefined ? m.saldo_fisico : '—' }}</td>
+            <td class="mono muted">{{ (m.sucursal_origen_id?.slice(0,6) || '—') }} → {{ (m.sucursal_destino_id?.slice(0,6) || '—') }}</td>
+            <td class="mono muted">{{ formatearReferencia(m.referencia_tipo) }}</td>
+          </tr>
+          <tr *ngIf="kardex.length===0">
+            <td colspan="8" class="empty">No se encontraron movimientos registrados en el Kardex para los filtros seleccionados.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EXISTENCIAS -->
+  <div *ngIf="tab==='existencias'" class="card" role="tabpanel" aria-label="Existencias de inventario">
+    <h3>Existencias por Sucursal</h3>
+    <p class="desc">Disponibilidad de prendas por sucursal: stock físico, disponible para venta, reservado y cupo asignado a caja.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Producto</th>
+            <th>Sucursal</th>
+            <th>Stock físico</th>
+            <th>Disponible</th>
+            <th>Reservado</th>
+            <th>Cupo en caja</th>
+            <th>En tránsito</th>
+            <th>Valorización</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of existencias.slice(0, 50)">
+            <td class="mono strong">{{ e.sku }}</td>
+            <td>{{ e.producto_nombre }} <span class="muted" *ngIf="e.talla_nombre || e.color_nombre">({{ e.talla_nombre }} · {{ e.color_nombre }})</span></td>
+            <td>{{ e.sucursal_nombre }} <span class="muted">{{ e.ciudad_nombre }}</span></td>
+            <td class="num strong">{{ e.fisico !== undefined ? e.fisico : e.existencia_total }}</td>
+            <td class="num ok">{{ e.libre !== undefined ? e.libre : e.disponible }}</td>
+            <td class="num">{{ e.reservado }}</td>
+            <td class="num">{{ e.cupo_offline !== undefined ? e.cupo_offline : (e.comprometido_caja || 0) }}</td>
+            <td class="num">{{ e.en_transito }}</td>
+            <td class="num strong">Bs {{ e.valorizacion | number:'1.2-2' }}</td>
+          </tr>
+          <tr *ngIf="existencias.length===0">
+            <td colspan="9" class="empty">No se encontraron existencias registradas para la sucursal seleccionada.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- VALORIZACION -->
+  <div *ngIf="tab==='valorizacion'" class="card" role="tabpanel" aria-label="Valorización de inventario">
+    <h3>Valorización de Inventario</h3>
+    <p class="desc">Valorización total por sucursal calculada a partir de las existencias actuales y el costo promedio de adquisición.</p>
+    <div class="val-grid">
+      <div *ngFor="let v of valorizacion" class="val-card">
+        <div class="val-city">{{ v.ciudad_nombre }}</div>
+        <div class="val-name">{{ v.sucursal_nombre }}</div>
+        <div class="val-num">Bs {{ v.valorizacion | number:'1.2-2' }}</div>
+        <div class="val-sub">{{ v.total_existencia }} unidades · Costo promedio</div>
+      </div>
+      <div *ngIf="valorizacion.length===0" class="empty">No hay datos de valorización disponibles.</div>
+    </div>
+    <div class="total-bar">Total valorizado general: <b>Bs {{ totalValorizacion | number:'1.2-2' }}</b> · {{ totalExistencia }} unidades disponibles</div>
+  </div>
+</div>

@@ -1,0 +1,314 @@
+<section class="cycle-page">
+  <div class="cycle-hero">
+    <div>
+      <p class="cycle-kicker">Comercial</p>
+      <h1>Promociones y descuentos</h1>
+    </div>
+    <div *ngIf="esAdmin" class="hero-actions">
+      <button #btnCrear type="button" class="cycle-primary" (click)="abrirCrear(btnCrear)">
+        + Nueva promoción
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="exito" class="cycle-alert success" role="status">{{ exito }}</div>
+  <div *ngIf="error" class="cycle-alert danger" role="alert">{{ error }}</div>
+
+  <div class="cycle-toolbar">
+    <label class="check-label">
+      <input type="checkbox" [(ngModel)]="soloActivas" (change)="cambiarSoloActivas()">
+      <span>Ver solo promociones activas</span>
+    </label>
+  </div>
+
+  <div *ngIf="cargando" class="cycle-state" role="status"><p>Cargando promociones…</p></div>
+  <div *ngIf="!cargando && !promociones.length" class="cycle-state"><p>No se encontraron promociones registradas.</p></div>
+
+  <!-- Listado de promociones -->
+  <div *ngIf="!cargando && promociones.length" class="promos-grid">
+    <div *ngFor="let p of promociones" class="promo-card cycle-card" [class.inactiva]="!p.activa">
+      <div class="promo-head">
+        <span class="promo-codigo">{{ p.codigo }}</span>
+        <span class="status" [class.status-success]="p.activa" [class.status-danger]="!p.activa">
+          {{ p.activa ? 'Activa' : 'Inactiva' }}
+        </span>
+      </div>
+
+      <h2 class="promo-nombre">{{ p.nombre }}</h2>
+      <p *ngIf="p.descripcion" class="promo-descripcion">{{ p.descripcion }}</p>
+
+      <div class="promo-valor">
+        <span *ngIf="p.tipo === 'PORCENTAJE'">{{ p.valor }}% de descuento</span>
+        <span *ngIf="p.tipo === 'MONTO_FIJO'">{{ bs(p.valor) }} de descuento fijo</span>
+      </div>
+
+      <p *ngIf="p.vigencia_inicio || p.vigencia_fin" class="promo-vigencia">
+        Vigencia: {{ fecha(p.vigencia_inicio) }} — {{ fecha(p.vigencia_fin) }}
+      </p>
+
+      <div class="promo-variantes-resumen">
+        <span class="variantes-conteo">{{ p.variante_ids.length }} variantes asociadas</span>
+      </div>
+
+      <div *ngIf="esAdmin" class="promo-actions">
+        <button #btnEditar type="button" class="cycle-secondary sm" (click)="abrirEditar(p, btnEditar)">Editar</button>
+        <button #btnAsociar type="button" class="cycle-secondary sm" (click)="abrirAsociar(p, btnAsociar)">Asociar prendas</button>
+        <button #btnEliminar type="button" class="cycle-link danger sm" (click)="solicitarEliminar(p, btnEliminar)">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paginación accesible -->
+  <nav *ngIf="!cargando && total > limit" class="cycle-pagination" aria-label="Paginación de promociones">
+    <p class="cycle-pagination-info" aria-live="polite">
+      Mostrando {{ rangoInicio }} a {{ rangoFin }} de {{ total }} promociones
+    </p>
+    <div class="cycle-pagination-actions">
+      <button
+        type="button"
+        class="cycle-secondary"
+        [disabled]="offset === 0"
+        (click)="paginaAnterior()"
+        aria-label="Página anterior"
+      >
+        Anterior
+      </button>
+      <span class="cycle-pagination-page" aria-current="page">
+        Página {{ paginaActual }} de {{ totalPaginas }}
+      </span>
+      <button
+        type="button"
+        class="cycle-secondary"
+        [disabled]="offset + limit >= total"
+        (click)="paginaSiguiente()"
+        aria-label="Página siguiente"
+      >
+        Siguiente
+      </button>
+    </div>
+  </nav>
+
+  <!-- Diálogo accesible de Crear / Editar Promoción -->
+  <div *ngIf="dialogAbierto" class="dialog-backdrop" (click)="guardando ? null : cerrarDialog()" aria-hidden="false">
+    <div
+      #modalPromoBox
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="promo-dialog-title"
+      class="dialog-panel promo-form-dialog"
+      (click)="$event.stopPropagation()"
+      tabindex="-1"
+    >
+      <div class="dialog-header">
+        <h3 id="promo-dialog-title" class="dialog-title">
+          {{ editando ? 'Editar promoción' : 'Nueva promoción' }}
+        </h3>
+        <button type="button" class="btn-close-modal" (click)="cerrarDialog()" [disabled]="guardando" [attr.aria-disabled]="guardando" aria-label="Cerrar ventana">&times;</button>
+      </div>
+
+      <form [formGroup]="promoForm" (ngSubmit)="guardar()" class="dialog-body-form">
+        <div class="form-row">
+          <label for="codigoInput">
+            <span>Código promocional *</span>
+            <input
+              #codigoInput
+              id="codigoInput"
+              type="text"
+              formControlName="codigo"
+              placeholder="VERANO20"
+              required
+            />
+          </label>
+          <label for="nombreInput">
+            <span>Nombre de la campaña *</span>
+            <input
+              id="nombreInput"
+              type="text"
+              formControlName="nombre"
+              placeholder="Descuento de temporada"
+              required
+            />
+          </label>
+        </div>
+
+        <label for="descInput">
+          <span>Descripción (opcional)</span>
+          <textarea
+            id="descInput"
+            formControlName="descripcion"
+            rows="2"
+            placeholder="Aplica sobre selección de prendas..."
+          ></textarea>
+        </label>
+
+        <div class="form-row">
+          <label for="tipoSelect">
+            <span>Tipo de descuento *</span>
+            <select id="tipoSelect" formControlName="tipo">
+              <option value="PORCENTAJE">Porcentaje (%)</option>
+              <option value="MONTO_FIJO">Monto fijo (Bs)</option>
+            </select>
+          </label>
+          <label for="valorInput">
+            <span>Valor *</span>
+            <input
+              id="valorInput"
+              type="number"
+              formControlName="valor"
+              min="0"
+              step="0.01"
+              required
+            />
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label for="inicioInput">
+            <span>Vigencia inicial (Hora Bolivia)</span>
+            <input
+              id="inicioInput"
+              type="datetime-local"
+              formControlName="vigencia_inicio"
+            />
+          </label>
+          <label for="finInput">
+            <span>Vigencia final (Hora Bolivia)</span>
+            <input
+              id="finInput"
+              type="datetime-local"
+              formControlName="vigencia_fin"
+            />
+          </label>
+        </div>
+
+        <label class="check-label">
+          <input type="checkbox" formControlName="activa" />
+          <span>Promoción habilitada y activa</span>
+        </label>
+
+        <p *ngIf="errorVigencia" class="field-error" role="alert">{{ errorVigencia }}</p>
+
+        <div class="dialog-actions">
+          <button type="button" class="dialog-btn dialog-btn-cancel" (click)="cerrarDialog()" [disabled]="guardando" [attr.aria-disabled]="guardando">
+            Cancelar
+          </button>
+          <button type="submit" class="dialog-btn dialog-btn-primary" [disabled]="guardando" [attr.aria-disabled]="guardando">
+            {{ guardando ? 'Guardando…' : (editando ? 'Actualizar' : 'Crear promoción') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Diálogo accesible para Asociar Variantes mediante selector buscable -->
+  <div *ngIf="asociarDialogAbierto && asociarPromocion" class="dialog-backdrop" (click)="asociando ? null : cerrarAsociar()" aria-hidden="false">
+    <div
+      #modalAsocBox
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="asociar-dialog-title"
+      class="dialog-panel asociar-dialog"
+      (click)="$event.stopPropagation()"
+      tabindex="-1"
+    >
+      <div class="dialog-header">
+        <h3 id="asociar-dialog-title" class="dialog-title">
+          Asociar prendas a "{{ asociarPromocion.nombre }}"
+        </h3>
+        <button type="button" class="btn-close-modal" (click)="cerrarAsociar()" [disabled]="asociando" [attr.aria-disabled]="asociando" aria-label="Cerrar ventana">&times;</button>
+      </div>
+
+      <div class="dialog-body">
+        <!-- Selector buscable de prendas disponibles -->
+        <div class="asociar-selector-box">
+          <label for="asociarSearch"><span>Buscar prenda por nombre o SKU</span></label>
+          <input
+            #asociarSearchInput
+            id="asociarSearch"
+            type="text"
+            [(ngModel)]="filtroBusquedaVariante"
+            placeholder="Escribe el nombre de la prenda o SKU…"
+            class="input-busqueda-variante"
+          />
+
+          <div *ngIf="cargandoVariantes" class="cycle-state state-compact" role="status">
+            <p>Cargando catálogo de variantes…</p>
+          </div>
+
+          <div *ngIf="errorVariantes && !cargandoVariantes" class="cycle-alert danger" role="alert">
+            {{ errorVariantes }}
+            <button type="button" class="cycle-link" (click)="reintentarCargarVariantes()">Reintentar</button>
+          </div>
+
+          <div *ngIf="!cargandoVariantes" class="selector-variante-wrap">
+            <label for="varianteSelect"><span>Selecciona la prenda a incluir:</span></label>
+            <select id="varianteSelect" [(ngModel)]="varianteSeleccionadaId" class="select-variante">
+              <option value="" disabled>-- Elige una prenda disponible --</option>
+              <option *ngFor="let v of variantesFiltradas" [value]="v.variante_id">
+                {{ v.nombre_producto }} — SKU: {{ v.sku }} ({{ tallaColor(v.talla_nombre, v.color_nombre) }})
+              </option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            class="cycle-primary btn-asociar-accion"
+            (click)="asociar()"
+            [disabled]="!varianteSeleccionadaId || asociando"
+          >
+            {{ asociando ? 'Asociando…' : '+ Asociar a promoción' }}
+          </button>
+        </div>
+
+        <!-- Lista de prendas ya asociadas -->
+        <div class="asociadas-lista-seccion">
+          <h4>Prendas ya asociadas ({{ asociarPromocion.variante_ids.length }})</h4>
+
+          <div *ngIf="!asociarPromocion.variante_ids.length" class="cycle-state state-compact">
+            <p>Aún no hay prendas asociadas a esta campaña.</p>
+          </div>
+
+          <ul *ngIf="asociarPromocion.variante_ids.length" class="lista-asociadas">
+            <li *ngFor="let vid of asociarPromocion.variante_ids" class="item-asociada">
+              <div class="info-asociada">
+                <span class="nombre-prenda-asoc">{{ infoVariante(vid)?.nombre_producto ?? 'Prenda FashionStore' }}</span>
+                <span class="sku-prenda-asoc">SKU: {{ infoVariante(vid)?.sku ?? '—' }}</span>
+                <span *ngIf="infoVariante(vid)?.talla_nombre || infoVariante(vid)?.color_nombre" class="attr-prenda-asoc">
+                  {{ tallaColor(infoVariante(vid)?.talla_nombre, infoVariante(vid)?.color_nombre) }}
+                </span>
+              </div>
+              <button
+                type="button"
+                class="cycle-link danger btn-desasociar"
+                (click)="desasociar(vid)"
+                [disabled]="asociando"
+                aria-label="Desasociar prenda"
+              >
+                Desasociar
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="dialog-btn dialog-btn-cancel" (click)="cerrarAsociar()">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diálogo accesible de confirmación para eliminar promoción -->
+  <app-confirm-dialog
+    [abierto]="dialogEliminarAbierto"
+    titulo="¿Eliminar promoción?"
+    [descripcion]="'Se eliminará permanentemente la promoción «' + (promocionAEliminar?.nombre || '') + '». Las prendas asociadas dejarán de recibir este descuento.'"
+    textoConfirmar="Sí, eliminar promoción"
+    textoCancelar="Conservar"
+    variante="danger"
+    [procesando]="eliminando"
+    (confirmar)="confirmarEliminar()"
+    (cancelar)="cancelarEliminar()"
+  ></app-confirm-dialog>
+</section>

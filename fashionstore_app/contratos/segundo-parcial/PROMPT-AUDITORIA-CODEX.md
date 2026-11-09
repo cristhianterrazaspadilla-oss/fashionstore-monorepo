@@ -1,0 +1,13 @@
+# Prompt para Codex — auditoría actual de los tres repositorios
+
+Trabaja sobre fashionstore_backend, fashionstore_frontend y fashionstore_app presentes en este workspace. Objetivo: contrastar los contratos 0.3.1 de contratos/segundo-parcial con el código actual para 27 CU, sin implementar ni modificar archivos en esta primera auditoría.
+
+1. Lee instrucciones aplicables y verifica rama/commit/status de cada repositorio. Conserva cambios locales; no checkout/reset/clean/stash, commit ni push. No revelar .env, secretos, tokens o datos personales.
+2. Lee README, decisiones-0.3.1, compartido, casos-de-uso, fichas casos/, api-casos.json, esquemas, modelo-datos-completo y plan-migracion-db. A-PAGO-01 confirmado por compañero adopta pago conectado antes de asignación final de stock + reembolso íntegro si no cumplible; compra v3 conserva consentimiento y método preparado para intento conectado al reconectar. No declarar cobro offline. CU07 es efectivo sin red W/M. No volver a imponer stock antes de cobrar sin reportar contradicción.
+3. Para cada CU01–CU27 informa existente/adaptar/faltante/no verificable, archivos/métodos/rutas/DTO reales, paquete dueño y consumidores W/M. Cita rutas verificadas; no equiparar una ruta propuesta con implementada. Incluye funciones LB y regresiones afectadas (Decart, inventario, catálogo, promociones, traslados, entregas).
+4. Identifica entidades/modelos/migraciones y diferencias con modelo propuesto: tenant, pedidos/pagos/tasa, caja/cupos, inspecciones/notas/cambios/saldo/reembolsos, color compuesto/promociones cantidad, outbox/comprobantes y ML.
+5. Sin conectar a base ni arrancar backend, revisa configuración declarada y mecanismos de migración; advierte si arranque ejecutaDDL. No ejecutar servicios/migraciones ni pruebas que puedan tocar una base no aislada. Especifica qué revisión de esquema solo lectura deberá obtener luego el equipo para conocer estado real.
+6. Revisa persistencia real IndexedDB/SQLite, colas v1, idempotencia, pagos/reembolsos y recuperación. Señala consumidores que requieran actualización antes de activar nuevos estados/versiones.
+7. Entrega matriz27 CU y lista priorizada de decisiones técnicas necesarias, DTO compartidos, puntos de choque entre integrantes, y plan secuencial de implementación verificable. Separa hechos de inferencias y cosas no probadas. No escribas código todavía ni afirmes pruebas ejecutadas.
+
+El siguiente paso será implementar por bloques autorizados, una vez resueltas divergencias. La carpeta contractual compartida es la referencia; no alterar la política sin registrar decisión versionada.

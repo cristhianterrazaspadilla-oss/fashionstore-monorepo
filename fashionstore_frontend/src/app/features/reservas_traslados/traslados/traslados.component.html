@@ -1,0 +1,91 @@
+<section class="cycle-page">
+  <header class="cycle-hero">
+    <div>
+      <p class="cycle-kicker">Movimiento entre tiendas</p>
+      <h1>Traslados</h1>
+      <p>Aprueba, despacha y recibe prendas conservando la trazabilidad de cada reserva.</p>
+    </div>
+  </header>
+
+  <div *ngIf="error" class="cycle-alert danger" role="alert">{{ error }}</div>
+  <div *ngIf="exito" class="cycle-alert success" role="status">{{ exito }}</div>
+
+  <div class="cycle-toolbar">
+    <label>
+      <span>Estado</span>
+      <select [(ngModel)]="estado" (change)="cargar()">
+        <option value="">Todos</option>
+        <option *ngFor="let e of estados" [value]="e">{{ etiqueta(e) }}</option>
+      </select>
+    </label>
+
+    <label *ngIf="esEncargado">
+      <span>Movimientos</span>
+      <select [(ngModel)]="flujo" (change)="cargar()">
+        <option value="TODOS">Todos de mi tienda</option>
+        <option value="SALIENTES">Salientes (a despachar)</option>
+        <option value="ENTRANTES">Entrantes (a recibir)</option>
+      </select>
+    </label>
+
+    <label *ngIf="esAdmin">
+      <span>Sucursal de origen</span>
+      <select [(ngModel)]="sucursal" (change)="cargar()">
+        <option value="">Todas</option>
+        <option *ngFor="let s of sucursales" [value]="s.id">{{ s.nombre }}</option>
+      </select>
+    </label>
+
+    <button type="button" class="cycle-secondary" (click)="cargar()">Actualizar</button>
+  </div>
+
+  <div *ngIf="cargando" class="cycle-state" role="status">Consultando traslados…</div>
+
+  <div *ngIf="!cargando && !items.length" class="cycle-state">
+    <h2>Sin traslados registrados</h2>
+    <p>Cambia el filtro o vuelve a actualizar.</p>
+  </div>
+
+  <div class="cycle-list">
+    <article class="cycle-card" *ngFor="let t of items">
+      <div class="cycle-card-head">
+        <div>
+          <span class="cycle-code">{{ t.id | slice:0:8 }}</span>
+          <h2>{{ nombre(t.sucursal_origen_id) }} → {{ nombre(t.sucursal_destino_id) }}</h2>
+        </div>
+        <span class="status" [attr.data-status]="t.estado">{{ etiqueta(t.estado) }}</span>
+      </div>
+
+      <dl class="cycle-facts">
+        <div><dt>Solicitud</dt><dd>{{ t.fecha_solicitud | date:'medium' }}</dd></div>
+        <div><dt>Prendas</dt><dd>{{ t.detalles.length }}</dd></div>
+        <div><dt>Reserva</dt><dd>{{ (t.reserva_id || 'Sin reserva') | slice:0:8 }}</dd></div>
+      </dl>
+
+      <p *ngIf="t.motivo_rechazo" class="cycle-note">Motivo: {{ t.motivo_rechazo }}</p>
+
+      <div class="cycle-actions">
+        <button *ngIf="t.estado === 'SOLICITADO' && puedeAprobarODespachar(t)" type="button" class="cycle-primary" [disabled]="!!procesando" (click)="accion(t, 'aprobar')">Aprobar</button>
+        <button *ngIf="t.estado === 'SOLICITADO' && puedeAprobarODespachar(t)" type="button" class="cycle-danger" (click)="abrirRechazo(t, $event)">Rechazar</button>
+        <button *ngIf="t.estado === 'APROBADO' && puedeAprobarODespachar(t)" type="button" class="cycle-primary" [disabled]="!!procesando" (click)="accion(t, 'despachar')">Marcar despacho</button>
+        <button *ngIf="t.estado === 'DESPACHADO' && puedeRecibir(t)" type="button" class="cycle-primary" [disabled]="!!procesando" (click)="accion(t, 'recibir')">Confirmar recepción</button>
+      </div>
+    </article>
+  </div>
+</section>
+
+<div class="cycle-overlay" *ngIf="rechazo" (click)="cerrarRechazo()" (keydown)="alManejarTabModal($event)">
+  <section #modalRechazoDialog class="cycle-dialog" role="alertdialog" aria-modal="true" aria-labelledby="rechazo-title" (click)="$event.stopPropagation()">
+    <button type="button" class="dialog-close" aria-label="Cerrar" (click)="cerrarRechazo()">×</button>
+    <h2 id="rechazo-title">Rechazar traslado</h2>
+    <p>La línea quedará rechazada y el cliente podrá solicitar otro origen.</p>
+    <label>
+      <span>Motivo</span>
+      <textarea rows="3" [(ngModel)]="motivo"></textarea>
+    </label>
+    <div class="dialog-actions">
+      <button type="button" class="cycle-secondary" (click)="cerrarRechazo()">Volver</button>
+      <button type="button" class="cycle-danger" [disabled]="!!procesando" (click)="confirmarRechazo()">Confirmar rechazo</button>
+    </div>
+  </section>
+</div>

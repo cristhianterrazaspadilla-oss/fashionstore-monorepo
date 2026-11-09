@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fashionstore.local/contratos/segundo-parcial/0.3.2/referencia-horaria-solicitud.schema.json",
+  "title": "CU04 solicitud de referencia horaria",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["dispositivo_id", "hora_local_en"],
+  "properties": {
+    "dispositivo_id": {"type": "string", "format": "uuid"},
+    "hora_local_en": {"type": "string", "format": "date-time", "pattern": "-04:00$"}
+  },
+  "$comment": "POST autenticado con Idempotency-Key UUID en header. Bolivia usa America/La_Paz; campos datetime nuevos incluyen offset. El servidor valida desfase y ámbito."
+}

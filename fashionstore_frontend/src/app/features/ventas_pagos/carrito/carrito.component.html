@@ -1,0 +1,110 @@
+<section class="cycle-page">
+  <div class="cycle-hero">
+    <div>
+      <p class="cycle-kicker">Tu selección</p>
+      <h1>Carrito</h1>
+    </div>
+  </div>
+
+  <!-- Cargando -->
+  <div *ngIf="cargando" class="cycle-state" role="status">
+    <p>Cargando tu carrito…</p>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error && !cargando" class="cycle-alert danger" role="alert">
+    {{ error }}
+    <button type="button" class="cycle-link" (click)="cargar()">Reintentar</button>
+  </div>
+
+  <!-- Vacío -->
+  <div *ngIf="!cargando && !error && esVacio" class="cycle-state">
+    <p>Tu carrito está vacío</p>
+    <a routerLink="/catalogo" class="cycle-primary btn-explorar-catalogo">Explorar catálogo</a>
+  </div>
+
+  <!-- Contenido del carrito -->
+  <div *ngIf="!cargando && !error && !esVacio" class="carrito-layout">
+    <div class="carrito-lineas">
+      <div *ngFor="let linea of carrito!.lineas" class="carrito-item cycle-card">
+        <div class="item-info">
+          <p class="item-nombre">{{ nombrePrenda(linea.variante_id) }}</p>
+          <p class="item-meta">
+            <span class="item-sku">SKU: {{ skuPrenda(linea.variante_id) }}</span>
+            <span *ngIf="atributosPrenda(linea.variante_id)" class="item-attr">
+              {{ atributosPrenda(linea.variante_id) }}
+            </span>
+          </p>
+          <p class="item-precio">{{ bs(linea.precio_unitario) }}</p>
+          <p *ngIf="descuentoPositivo(linea.descuento_unitario)" class="item-descuento">
+            Descuento: −{{ bs(linea.descuento_unitario) }}
+          </p>
+        </div>
+
+        <div class="item-qty">
+          <button
+            type="button"
+            class="qty-btn"
+            (click)="decrementar(linea.variante_id, linea.cantidad)"
+            [disabled]="operando[linea.variante_id]"
+            aria-label="Reducir cantidad"
+          >−</button>
+          <span class="qty-value">{{ linea.cantidad }}</span>
+          <button
+            type="button"
+            class="qty-btn"
+            (click)="incrementar(linea.variante_id, linea.cantidad)"
+            [disabled]="operando[linea.variante_id]"
+            aria-label="Aumentar cantidad"
+          >+</button>
+        </div>
+
+        <p class="item-subtotal">{{ bs(linea.subtotal) }}</p>
+
+        <button
+          type="button"
+          class="cycle-link danger btn-quitar"
+          (click)="quitar(linea.variante_id)"
+          [disabled]="operando[linea.variante_id]"
+        >
+          Quitar
+        </button>
+      </div>
+    </div>
+
+    <aside class="carrito-resumen cycle-card">
+      <h2>Resumen de compra</h2>
+      <dl class="resumen-items">
+        <div><dt>Prendas</dt><dd>{{ totalLineas() }}</dd></div>
+        <div><dt>Subtotal</dt><dd>{{ bs(carrito!.subtotal) }}</dd></div>
+        <div *ngIf="tieneDescuento">
+          <dt>Descuento total</dt>
+          <dd class="text-success">−{{ bs(carrito!.descuento_total) }}</dd>
+        </div>
+        <div class="resumen-total"><dt>Total estimado</dt><dd>{{ bs(carrito!.total) }}</dd></div>
+      </dl>
+
+      <a routerLink="/checkout" class="cycle-primary checkout-btn">Proceder al pago</a>
+      <button
+        type="button"
+        class="cycle-secondary btn-vaciar-carrito"
+        (click)="solicitarVaciarCarrito()"
+      >
+        Vaciar carrito
+      </button>
+    </aside>
+  </div>
+
+  <!-- Diálogo accesible de confirmación para vaciar carrito -->
+  <app-confirm-dialog
+    [abierto]="dialogVaciarAbierto"
+    titulo="¿Vaciar tu carrito?"
+    descripcion="Se eliminarán todas las prendas que tienes agregadas en tu sesión actual. Esta acción no se puede deshacer."
+    textoConfirmar="Sí, vaciar carrito"
+    textoCancelar="Conservar carrito"
+    variante="danger"
+    [procesando]="vaciando"
+    (confirmar)="confirmarVaciarCarrito()"
+    (cancelar)="cancelarVaciarCarrito()"
+  ></app-confirm-dialog>
+</section>

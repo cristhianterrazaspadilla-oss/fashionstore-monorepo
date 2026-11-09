@@ -1,0 +1,376 @@
+<section class="cycle-page">
+  <!-- Encabezado editorial -->
+  <header class="dash-hero">
+    <div class="dash-hero-main">
+      <p class="dash-kicker">Mesa de corte analítica</p>
+      <h1 class="dash-title">Dashboard de indicadores</h1>
+    </div>
+    <div class="dash-context-badge" aria-label="Contexto de consulta actual">
+      <span class="context-ambito">{{ ambitoTexto }}</span>
+      <span class="context-rango">{{ rangoConsultadoTexto }}</span>
+    </div>
+  </header>
+
+  <!-- Barra de filtros -->
+  <div class="dash-toolbar">
+    <div class="toolbar-filtros">
+      <label for="desdeFiltro" class="filter-field">
+        <span class="filter-label">Desde</span>
+        <input
+          id="desdeFiltro"
+          type="datetime-local"
+          [(ngModel)]="desdeFiltro"
+          (change)="aplicarFiltros()"
+          aria-label="Fecha y hora inicial"
+        />
+      </label>
+
+      <label for="hastaFiltro" class="filter-field">
+        <span class="filter-label">Hasta</span>
+        <input
+          id="hastaFiltro"
+          type="datetime-local"
+          [(ngModel)]="hastaFiltro"
+          (change)="aplicarFiltros()"
+          aria-label="Fecha y hora final"
+        />
+      </label>
+
+      <label *ngIf="esAdmin" for="sucursalFiltro" class="filter-field">
+        <span class="filter-label">Sucursal</span>
+        <select
+          id="sucursalFiltro"
+          [(ngModel)]="sucursalFiltro"
+          (change)="aplicarFiltros()"
+          aria-label="Filtrar por sucursal"
+        >
+          <option value="">Consolidado global (todas)</option>
+          <option *ngFor="let s of sucursales" [value]="s.id">{{ s.nombre }}</option>
+        </select>
+      </label>
+
+      <div *ngIf="!esAdmin" class="sucursal-fijada" role="note">
+        <span class="filter-label">Ámbito asignado:</span>
+        <strong class="sucursal-nombre-fijo">{{ sucursalNombre(sucursalFiltro) }}</strong>
+      </div>
+    </div>
+
+    <div class="toolbar-acciones">
+      <button
+        *ngIf="desdeFiltro || hastaFiltro || (esAdmin && sucursalFiltro)"
+        type="button"
+        class="cycle-secondary btn-limpiar-filtros"
+        (click)="limpiarFiltros()"
+      >
+        Limpiar filtros
+      </button>
+    </div>
+  </div>
+
+  <!-- Estado de error -->
+  <div *ngIf="error" class="cycle-alert danger" role="alert">
+    <span>{{ error }}</span>
+    <button type="button" class="cycle-link" (click)="cargar()">Reintentar</button>
+  </div>
+
+  <!-- Estado de carga -->
+  <div *ngIf="cargando" class="dash-loading-state" role="status">
+    <div class="loading-indicator" aria-hidden="true"></div>
+    <p class="loading-title">Calculando métricas del negocio…</p>
+    <p class="loading-sub">Sincronizando transacciones, valorización e inventario en tiempo real.</p>
+  </div>
+
+  <!-- Contenido analítico principal -->
+  <div *ngIf="!cargando && dashboard" class="dash-content-layout">
+
+    <!-- 1. RESUMEN EJECUTIVO ASIMÉTRICO ("Mesa de corte") -->
+    <section class="exec-summary-grid" aria-label="Resumen ejecutivo comercial">
+      <!-- Cifra protagonista: Ingresos Totales -->
+      <article class="exec-card exec-hero-card">
+        <div class="exec-card-head">
+          <span class="exec-kicker">Facturación comercial</span>
+          <span class="badge-brass">Periodo activo</span>
+        </div>
+        <div class="exec-protagonista-block">
+          <p class="exec-hero-label">Ingresos totales</p>
+          <p class="exec-hero-number">{{ bs(dashboard.ingresos_total) }}</p>
+          <p class="exec-hero-sub">Monto total facturado por transacciones pagadas confirmadas</p>
+        </div>
+        <div class="exec-tape-rule" aria-hidden="true"></div>
+        <div class="exec-hero-footer">
+          <div class="hero-foot-item">
+            <span class="foot-label">Ticket promedio</span>
+            <strong class="foot-val">{{ bs(dashboard.ticket_promedio) }}</strong>
+          </div>
+        </div>
+      </article>
+
+      <!-- Métricas complementarias de operación -->
+      <div class="exec-secondary-stack">
+        <!-- Transacciones / Ventas -->
+        <article class="exec-card">
+          <span class="exec-kicker">Operación</span>
+          <p class="exec-label">Ventas totales</p>
+          <p class="exec-val-secondary">{{ dashboard.ventas_total }}</p>
+          <p class="exec-sub">Ventas en estado pagada</p>
+        </article>
+
+        <!-- Margen Bruto -->
+        <article class="exec-card">
+          <span class="exec-kicker">Rentabilidad</span>
+          <p class="exec-label">Margen bruto total</p>
+          <p class="exec-val-secondary text-brass">{{ bs(dashboard.margen_bruto_total) }}</p>
+          <p class="exec-sub">Ingresos menos costo de mercadería</p>
+        </article>
+      </div>
+
+      <!-- Bloque de Inventario / Valorización -->
+      <article class="exec-card exec-inventory-card">
+        <span class="exec-kicker">Existencias</span>
+        <p class="exec-label">Valorización de inventario</p>
+        <p class="exec-val-secondary">{{ bs(dashboard.valorizacion_total) }}</p>
+        <p class="exec-sub">Suma de existencia total × costo promedio de cada prenda</p>
+      </article>
+    </section>
+
+    <!-- DESGLOSE FINANCIERO Y DINERO CAPTURADO (CU23) -->
+    <section class="financial-flow-section" aria-label="Desglose comercial y fondos capturados">
+      <div class="flow-card-grid">
+        <article class="flow-metric-card highlighted">
+          <span class="flow-kicker">Fondos acreditados</span>
+          <p class="flow-label">Dinero capturado</p>
+          <p class="flow-value">{{ dineroCapturado }}</p>
+          <p class="flow-hint">Cobros verificados en pasarela y caja física</p>
+        </article>
+
+        <article class="flow-metric-card">
+          <span class="flow-kicker">Ingresos brutos</span>
+          <p class="flow-label">Ventas brutas</p>
+          <p class="flow-value">{{ ventasBrutas }}</p>
+          <p class="flow-hint">Suma nominal antes de bonificaciones</p>
+        </article>
+
+        <article class="flow-metric-card">
+          <span class="flow-kicker">Bonificaciones</span>
+          <p class="flow-label">Descuentos</p>
+          <p class="flow-value text-muted">- {{ totalDescuentos }}</p>
+          <p class="flow-hint">Ahorro otorgado a clientes en catálogo y campañas</p>
+        </article>
+
+        <article class="flow-metric-card">
+          <span class="flow-kicker">Consolidado</span>
+          <p class="flow-label">Neto comercial</p>
+          <p class="flow-value text-brass">{{ netoComercial }}</p>
+          <p class="flow-hint">Ventas brutas menos bonificaciones y notas</p>
+        </article>
+
+        <article class="flow-metric-card" *ngIf="pedidosPendientesCumplimiento > 0">
+          <span class="flow-kicker">Compromisos</span>
+          <p class="flow-label">En preparación / despacho</p>
+          <p class="flow-value">{{ pedidosPendientesCumplimiento }} pedidos</p>
+          <p class="flow-hint">Monto retenido: {{ montoPedidosPendientes }}</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- 2. DINÁMICA COMERCIAL: CONVERSIÓN, PROMOCIONES Y ESTADOS -->
+    <section class="dash-triad-grid" aria-label="Indicadores de conversión y flujo comercial">
+      <!-- Conversión de reservas (SVG radial accesible) -->
+      <article class="dash-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Conversión de reservas</h2>
+          <span class="panel-badge">Efectividad</span>
+        </div>
+        <div class="panel-body panel-radial-wrap">
+          <app-radial-progress
+            [valor]="conversionTasaPorcentaje"
+            [numerador]="dashboard.conversion_reservas.completadas"
+            [denominador]="dashboard.conversion_reservas.total"
+            etiquetaLeyenda="Tasa de concreción de reservas"
+            ariaLabel="Porcentaje de reservas convertidas en venta"
+            colorVariante="brass"
+          ></app-radial-progress>
+        </div>
+      </article>
+
+      <!-- Efectividad de promociones -->
+      <article class="dash-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Efectividad de promociones</h2>
+          <span class="panel-badge">Descuentos</span>
+        </div>
+        <div class="panel-body">
+          <div class="promo-discount-highlight">
+            <span class="discount-label">Descuento total otorgado</span>
+            <strong class="discount-val text-brass">{{ bs(dashboard.efectividad_promociones.descuento_total) }}</strong>
+          </div>
+          <app-segmented-bar
+            [segmentos]="promocionesSegmentosVM"
+            ariaLabel="Distribución de ventas con y sin promoción"
+            etiquetaVacio="No se registraron ventas en este periodo."
+          ></app-segmented-bar>
+        </div>
+      </article>
+
+      <!-- Estados de pedidos -->
+      <article class="dash-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Estados de pedidos</h2>
+          <span class="panel-badge">Entregas</span>
+        </div>
+        <div class="panel-body">
+          <app-segmented-bar
+            [segmentos]="estadosPedidosSegmentosVM"
+            ariaLabel="Distribución de pedidos por estado operativo"
+            etiquetaVacio="No se registraron pedidos de entrega en el periodo."
+          ></app-segmented-bar>
+        </div>
+      </article>
+    </section>
+
+    <!-- 3. DESGLOSE ANALÍTICO: SUCURSALES Y RANKING DE PRODUCTOS -->
+    <section class="dash-duo-grid" aria-label="Comparativa por sucursal y prendas más vendidas">
+      <!-- Ventas por sucursal -->
+      <article class="dash-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Ventas e ingresos por sucursal</h2>
+            <p class="panel-subtitle">Comparativa proporcional de facturación por punto de venta</p>
+          </div>
+          <button
+            type="button"
+            class="cycle-secondary btn-toggle-detalle"
+            (click)="toggleTablaSucursal()"
+            [attr.aria-expanded]="mostrarTablaSucursal"
+          >
+            {{ mostrarTablaSucursal ? 'Ocultar tabla' : 'Ver tabla detallada' }}
+          </button>
+        </div>
+
+        <div class="panel-body">
+          <app-horizontal-bars
+            [items]="sucursalesBarsVM"
+            colorTema="ink"
+            ariaLabel="Ingresos comparativos por sucursal"
+            etiquetaVacio="No se registraron transacciones por sucursal en el periodo."
+          ></app-horizontal-bars>
+
+          <!-- Tabla detallada complementaria accesible -->
+          <div *ngIf="mostrarTablaSucursal" class="table-wrap table-complementaria">
+            <table>
+              <caption>Desglose numérico de ventas e ingresos por sucursal</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Sucursal</th>
+                  <th scope="col">Ventas</th>
+                  <th scope="col">Ingresos</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let s of dashboard.por_sucursal">
+                  <td class="td-nombre">{{ s.sucursal_nombre }}</td>
+                  <td>{{ s.ventas }}</td>
+                  <td class="td-ingreso">{{ bs(s.ingresos) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <!-- Top productos más vendidos -->
+      <article class="dash-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Prendas más vendidas</h2>
+            <p class="panel-subtitle">Ranking por unidades vendidas en ventas confirmadas</p>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <app-horizontal-bars
+            [items]="topProductosBarsVM"
+            colorTema="brass"
+            [mostrarPosicion]="true"
+            ariaLabel="Ranking de prendas por unidades vendidas"
+            etiquetaVacio="No se registraron unidades vendidas en el periodo."
+          ></app-horizontal-bars>
+        </div>
+      </article>
+    </section>
+
+    <!-- 4. BLOQUE DE ATENCIÓN OPERATIVA: STOCK CRÍTICO -->
+    <section class="dash-panel panel-critical" aria-label="Atención operativa de inventario crítico">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Inventario en umbral crítico</h2>
+          <p class="panel-subtitle">Artículos con inventario disponible ≤ 5 unidades que requieren atención de reposición</p>
+        </div>
+        <span class="badge-critical" *ngIf="stockCriticoVM.length > 0">
+          {{ stockCriticoVM.length }} {{ stockCriticoVM.length === 1 ? 'artículo en riesgo' : 'artículos en riesgo' }}
+        </span>
+      </div>
+
+      <div class="panel-body">
+        <!-- Caso sin registros críticos -->
+        <div *ngIf="stockCriticoVM.length === 0" class="dash-empty-note text-success">
+          <span class="empty-icon" aria-hidden="true">✓</span>
+          <p>Todos los artículos cuentan con inventario suficiente (> 5 unidades disponibles).</p>
+        </div>
+
+        <!-- Tabla en pantallas medianas y grandes -->
+        <div *ngIf="stockCriticoVM.length > 0" class="table-wrap critical-table-wrap">
+          <table>
+            <caption>Listado de artículos con inventario disponible crítico</caption>
+            <thead>
+              <tr>
+                <th scope="col">SKU</th>
+                <th scope="col">Sucursal</th>
+                <th scope="col">Disponible</th>
+                <th scope="col">Existencia total</th>
+                <th scope="col">Nivel de atención</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of stockCriticoVM">
+                <td class="td-sku">{{ item.sku }}</td>
+                <td class="td-sucursal">{{ item.sucursalNombre }}</td>
+                <td class="td-disponible" [ngClass]="item.nivelUrgencia">{{ item.disponible }} un.</td>
+                <td class="td-existencia">{{ item.existencia }} un.</td>
+                <td>
+                  <span class="urgency-badge" [attr.data-nivel]="item.nivelUrgencia">
+                    {{ item.etiquetaUrgencia }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tarjetas en móvil -->
+        <div *ngIf="stockCriticoVM.length > 0" class="critical-mobile-list">
+          <div *ngFor="let item of stockCriticoVM" class="critical-card" [attr.data-nivel]="item.nivelUrgencia">
+            <div class="critical-card-head">
+              <span class="td-sku">{{ item.sku }}</span>
+              <span class="urgency-badge" [attr.data-nivel]="item.nivelUrgencia">
+                {{ item.etiquetaUrgencia }}
+              </span>
+            </div>
+            <p class="critical-card-sucursal">{{ item.sucursalNombre }}</p>
+            <div class="critical-card-metrics">
+              <div class="crit-metric">
+                <span class="crit-label">Disponible:</span>
+                <strong class="crit-val" [ngClass]="item.nivelUrgencia">{{ item.disponible }} un.</strong>
+              </div>
+              <div class="crit-metric">
+                <span class="crit-label">Existencia total:</span>
+                <span class="crit-val">{{ item.existencia }} un.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</section>

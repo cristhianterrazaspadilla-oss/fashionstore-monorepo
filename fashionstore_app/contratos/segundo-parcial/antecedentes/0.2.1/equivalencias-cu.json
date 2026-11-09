@@ -1,0 +1,275 @@
+{
+  "catalogo_academico": 26,
+  "primera_presentacion": [
+    "CU01",
+    "CU02",
+    "CU03",
+    "CU04",
+    "CU13",
+    "CU15",
+    "CU16",
+    "CU18"
+  ],
+  "nota": "LB identifica una función conservada fuera de los 26 prioritarios; no ordena eliminar código. No convertir IDs persistidos ni rutas por esta equivalencia.",
+  "equivalencias": [
+    {
+      "codigo_anterior": "CU01",
+      "codigo_actual": "CU13",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": true,
+      "nombre": "Registrarse e iniciar sesión por empresa"
+    },
+    {
+      "codigo_anterior": "CU02",
+      "codigo_actual": "CU14",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Gestionar usuarios y roles de la empresa"
+    },
+    {
+      "codigo_anterior": "CU03",
+      "codigo_actual": "CU15",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": true,
+      "nombre": "Gestionar ciudades, sucursales y tarifas"
+    },
+    {
+      "codigo_anterior": "CU04",
+      "codigo_actual": "LB04",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Gestionar proveedores y lotes de recepción con costos"
+    },
+    {
+      "codigo_anterior": "CU05",
+      "codigo_actual": "LB05",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Gestionar productos, variantes y maestros"
+    },
+    {
+      "codigo_anterior": "CU06",
+      "codigo_actual": "CU16",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": true,
+      "nombre": "Consultar catálogo de prendas"
+    },
+    {
+      "codigo_anterior": "CU07",
+      "codigo_actual": "CU17",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Consultar Kardex, existencias y valorización"
+    },
+    {
+      "codigo_anterior": "CU08",
+      "codigo_actual": "CU18",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": true,
+      "nombre": "Gestionar reservas de prendas"
+    },
+    {
+      "codigo_anterior": "CU09",
+      "codigo_actual": "LB09",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Solicitar, aprobar y recibir traslados"
+    },
+    {
+      "codigo_anterior": "CU10",
+      "codigo_actual": "LB10",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Preparar y atender reserva"
+    },
+    {
+      "codigo_anterior": "CU11",
+      "codigo_actual": "CU19",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Registrar venta presencial y pago en caja"
+    },
+    {
+      "codigo_anterior": "CU12",
+      "codigo_actual": "CU20",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Registrar devolución y merma"
+    },
+    {
+      "codigo_anterior": "CU13",
+      "codigo_actual": "LB13",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Consultar historial de compras"
+    },
+    {
+      "codigo_anterior": "CU14",
+      "codigo_actual": "CU21",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Gestionar carrito y confirmar compra digital"
+    },
+    {
+      "codigo_anterior": "CU15",
+      "codigo_actual": "CU22",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Procesar pago digital con Stripe Test"
+    },
+    {
+      "codigo_anterior": "CU16",
+      "codigo_actual": "LB16",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Configurar y simular delivery por anillos"
+    },
+    {
+      "codigo_anterior": "CU17",
+      "codigo_actual": "LB17",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Usar probador virtual móvil"
+    },
+    {
+      "codigo_anterior": "CU18",
+      "codigo_actual": "LB18",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Generar sugerencias IA para cliente"
+    },
+    {
+      "codigo_anterior": "CU19",
+      "codigo_actual": "CU23",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Consultar dashboard e indicadores"
+    },
+    {
+      "codigo_anterior": "CU20",
+      "codigo_actual": "LB20",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Buscar prendas por comando de voz"
+    },
+    {
+      "codigo_anterior": "CU21",
+      "codigo_actual": "CU24",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Solicitar reporte generativo por voz o texto"
+    },
+    {
+      "codigo_anterior": "CU22",
+      "codigo_actual": "LB22",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Gestionar promociones"
+    },
+    {
+      "codigo_anterior": "CU23",
+      "codigo_actual": "CU25",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Consultar ventas de la sucursal"
+    },
+    {
+      "codigo_anterior": "CU24",
+      "codigo_actual": "CU26",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Expirar reservas automáticamente"
+    },
+    {
+      "codigo_anterior": "CU25",
+      "codigo_actual": "LB25",
+      "incluido_catalogo_26": false,
+      "primera_presentacion": false,
+      "nombre": "Consultar decisiones IA para inventario"
+    },
+    {
+      "codigo_anterior": "CU26",
+      "codigo_actual": "CU01",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": true,
+      "nombre": "Registrar empresa contratante"
+    },
+    {
+      "codigo_anterior": "CU27",
+      "codigo_actual": "CU02",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": true,
+      "nombre": "Administrar suscripción de empresa"
+    },
+    {
+      "codigo_anterior": "CU28",
+      "codigo_actual": "CU03",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": true,
+      "nombre": "Descargar catálogo para consulta offline"
+    },
+    {
+      "codigo_anterior": "CU29",
+      "codigo_actual": "CU04",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": true,
+      "nombre": "Registrar reserva offline"
+    },
+    {
+      "codigo_anterior": "CU30",
+      "codigo_actual": "CU05",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Sincronizar solicitud de compra digital"
+    },
+    {
+      "codigo_anterior": "CU31",
+      "codigo_actual": "CU06",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Habilitar turno y cupos de caja offline"
+    },
+    {
+      "codigo_anterior": "CU32",
+      "codigo_actual": "CU07",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Registrar y sincronizar venta de contado offline"
+    },
+    {
+      "codigo_anterior": "CU33",
+      "codigo_actual": "CU08",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Cambiar prenda y liquidar diferencia"
+    },
+    {
+      "codigo_anterior": "CU34",
+      "codigo_actual": "CU09",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Aplicar saldo personal a una compra"
+    },
+    {
+      "codigo_anterior": "CU35",
+      "codigo_actual": "CU10",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Consultar pronóstico de unidades vendidas"
+    },
+    {
+      "codigo_anterior": "CU36",
+      "codigo_actual": "CU11",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Consultar grupos de productos"
+    },
+    {
+      "codigo_anterior": "CU37",
+      "codigo_actual": "CU12",
+      "incluido_catalogo_26": true,
+      "primera_presentacion": false,
+      "nombre": "Configurar tasa de conversión BOB/USD"
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+<section class="cycle-page">
+  <div class="cycle-hero"><div><p class="cycle-kicker">Seguimiento</p><h1>Mis pedidos</h1></div></div>
+  <div *ngIf="cargando" class="cycle-state" role="status"><p>Cargando pedidos…</p></div>
+  <div *ngIf="error" class="cycle-alert danger" role="alert">{{ error }} <button type="button" class="cycle-link" (click)="cargar()">Reintentar</button></div>
+  <div *ngIf="!cargando && !pedidos.length" class="cycle-state">
+    <p>No tienes pedidos registrados.</p>
+    <a routerLink="/catalogo" class="cycle-primary btn-explorar">Explorar catálogo</a>
+  </div>
+
+  <div *ngIf="!cargando && pedidos.length" class="cycle-list">
+    <div *ngFor="let p of pedidos" class="cycle-card pedido-card" (click)="verDetalle(p, $event)" role="button" tabindex="0" (keydown.enter)="verDetalle(p, $event)">
+      <div class="cycle-card-head"><h2>Pedido</h2><span class="status" [class]="clase(p.estado)">{{ etiqueta(p.estado) }}</span></div>
+      <dl class="cycle-facts">
+        <div><dt>Modalidad</dt><dd>{{ etiqueta(p.modalidad) }}</dd></div>
+        <div><dt>Costo envío</dt><dd>{{ bs(p.costo_entrega) }}</dd></div>
+        <div><dt>Fecha</dt><dd>{{ fh(p.creada_en) }}</dd></div>
+      </dl>
+      <p *ngIf="p.codigo_recojo" class="recojo-code">Código de recojo: <strong>{{ p.codigo_recojo }}</strong></p>
+    </div>
+  </div>
+
+  <!-- Paginación accesible -->
+  <nav *ngIf="!cargando && total > limit" class="cycle-pagination" aria-label="Paginación de pedidos">
+    <p class="cycle-pagination-info" aria-live="polite">
+      Mostrando {{ rangoInicio }} a {{ rangoFin }} de {{ total }} pedidos
+    </p>
+    <div class="cycle-pagination-actions">
+      <button
+        type="button"
+        class="cycle-secondary"
+        [disabled]="offset === 0"
+        (click)="paginaAnterior()"
+        aria-label="Página anterior"
+      >
+        Anterior
+      </button>
+      <span class="cycle-pagination-page" aria-current="page">
+        Página {{ paginaActual }} de {{ totalPaginas }}
+      </span>
+      <button
+        type="button"
+        class="cycle-secondary"
+        [disabled]="offset + limit >= total"
+        (click)="paginaSiguiente()"
+        aria-label="Página siguiente"
+      >
+        Siguiente
+      </button>
+    </div>
+  </nav>
+
+  <!-- Detalle modal -->
+  <div
+    *ngIf="detalle || cargandoDetalle || errorDetalle"
+    class="cycle-overlay"
+    (click)="cerrarDetalle()"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-labelledby]="detalle ? 'detalle-pedido-title' : 'detalle-pedido-status-title'"
+    [attr.aria-hidden]="mostrarConfirmacionCancelar ? 'true' : null"
+    (keydown)="alManejarTabModal($event)"
+  >
+    <!-- Estado de carga directa -->
+    <div *ngIf="cargandoDetalle && !detalle && !errorDetalle" #modalDetalleBox class="cycle-dialog" (click)="$event.stopPropagation()">
+      <button type="button" class="dialog-close" (click)="cerrarDetalle()" aria-label="Cerrar">&times;</button>
+      <h2 id="detalle-pedido-status-title">Cargando pedido</h2>
+      <div class="cycle-state" role="status"><p>Consultando el detalle del pedido…</p></div>
+    </div>
+
+    <!-- Estado de error al cargar directamente -->
+    <div *ngIf="errorDetalle && !detalle" #modalDetalleBox class="cycle-dialog" (click)="$event.stopPropagation()">
+      <button type="button" class="dialog-close" (click)="cerrarDetalle()" aria-label="Cerrar">&times;</button>
+      <h2 id="detalle-pedido-status-title">No se pudo cargar el pedido</h2>
+      <div class="cycle-alert danger" role="alert">{{ errorDetalle }}</div>
+      <div class="dialog-actions">
+        <button type="button" class="cycle-primary" (click)="cerrarDetalle()">Volver a mis pedidos</button>
+      </div>
+    </div>
+
+    <!-- Detalle cargado -->
+    <div *ngIf="detalle" #modalDetalleBox class="cycle-dialog" (click)="$event.stopPropagation()">
+      <button type="button" class="dialog-close" (click)="cerrarDetalle()" aria-label="Cerrar">&times;</button>
+      <h2 id="detalle-pedido-title">Detalle del pedido</h2>
+      <span class="status" [class]="clase(detalle.estado)">{{ etiqueta(detalle.estado) }}</span>
+      <dl class="cycle-facts facts-spacing">
+        <div><dt>Modalidad</dt><dd>{{ etiqueta(detalle.modalidad) }}</dd></div>
+        <div><dt>Costo envío</dt><dd>{{ bs(detalle.costo_entrega) }}</dd></div>
+        <div><dt>Creado</dt><dd>{{ fh(detalle.creada_en) }}</dd></div>
+      </dl>
+      <p *ngIf="detalle.direccion" class="detalle-meta"><strong>Dirección:</strong> {{ detalle.direccion }}</p>
+      <p *ngIf="detalle.codigo_recojo" class="detalle-meta"><strong>Código de recojo:</strong> {{ detalle.codigo_recojo }}</p>
+
+      <div class="progreso-pedido">
+        <div class="progreso-step" *ngFor="let step of ['SOLICITADO','PREPARADO', detalle.modalidad === 'RECOJO' ? 'LISTO_RECOJO' : 'EN_REPARTO', detalle.modalidad === 'RECOJO' ? 'RECOGIDO' : 'ENTREGADO']"
+             [class.activo]="esStepActivo(detalle.estado, step)" [class.completado]="esStepCompletado(detalle.estado, step)">
+          <span class="step-dot"></span><span class="step-label">{{ etiqueta(step) }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="puedeCancelar(detalle)" class="dialog-actions">
+        <button type="button" class="cycle-danger" (click)="solicitarCancelacion(detalle.id)" [disabled]="cancelando">
+          {{ cancelando ? 'Cancelando…' : 'Cancelar pedido' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dialogo de confirmacion de cancelacion -->
+  <app-confirm-dialog
+    [visible]="mostrarConfirmacionCancelar"
+    titulo="Cancelar pedido"
+    mensaje="¿Deseas cancelar este pedido? Esta acción no se puede deshacer y liberará los productos reservados."
+    textoConfirmar="Sí, cancelar pedido"
+    textoCancelar="Volver"
+    [peligroso]="true"
+    [cargando]="cancelando"
+    (confirmar)="confirmarCancelacion()"
+    (cancelar)="cerrarConfirmacionCancelar()">
+  </app-confirm-dialog>
+</section>

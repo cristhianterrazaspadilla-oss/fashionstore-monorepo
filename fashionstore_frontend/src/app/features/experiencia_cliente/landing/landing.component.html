@@ -1,0 +1,208 @@
+<div class="landing">
+
+  <!-- CINTA MÉTRICA TOP — signature element -->
+  <div class="tape" aria-hidden="true">
+    <div class="tape-marks">
+      <span *ngFor="let i of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]">{{i * 10}}</span>
+    </div>
+  </div>
+
+  <!-- HERO — tesis -->
+  <section class="hero">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Santa Cruz · Probador virtual IA · Reserva 24–72h</p>
+        <h1 class="hero-title">
+          La ropa<br>
+          <span class="accent">se prueba.</span><br>
+          La ciudad<br>
+          te la acerca.
+        </h1>
+        <p class="hero-sub">
+          Omnicanal real: elegí en web, probate con IA y reservá en tu sucursal favorita.
+          Sin pagar. Retirás y pagás en caja. Delivery por anillos.
+        </p>
+        <div class="hero-ctas">
+          <a routerLink="/catalogo" class="btn-primary">Ver catálogo completo →</a>
+          <a routerLink="/auth/login" class="btn-ghost">Ingresar / Registrarme</a>
+        </div>
+        <div class="hero-meta">
+          <span><strong>{{ productos.length || '—' }}</strong> prendas activas</span>
+          <span class="dot">·</span>
+          <span><strong>{{ sucursales.length || '—' }}</strong> sucursales</span>
+          <span class="dot">·</span>
+          <span>Anillos 1–10</span>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="hero-card">
+          <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=700&auto=format&fit=crop&q=60" alt="Modelo con blusa seda" />
+          <div class="hero-card-foot">
+            <div>
+              <div class="foot-label">Colección Urbana 2026</div>
+              <div class="foot-title">Blusa Sedosa · Bs 189</div>
+            </div>
+            <span class="foot-pill">Probador IA</span>
+          </div>
+        </div>
+        <div class="hero-badge">
+          <div class="hb-num">72<span>h</span></div>
+          <div class="hb-label">Reserva<br>sin pago</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIEL — perchero colgante -->
+  <section class="rail-section">
+    <div class="rail-head">
+      <div>
+        <h2>Novedades colgadas</h2>
+        <p>Arrastrá el riel — como en el taller. Tocá para ver disponibilidad por sucursal.</p>
+      </div>
+      <div class="rail-ctrls">
+        <button class="rail-btn" (click)="scrollRail(-1)" aria-label="Anterior">‹</button>
+        <button class="rail-btn" (click)="scrollRail(1)" aria-label="Siguiente">›</button>
+        <a routerLink="/catalogo" class="link-rail">Ver todo →</a>
+      </div>
+    </div>
+
+    <div *ngIf="cargando" class="rail-loading">Cargando perchero…</div>
+    <div *ngIf="error" class="rail-error">{{ error }}</div>
+
+    <div id="riel" class="riel" *ngIf="!cargando && !error">
+      <article *ngFor="let p of productos" class="rail-card" [routerLink]="['/catalogo']">
+        <div class="hanger" aria-hidden="true"><span class="hook"></span><span class="bar"></span></div>
+        <div class="rail-img">
+          <img [src]="imagenProducto(p)" [alt]="p.nombre" loading="lazy" />
+          <span class="price-pill">Bs {{ p.precio_base }}</span>
+        </div>
+        <div class="rail-body">
+          <h3>{{ p.nombre }}</h3>
+          <p class="muted">{{ p.marca || 'FashionStore' }} · {{ p.genero || 'Unisex' }}</p>
+          <div class="rail-actions">
+            <span class="chip-ia">Probador IA</span>
+            <span class="chip-stock">Disponible por sucursal</span>
+          </div>
+        </div>
+      </article>
+      <div *ngIf="productos.length===0" class="rail-empty">
+        <p>Sin prendas aún — el atelier está preparando la colección.</p>
+        <a routerLink="/catalogo" class="btn-ghost sm">Ir al catálogo</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- COLECCIONES EDITORIAL -->
+  <section class="editorial">
+    <div class="ed-card">
+      <img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&auto=format&fit=crop&q=60" alt="Colección mujer" />
+      <div class="ed-overlay">
+        <span>MUJER</span>
+        <h3>Suave & Preciso</h3>
+        <a routerLink="/catalogo" [queryParams]="{genero:'MUJER'}">Explorar →</a>
+      </div>
+    </div>
+    <div class="ed-card">
+      <img src="https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=800&auto=format&fit=crop&q=60" alt="Colección hombre" />
+      <div class="ed-overlay">
+        <span>HOMBRE</span>
+        <h3>Corte Limpio</h3>
+        <a routerLink="/catalogo" [queryParams]="{genero:'HOMBRE'}">Explorar →</a>
+      </div>
+    </div>
+    <div class="ed-card tall">
+      <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=800&auto=format&fit=crop&q=60" alt="Colección temporada" />
+      <div class="ed-overlay">
+        <span>TEMPORADA 2026</span>
+        <h3>Primavera — Verano</h3>
+        <a routerLink="/catalogo">Ver temporada →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANILLOS — delivery Santa Cruz -->
+  <section class="anillos">
+    <div class="anillos-grid">
+      <div>
+        <p class="eyebrow">Santa Cruz de la Sierra</p>
+        <h2>Delivery por anillos.</h2>
+        <p class="anillos-sub">Tarifa base + incremento por anillo. Cada sucursal define su cobertura — el sistema calcula el costo real al checkout.</p>
+
+        <div class="calc card">
+          <div *ngIf="cargandoSucursales" class="calc-status" role="status">
+            <p>Cargando sucursales para el simulador…</p>
+          </div>
+          <div *ngIf="errorSucursales" class="calc-error" role="alert">
+            <p>{{ errorSucursales }}</p>
+            <button type="button" class="btn-ghost sm" (click)="cargarSucursales()" [disabled]="cargandoSucursales">Reintentar</button>
+          </div>
+          <div *ngIf="simuladorDisponible">
+            <label>Sucursal origen</label>
+            <select [(ngModel)]="sucursalDemo" class="select" [disabled]="!simuladorDisponible">
+              <option *ngFor="let s of sucursales" [ngValue]="s">{{ s.nombre }} — Anillo {{ s.numero_anillo || '—' }} (Bs {{ s.tarifa_base_delivery }})</option>
+            </select>
+            <label>Tu anillo (1–10)</label>
+            <input type="range" min="1" max="10" [(ngModel)]="anilloDestino" class="range" [disabled]="!simuladorDisponible" />
+            <div class="calc-row">
+              <span>Anillo destino</span><strong class="ink">{{ anilloDestino }}</strong>
+            </div>
+            <div class="calc-total" *ngIf="costoDelivery !== null">
+              <span>Costo estimado</span><strong>Bs {{ costoDelivery | number:'1.2-2' }}</strong>
+            </div>
+            <p class="hint">Fórmula: base + |anillo destino − anillo sucursal| × incremento. Origen: {{ sucursalDemo?.numero_anillo || 1 }}</p>
+          </div>
+          <p *ngIf="!cargandoSucursales && !simuladorDisponible && !errorSucursales" class="hint">Simulador no disponible por el momento.</p>
+        </div>
+      </div>
+
+      <div class="map">
+        <div class="rings" aria-hidden="true">
+          <div class="ring r5"></div>
+          <div class="ring r4"></div>
+          <div class="ring r3"></div>
+          <div class="ring r2"></div>
+          <div class="ring r1"><span>1er</span></div>
+        </div>
+        <div class="map-labels">
+          <span>1er Anillo · Centro</span>
+          <span>4to · Equipetrol</span>
+          <span>8vo · Periurbano</span>
+        </div>
+        <a routerLink="/sucursales" class="btn-ghost sm full">Ver sucursales y cobertura →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CÓMO FUNCIONA — secuencia real -->
+  <section class="steps">
+    <h2>De la percha a tus manos</h2>
+    <div class="steps-grid">
+      <div class="step"><span>01</span><h3>Elegís</h3><p>Catálogo con stock real por sucursal, no global. Talla y color con SKU único.</p></div>
+      <div class="step"><span>02</span><h3>Probás</h3><p>Vestidor virtual en vivo desde la app móvil antes de reservar.</p></div>
+      <div class="step"><span>03</span><h3>Reservás</h3><p>Reserva local 24h (72h si traslado). Sin pago anticipado. Expira sola.</p></div>
+      <div class="step"><span>04</span><h3>Retirás</h3><p>Probás en sucursal, pagás en caja. O pedís delivery por anillos.</p></div>
+    </div>
+  </section>
+
+  <!-- NEWSLETTER / CTA FINAL -->
+  <section class="cta">
+    <div class="cta-card">
+      <div>
+        <h2>La próxima colección te avisa.</h2>
+        <p>Pre-lanzamientos y reservas prioritarias. Sin spam.</p>
+      </div>
+      <form class="cta-form" (ngSubmit)="suscribir()">
+        <input [(ngModel)]="emailOferta" name="emailOferta" type="email" placeholder="tu@correo.com" />
+        <button type="submit" class="btn-primary">Avísame</button>
+      </form>
+    </div>
+    <p *ngIf="mensajeOferta" class="cta-msg">{{ mensajeOferta }}</p>
+  </section>
+
+  <footer class="landing-foot">
+    <span>FashionStore · Plataforma omnicanal</span>
+    <span>Moda, disponibilidad y atención en un solo lugar.</span>
+  </footer>
+</div>

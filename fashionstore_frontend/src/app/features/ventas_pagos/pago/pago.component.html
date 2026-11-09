@@ -1,0 +1,111 @@
+<section class="cycle-page">
+  <div class="cycle-hero">
+    <div>
+      <p class="cycle-kicker">Pago seguro</p>
+      <h1>Estado del pago</h1>
+    </div>
+  </div>
+
+  <div *ngIf="cargando" class="cycle-state" role="status">
+    <p>Consultando estado del pago…</p>
+  </div>
+
+  <div *ngIf="error && !cargando" class="cycle-alert danger" role="alert">
+    {{ error }}
+    <button type="button" class="cycle-link" (click)="consultarEstadoInicial()">Reintentar consulta</button>
+  </div>
+
+  <div *ngIf="!cargando && estado" class="pago-container">
+    <div class="pago-estado-card cycle-card">
+      <div class="pago-estado-header">
+        <span class="status" [class]="clase(estado.estado_pago)">{{ etiqueta(estado.estado_pago) }}</span>
+        <span class="pago-monto">{{ bs(estado.monto) }}</span>
+      </div>
+
+      <!-- Pendiente: formulario Stripe Elements -->
+      <div *ngIf="esPendiente" class="stripe-section">
+        <p class="stripe-info">Introduce los datos de tu tarjeta de prueba</p>
+        <p class="stripe-info" *ngIf="intencion">Stripe cobrará {{ intencion.monto | currency:'USD':'symbol':'1.2-2' }} USD en modo prueba.</p>
+        <div id="stripe-card-element" class="stripe-element-container"></div>
+
+        <!-- Alerta de 3DS / Acción Requerida -->
+        <div *ngIf="requiereAccion3DS" class="cycle-alert warning action-required-box" role="alert">
+          <div class="action-required-content">
+            <span class="action-icon" aria-hidden="true">🛡️</span>
+            <div>
+              <strong>Autenticación bancaria requerida (3D Secure)</strong>
+              <p>Tu banco requiere validar tu identidad para autorizar este pago de forma segura.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="cycle-primary btn-accion-3ds"
+            (click)="continuarAccion3DS()"
+            [disabled]="procesando3DS"
+          >
+            {{ procesando3DS ? 'Validando con el banco…' : 'Continuar validación bancaria' }}
+          </button>
+        </div>
+
+        <div *ngIf="!requiereAccion3DS" class="guardar-metodo-fila">
+          <label class="guardar-metodo-label">
+            <input
+              type="checkbox"
+              [checked]="guardarMetodo"
+              (change)="guardarMetodo = $any($event.target).checked"
+            >
+            <span>Guardar este método de pago preparado para compras futuras y fuera de línea</span>
+          </label>
+        </div>
+
+        <button
+          *ngIf="!requiereAccion3DS"
+          type="button"
+          class="cycle-primary btn-pagar"
+          (click)="confirmarPago()"
+          [disabled]="procesandoPago || creandoIntencion || !intencion?.client_secret"
+        >
+          {{ procesandoPago ? 'Procesando pago seguro…' : (creandoIntencion ? 'Iniciando pasarela…' : 'Pagar ' + bs(estado.monto)) }}
+        </button>
+      </div>
+
+      <!-- Aprobado -->
+      <div *ngIf="esAprobado" class="pago-resultado pago-exito">
+        <div class="resultado-icon">✓</div>
+        <h2>Pago aprobado</h2>
+        <p>Tu compra ha sido confirmada y tu pedido está siendo preparado.</p>
+        <a routerLink="/mis-pedidos" class="cycle-primary btn-accion-resultado">Ver mis pedidos</a>
+      </div>
+
+      <!-- Rechazado -->
+      <div *ngIf="esRechazado" class="pago-resultado pago-rechazado">
+        <div class="resultado-icon rechazado-icon">✕</div>
+        <h2>Pago no completado</h2>
+        <p>Tu tarjeta no pudo ser procesada. Puedes intentar nuevamente con otra tarjeta.</p>
+        <button type="button" class="cycle-primary btn-accion-resultado" (click)="reintentar()">
+          Reintentar pago
+        </button>
+      </div>
+
+      <!-- Cancelado o Anulado -->
+      <div *ngIf="esCanceladoOAnulado" class="pago-resultado pago-vencido">
+        <div class="resultado-icon vencido-icon">⏱</div>
+        <h2>{{ esCanceladoPorExpiracion ? 'Compra cancelada por tiempo expirado' : 'Pago cancelado' }}</h2>
+        <p>
+          {{ esCanceladoPorExpiracion
+            ? 'El tiempo límite de 60 minutos para completar el pago ha expirado. El inventario reservado fue liberado.'
+            : 'Esta operación ha sido cancelada o anulada.' }}
+        </p>
+        <a routerLink="/catalogo" class="cycle-primary btn-accion-resultado">Volver al catálogo</a>
+      </div>
+
+      <!-- Aviso de timeout en polling -->
+      <div *ngIf="avisoTimeout" class="cycle-alert warning" role="status">
+        <p>La verificación de pago tardó más de lo habitual. Puedes volver a consultar el estado de tu pedido.</p>
+        <button type="button" class="cycle-link" (click)="consultarEstadoInicial()">Verificar ahora</button>
+      </div>
+    </div>
+
+    <div *ngIf="exito && !esAprobado" class="cycle-alert success" role="status">{{ exito }}</div>
+  </div>
+</section>

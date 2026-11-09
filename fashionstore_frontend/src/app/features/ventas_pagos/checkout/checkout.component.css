@@ -1,0 +1,158 @@
+.checkout-steps{margin:1.5rem 0}
+.steps-indicator{display:flex;gap:.35rem;margin-bottom:1.5rem}
+.steps-indicator button{min-height:44px;padding:.6rem 1.2rem;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-pill);font-weight:700;font-size:.82rem;cursor:pointer}
+.steps-indicator button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.steps-indicator button:disabled:not(.active){opacity:.4;cursor:not-allowed}
+.step-content{max-width:640px}
+.checkout-lineas{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem}
+.checkout-linea{display:flex;align-items:center;gap:1rem;padding:.65rem .75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-control)}
+.linea-nombre{flex:1;font-weight:650;font-size:.85rem;color:var(--ink)}
+.linea-precio{font-weight:750;color:var(--ink)}
+.checkout-totales{display:flex;flex-direction:column;gap:.35rem;margin:1rem 0;padding:1rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card)}
+.checkout-totales>div{display:flex;justify-content:space-between;font-size:.88rem}
+.total-row{padding-top:.5rem;border-top:1px solid var(--border);font-weight:750;font-size:1rem;color:var(--ink)}
+.text-success{color:var(--success)}
+.modalidad-selector{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:1rem 0}
+.radio-card{display:flex;flex-direction:column;gap:.25rem;padding:1rem;border:2px solid var(--border);border-radius:var(--radius-card);cursor:pointer;transition:border-color .18s}
+.radio-card input{position:absolute;opacity:0}
+.radio-card.selected{border-color:var(--ink);background:var(--primary-light)}
+.radio-card.disabled{opacity:.45;cursor:not-allowed}
+.radio-title{font-weight:750;font-size:.9rem;color:var(--ink)}
+.radio-desc{font-size:.78rem;color:var(--text-muted)}
+.delivery-fields{display:grid;gap:.75rem;margin:1rem 0}
+.cotizacion-result{padding:.75rem}
+.step-actions{display:flex;gap:.75rem;margin-top:1.5rem}
+.confirm-summary{padding:1.25rem}
+.confirm-summary h2{font-size:1.1rem;margin-bottom:.75rem}
+.confirm-summary p{margin:.35rem 0;font-size:.88rem}
+.total-confirm{font-size:1.05rem;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)}
+@media(max-width:640px){.modalidad-selector{grid-template-columns:1fr}.steps-indicator{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}.steps-indicator button{flex:0 0 auto}}
+
+.btn-volver-catalogo {
+  margin-top: 1rem;
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.btn-continuar-paso {
+  margin-top: 1rem;
+  min-height: 44px;
+}
+
+.btn-confirmar-final {
+  min-height: 44px;
+}
+
+.cotizando-badge {
+  padding: 0.5rem;
+}
+
+.field-error {
+  color: var(--danger, #c43d4b);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.campo-sucursal {
+  margin-top: 1rem;
+}
+
+.linea-info-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.linea-sku {
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+  font-family: monospace;
+}
+
+.linea-cantidad {
+  color: var(--text-muted, #64748b);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.consentimiento-v3-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--surface-alt, #faf9f6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card, 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.consentimiento-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.consentimiento-checkbox input[type="checkbox"] {
+  margin-top: 0.2rem;
+  min-width: 18px;
+  min-height: 18px;
+}
+
+.preparacion-metodo-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-preparar-metodo {
+  min-height: 44px;
+}
+
+.metodo-preparado-nota {
+  font-size: 0.8rem;
+  color: #137333;
+  font-weight: 600;
+}
+
+.stripe-card-container {
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  margin-top: 0.5rem;
+  min-height: 44px;
+}
+
+.formulario-tarjeta-box {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.formulario-tarjeta-titulo {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--ink);
+}
+
+.formulario-tarjeta-acciones {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-confirmar-tarjeta,
+.btn-cancelar-tarjeta {
+  min-height: 44px;
+}

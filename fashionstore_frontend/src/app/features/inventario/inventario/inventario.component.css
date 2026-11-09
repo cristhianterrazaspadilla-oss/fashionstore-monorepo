@@ -1,0 +1,50 @@
+.page{max-width:1280px;margin:0 auto;padding:0 1rem 2rem}
+.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin:.6rem 0 1.2rem;flex-wrap:wrap}
+.eyebrow{font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:#64748b;font-weight:800}
+.hero h1{font-family:'Fraunces',serif;font-size:1.9rem;letter-spacing:-.02em;font-weight:700;margin:.2rem 0 .25rem;color:var(--ink,#0f172a)}
+.hero p{color:var(--text-muted);font-size:.88rem;line-height:1.5;max-width:720px}
+.hero-cards{display:flex;gap:.8rem}
+.hcard{background:#fff;border:1px solid var(--border);border-radius:16px;padding:1rem 1.4rem;text-align:center;box-shadow:var(--shadow-card);min-width:140px}
+.hcard.accent{background:#0f172a;color:#fff;border:none}
+.hnum{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:700;line-height:1}
+.hl{font-size:.78rem;font-weight:600;opacity:.85;margin-top:.2rem}
+.card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:1.4rem}
+.filters{margin-bottom:1.2rem}
+.row{display:flex;gap:.8rem;align-items:flex-end;flex-wrap:wrap}
+.f{flex:1;min-width:160px}
+.f label{font-size:.78rem;font-weight:600;color:#334155;margin-bottom:.3rem;display:block}
+.f select{width:100%;padding:.7rem .9rem;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:.92rem}
+.btns{display:flex;gap:.5rem;align-items:flex-end}
+.btn-primary{background:#0f172a;color:#fff;border:1px solid #0f172a;border-radius:9999px;padding:.6rem 1rem;font-weight:700;cursor:pointer}
+.btn-ghost{background:#fff;border:1px solid var(--border);border-radius:9999px;padding:.6rem 1rem;font-weight:700;cursor:pointer;color:var(--ink)}
+.tabs{display:flex;gap:.4rem;margin:1rem 0;flex-wrap:wrap}
+.tabs button{padding:.5rem 1rem;border-radius:9999px;border:1px solid #e2e8f0;background:#fff;font-weight:700;font-size:.82rem;cursor:pointer;color:#334155}
+.tabs button.on{background:#0f172a;color:#fff;border-color:#0f172a}
+.card h3{font-family:'Space Grotesk',sans-serif;font-size:1.15rem;font-weight:700;margin:0 0 .2rem}
+.desc{color:var(--text-muted);font-size:.82rem;margin-bottom:.9rem}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;width:100%}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+th{background:#f8f6f3;color:#64748b;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;padding:.6rem;text-align:left;border-bottom:1px solid #e2e8f0}
+td{padding:.6rem;border-bottom:1px solid #f1f5f9}
+td.mono{font-family:monospace;font-size:.82rem}
+td.strong{font-weight:700}
+td.num{text-align:right;white-space:nowrap}
+td.ok{color:#065f46;font-weight:700}
+td.muted{color:var(--text-muted)}
+.type{padding:.2rem .55rem;border-radius:9999px;font-size:.71rem;font-weight:700;border:1px solid transparent}
+.t-rec{background:var(--success-bg);color:#065f46;border-color:var(--success-border)}
+.t-venta{background:#eef2ff;color:#4338ca;border-color:#c7d2fe}
+.t-tras{background:var(--warning-bg);color:#92400e;border-color:var(--warning-border)}
+.t-merma{background:var(--danger-bg);color:#991b1b;border-color:var(--danger-border)}
+.t-def{background:#f1f5f9;color:#475569}
+.empty{text-align:center;color:var(--text-muted);padding:1.5rem}
+.alert.err{background:var(--danger-bg);color:#991b1b;border:1px solid var(--danger-border);padding:.8rem 1rem;border-radius:10px;margin-bottom:1rem}
+.val-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:.8rem}
+.val-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1rem}
+.val-city{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#a68b6a}
+.val-name{font-weight:700;color:var(--ink);margin:.2rem 0}
+.val-num{font-family:'Fraunces',serif;font-size:1.25rem;font-weight:700;color:var(--ink)}
+.val-sub{font-size:.78rem;color:var(--text-muted)}
+.total-bar{margin-top:1rem;background:#0f172a;color:#fff;border-radius:9999px;padding:.7rem 1rem;text-align:center;font-size:.85rem}
+@media(max-width:900px){.val-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.val-grid{grid-template-columns:1fr}.hero-cards{width:100%;display:grid;grid-template-columns:1fr 1fr}.hcard{min-width:0;padding:.8rem}.btns{width:100%}.btns button{flex:1;min-height:44px}table{min-width:760px}.total-bar{border-radius:12px}}

@@ -1,0 +1,535 @@
+{
+  "version": "0.4.0",
+  "revision_documental": "0.3.2",
+  "base": "/api/v1",
+  "tipo": "especificacion documental; no OpenAPI ejecutable",
+  "casos": [
+    {
+      "cu": "CU01",
+      "dueno": "identidad_empresas",
+      "rutas": [
+        "POST /empresas",
+        "GET /empresas/{empresa_id}"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Administrador de plataforma",
+      "entrada": "razon_social, nombre_comercial, empresa_codigo, administrador{nombre,correo,credencial_inicial}; Idempotency-Key.",
+      "salida": "empresa_id, empresa_codigo, administrador_id, estado, suscripcion_pendiente. Nunca devolver hash de contraseña.",
+      "errores": [
+        "Código duplicado: 409; datos inválidos: 422; sin permiso: 403. Fallo intermedio revierte empresa y usuario.",
+        "La empresa heredada se migra conservando identificadores y datos; no se vuelve a registrar como una nueva empresa vacía."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU01.md"
+    },
+    {
+      "cu": "CU02",
+      "dueno": "identidad_empresas",
+      "rutas": [
+        "POST /empresas/{empresa_id}/suscripciones",
+        "GET /empresas/mi-plan"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Administrador de plataforma administra; administrador de empresa consulta su plan",
+      "entrada": "empresa_id, plan_id, inicio_en, vence_en, motivo, revision; Idempotency-Key para asignar/cambiar.",
+      "salida": "suscripcion_id, revision, plan, inicio_en, vence_en, gracia_hasta, estado_efectivo, capacidades, sucursales_activas, limite.",
+      "errores": [
+        "Fechas incoherentes: 422. Reducción incompatible: 409 con causa.",
+        "Empresa heredada: si se confirman tres sucursales activas, asignar Profesional administrativamente con fechas capturadas; no inventar datos."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU02.md"
+    },
+    {
+      "cu": "CU03",
+      "dueno": "catalogo",
+      "rutas": [
+        "GET /catalogo/descarga"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Visitante o cliente; personal autorizado para ámbito operativo",
+      "entrada": "GET: empresa_codigo obligatorio, sucursal_id? del ámbito, version_conocida? solo como pista; respuesta completa HTTP 200.",
+      "salida": "empresa_id, empresa_codigo, catalogo_version, generado_en, ambito_sucursales, productos con variantes/disponibilidad conocida, colores/componentes y promociones; sin datos privados.",
+      "errores": [
+        "Interrupción: conservar última copia válida. Espacio insuficiente: informar sin declarar éxito.",
+        "Cambio de empresa no mezcla instantáneas; copia inválida no se usa como actual."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU03.md"
+    },
+    {
+      "cu": "CU04",
+      "dueno": "reservas_traslados",
+      "rutas": [
+        "POST /sincronizacion/referencias-horarias",
+        "POST /sincronizacion/operaciones",
+        "GET /sincronizacion/operaciones/{operacion_id}"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cliente",
+      "entrada": "Referencia POST: dispositivo_id, hora_local_en con offset Bolivia, Idempotency-Key. Operación SOLICITAR_RESERVA v1: UUID, empresa/actor/dispositivo, secuencia, referencia_horaria_id en nuevos comandos, creada_local_en con zona, datos{sucursal_id,visita_en,lineas[{variante_id,cantidad}]}.",
+      "salida": "Referencia vinculada con hora_central_en, valida_hasta, tolerancia_segundos y politica_version. Resultado durable con operacion_id, estado, codigo, recibida_en, revision y recurso_id/aceptada_en/vence_en al aceptar; presentación America/La_Paz.",
+      "errores": [
+        "Sin stock o vencida: rechazo durable sin apartado. Reloj incoherente: CONFLICTO/TIEMPO_INCOHERENTE.",
+        "Timeout tras aceptación: consultar/repetir mismo UUID; no recrear solicitud ni reiniciar plazo."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU04.md"
+    },
+    {
+      "cu": "CU05",
+      "dueno": "ventas_pagos",
+      "rutas": [
+        "POST /sincronizacion/operaciones",
+        "GET /compras/{pedido_id}",
+        "POST /compras/{pedido_id}/aceptar-oferta",
+        "POST /sincronizacion/operaciones/{operacion_id}/cancelar"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cliente",
+      "entrada": "SOLICITAR_COMPRA v3 con autorizacion_cobro? completa: consentimiento específico, huella, importes/moneda/tasa/condiciones/vigencia y preparacion_pago_id opaco; v1/v2 se conservan.",
+      "salida": "pedido_id, estado_pedido, estado_pago, estado_cumplimiento, oferta_revision, total_bob; reembolso_id cuando corresponda.",
+      "errores": [
+        "PENDIENTE_INTERVENCION sin método/consentimiento suficiente; REQUIERE_NUEVA_ACEPTACION si cambia oferta; REQUIERE_ACCION_CLIENTE si proveedor exige autenticación",
+        "Cancelación previa al cobro lo impide; carrera: CANCELACION_EN_CONCILIACION y CU27 si captura tardía",
+        "Pago incierto se concilia sin nuevo cobro"
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU05.md"
+    },
+    {
+      "cu": "CU06",
+      "dueno": "caja_offline",
+      "rutas": [
+        "POST /cajas/turnos",
+        "GET /cajas/turnos/{turno_id}"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cajero o administrador empresarial autorizado",
+      "entrada": "caja_id, dispositivo_id, sucursal_id, cupos[{variante_id,cantidad}], revision; Idempotency-Key.",
+      "salida": "turno_id, habilitacion_id, inicio_en, vence_en, version_precios, cupos y snapshot comercial autorizado.",
+      "errores": [
+        "Cupo insuficiente: rechazar sin asignación parcial implícita.",
+        "Vencimiento no libera cupos automáticamente. No emitir segunda habilitación hasta resolver turno anterior."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU06.md"
+    },
+    {
+      "cu": "CU07",
+      "dueno": "caja_offline",
+      "rutas": [
+        "POST /sincronizacion/operaciones",
+        "POST /cajas/turnos/{turno_id}/cerrar",
+        "POST /cajas/turnos/{turno_id}/recuperar"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cajero o administrador empresarial autorizado",
+      "entrada": "REGISTRAR_VENTA_CAJA v1: turno/habilitación, versión, líneas, total, efectivo, cambio, fechas de cobro y entrega; cliente opcional dentro de ámbito.",
+      "salida": "Comprobante local no fiscal, resultado central REGISTRADA_CENTRAL o CONCILIACION_REQUERIDA, detalle de cupo y cierre.",
+      "errores": [
+        "Sin cupo o fuera de turno: impedir nueva venta. Fallo antes de persistir/entregar: devolver efectivo y registrar incidencia.",
+        "Venta válida anterior se registra aunque después venza plan/usuario. Corrupción o caja perdida: conteo físico y cierre supervisado; no borrar cobro/entrega."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU07.md"
+    },
+    {
+      "cu": "CU08",
+      "dueno": "posventa",
+      "rutas": [
+        "POST /cambios",
+        "GET /cambios/{cambio_id}",
+        "POST /cambios/{cambio_id}/aceptar-oferta",
+        "POST /cambios/{cambio_id}/resolver-espera",
+        "POST /cambios/{cambio_id}/confirmar",
+        "POST /cambios/{cambio_id}/entregas"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cliente; encargado de sucursal o administrador autorizado",
+      "entrada": "venta_id, unidades originales/reemplazos, sucursal, modalidad, motivo_codigo TALLA|COLOR|DEFECTO_FABRICACION|PRODUCTO_INCORRECTO|OTRO, motivo_descripcion si OTRO, revision; inspección y responsabilidad separadas.",
+      "salida": "cambio_id, nota_codigo, estado, vence_espera_en, oferta_revision, valor_reconocido_bob, diferencia_bob, pago/reembolso/saldo, entrega_id y comprobantes.",
+      "errores": [
+        "Vencen 7 días sin sustituto o cliente no acepta: ofrecer elección de otra prenda, saldo o reembolso elegible; no retener indefinidamente ni imponer saldo.",
+        "Una nota solicitada a tiempo conserva elegibilidad aunque el trámite termine después del día 15.",
+        "Fallo atribuible a tienda: envío del reemplazo a cargo de tienda; cambio voluntario: cliente paga tarifa informada y aceptada. Traslado interno siempre a cargo de empresa.",
+        "Cotización vencida exige nueva aceptación; pago incierto no permite entregar ni liberar compromiso ciegamente.",
+        "Defecto/incumplimiento tardío: evaluación autorizada sin rechazo ni reembolso automático"
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU08.md"
+    },
+    {
+      "cu": "CU09",
+      "dueno": "posventa",
+      "rutas": [
+        "GET /saldos/mio",
+        "POST /ventas/{venta_id}/aplicar-saldo",
+        "POST /compras/{pedido_id}/aplicar-saldo"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cliente; cajero/administrador autorizado en venta presencial",
+      "entrada": "venta_id o pedido_id, importe_bob, revision; Idempotency-Key. Lectura propia GET /saldos/mio.",
+      "salida": "saldo_disponible_bob, saldo_retenido_bob, movimiento_id, restante_por_pagar_bob.",
+      "errores": [
+        "Importe supera saldo: rechazar sin débito parcial implícito.",
+        "Dos compras concurrentes no consumen mismo saldo. Offline no habilita gasto de saldo."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU09.md"
+    },
+    {
+      "cu": "CU10",
+      "dueno": "analitica",
+      "rutas": [
+        "GET /analitica/pronosticos",
+        "POST /analitica/entrenamientos/supervisado"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Administrador de empresa autorizado",
+      "entrada": "sucursal_id/producto_id opcionales propios, semana_objetivo; periodo_entrenamiento y version_modelo al entrenar.",
+      "salida": "predicciones[{producto_id,sucursal_id,semana,unidades_estimadas}], modelo_version, dataset_version, metricas, origen_datos, entrenado_en.",
+      "errores": [
+        "Datos insuficientes: estado DATOS_INSUFICIENTES, no ceros inventados.",
+        "Modelo de otra empresa o no compatible: rechazar; validar accesos a artefactos."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU10.md"
+    },
+    {
+      "cu": "CU11",
+      "dueno": "analitica",
+      "rutas": [
+        "GET /analitica/grupos-productos",
+        "POST /analitica/entrenamientos/no-supervisado"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Administrador de empresa autorizado",
+      "entrada": "periodo_inicio, periodo_fin, sucursal_id opcional, version_modelo; parámetros de entrenamiento validados.",
+      "salida": "grupos[{grupo_id,productos,centroide,descripcion}], modelo_version, metricas, periodo, origen_datos.",
+      "errores": [
+        "Muestra insuficiente o un único grupo no permite silhouette: informar no disponible.",
+        "No mezclar empresas al entrenar o inferir."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU11.md"
+    },
+    {
+      "cu": "CU12",
+      "dueno": "organizacion",
+      "rutas": [
+        "POST /plataforma/tasas-cambio",
+        "GET /plataforma/tasas-cambio/vigente"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Administrador de plataforma",
+      "entrada": "tasa_bob_por_usd, vigente_desde, vigente_hasta opcional, motivo; Idempotency-Key.",
+      "salida": "tasa_id, version, vigencia, autor; cotización con ambos importes y tasa.",
+      "errores": [
+        "Tasa ausente/vencida impide nuevo cobro Stripe, sin afectar efectivo BOB.",
+        "Webhook tardío se reconcilia con tasa original."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU12.md"
+    },
+    {
+      "cu": "CU13",
+      "dueno": "identidad_empresas",
+      "rutas": [
+        "POST /clientes",
+        "POST /sesion"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cliente; personal empresarial; administrador de plataforma en acceso separado",
+      "entrada": "empresa_codigo, correo, contraseña; datos de registro público sin rol privilegiado.",
+      "salida": "token de sesión según integración actual, perfil propio, empresa, capacidades, ultimo_login_online_en y privada_hasta.",
+      "errores": [
+        "Login incorrecto o pertenencia ajena: rechazo genérico; no filtrar existencia de cuenta.",
+        "Offline no acredita nuevo login central. Sin token válido no sincronizar; solicitar reautenticación."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU13.md"
+    },
+    {
+      "cu": "CU14",
+      "dueno": "identidad_empresas",
+      "rutas": [
+        "GET /usuarios",
+        "POST /usuarios",
+        "PATCH /usuarios/{usuario_id}"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Administrador empresarial autorizado; plataforma solo ámbito propio autorizado",
+      "entrada": "usuario_id opcional, nombre, correo, rol_id, sucursal_id, activo, revision; operación crear/editar/desactivar.",
+      "salida": "usuario_id, rol, sucursal, activo, revision; sin secretos.",
+      "errores": [
+        "Correo duplicado en empresa o revision obsoleta: 409. Rol/plataforma ajeno: 403.",
+        "Cambiar rol no transfiere información privada local entre usuarios."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU14.md"
+    },
+    {
+      "cu": "CU15",
+      "dueno": "organizacion",
+      "rutas": [
+        "GET /ciudades",
+        "POST /ciudades",
+        "PATCH /ciudades/{ciudad_id}",
+        "GET /sucursales",
+        "POST /sucursales",
+        "PATCH /sucursales/{sucursal_id}"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Plataforma administra ciudades; administrador empresarial administra sucursales/tarifas propias",
+      "entrada": "ciudad_id global; sucursal{nombre,ciudad_id,anillos,tarifa_base,incremento_anillo,activa}; revision.",
+      "salida": "sucursal_id, empresa_id, ciudad, parametros_entrega, activa, revision.",
+      "errores": [
+        "Empresa no modifica ciudades globales.",
+        "Desactivación con compromisos devuelve 409 con causas resumidas propias."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU15.md"
+    },
+    {
+      "cu": "CU16",
+      "dueno": "catalogo",
+      "rutas": [
+        "GET /catalogo/productos",
+        "GET /catalogo/filtros-opciones",
+        "GET /catalogo/variantes/{variante_id}/disponibilidad"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Visitante, cliente o personal autorizado",
+      "entrada": "empresa_codigo, texto?, categoria_id?, talla_id?, color_id?, componentes_color[]?, modo_color=EXACTO|TODOS_COMPONENTES, sucursal_id?, precio_min_bob?, precio_max_bob?, limit, offset.",
+      "salida": "{total,limit,offset,items[]} con variantes, precio BOB decimal, promoción condicional y disponibilidad conocida/fuente; alias GET /productos conserva lista heredada.",
+      "errores": [
+        "Sin copia local informar indisponibilidad, no lista vacía presentada como catálogo actualizado.",
+        "No exponer costos, empleados o stock comprometido privado en descarga pública."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU16.md"
+    },
+    {
+      "cu": "CU17",
+      "dueno": "inventario",
+      "rutas": [
+        "GET /inventario/kardex",
+        "GET /inventario/existencias"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Administrador empresarial o encargado autorizado por sucursal",
+      "entrada": "sucursal_id, variante_id, desde, hasta, tipo_movimiento, pagina.",
+      "salida": "movimientos, saldos_cantidad, libre/reservado/cupo, costo y valoración, referencias.",
+      "errores": [
+        "No recalcular costo histórico con precio comercial.",
+        "No asumir que devolución recibida es vendible: inspección decide reposición o cuarentena/merma."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU17.md"
+    },
+    {
+      "cu": "CU18",
+      "dueno": "reservas_traslados",
+      "rutas": [
+        "POST /reservas",
+        "GET /reservas",
+        "GET /reservas/{reserva_id}",
+        "PATCH /reservas/{reserva_id}/cancelar"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cliente; personal consulta/prepara según funciones existentes",
+      "entrada": "Crear: sucursal_destino_id, fecha_visita, lineas[{variante_id,cantidad,sucursal_origen_id?}], Idempotency-Key. Consultar: reserva_id o lista. Cancelar: revision e Idempotency-Key; adaptador heredado sin revision bajo bloqueo.",
+      "salida": "id, código, estado, revision, origen_plazo_en, fecha_visita, vence_en, adelanto confirmado y estados por línea; lista {total,limit,offset,items[]}.",
+      "errores": [
+        "Stock insuficiente no crea aceptación parcial implícita.",
+        "Adelanto tardío no reactiva reserva vencida; pago incierto exige conciliación antes de expirar compromisos asociados."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU18.md"
+    },
+    {
+      "cu": "CU19",
+      "dueno": "ventas_pagos",
+      "rutas": [
+        "POST /ventas/presenciales",
+        "GET /ventas/{venta_id}"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cajero o administrador empresarial autorizado",
+      "entrada": "cliente_id opcional, sucursal, líneas, descuentos calculables, medio efectivo/saldo/Stripe, efectivo_recibido_bob, revision.",
+      "salida": "venta_id, numero, totales, medios, estados de pago y entrega, comprobante.",
+      "errores": [
+        "Sin stock libre o saldo insuficiente: no confirmar venta.",
+        "Fallo tras recibir efectivo se concilia; no ocultar el hecho financiero con rollback lógico sin devolución documentada."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU19.md"
+    },
+    {
+      "cu": "CU20",
+      "dueno": "posventa",
+      "rutas": [
+        "POST /devoluciones/solicitudes",
+        "POST /devoluciones",
+        "POST /devoluciones/{devolucion_id}/inspecciones",
+        "POST /mermas"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Encargado o administrador empresarial autorizado; cliente solicita devolución",
+      "entrada": "DEVOLUCION/MERMA, venta/unidades, motivo_codigo y motivo_descripcion si OTRO, evidencia, revision; inspección separa condicion_fisica, responsabilidad_tienda y resolución financiera.",
+      "salida": "devolucion_id/merma_id, recepción, inspección, movimientos, importe_elegible y estado financiero enlazado.",
+      "errores": [
+        "15 días voluntaria con comprobante e inspección; defecto/incumplimiento tardío a evaluación autorizada, sin resolución automática",
+        "Recepción queda en custodia y no repone stock vendible automáticamente"
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU20.md"
+    },
+    {
+      "cu": "CU21",
+      "dueno": "ventas_pagos",
+      "rutas": [
+        "GET /carritos/mio",
+        "POST /carritos/mio/lineas",
+        "PATCH /carritos/mio/lineas/{linea_id}",
+        "DELETE /carritos/mio/lineas/{linea_id}",
+        "POST /carritos/mio/checkout"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cliente",
+      "entrada": "líneas[{variante_id,cantidad}], sucursal propuesta, modalidad RECOJO/DELIVERY, direccion, saldo_solicitado opcional.",
+      "salida": "pedido_id, oferta, estado_pago, estado_cumplimiento, entrega propuesta, vínculo con CU05 si origen offline.",
+      "errores": [
+        "Compra local no pagada puede conservar consentimiento y referencia opaca de método preparado; no PAN/CVC/client_secret",
+        "Cambio de importe, moneda, tasa/conversión o condiciones exige nueva aceptación antes de cobrar"
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU21.md"
+    },
+    {
+      "cu": "CU22",
+      "dueno": "ventas_pagos",
+      "rutas": [
+        "POST /pagos/stripe/intenciones",
+        "GET /pagos/stripe/estado/{recurso_id}",
+        "POST /pagos/stripe/webhook",
+        "POST /pagos/stripe/metodos/preparar",
+        "GET /pagos/stripe/metodos/{preparacion_pago_id}",
+        "POST /pagos/stripe/ordenes/{orden_pago_id}/continuar-accion"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cliente o personal autorizado inicia cobro propio; webhook firmado de Stripe sin sesión de cliente",
+      "entrada": "contexto, recurso_id, oferta_revision, Idempotency-Key; v3 incluye referencia opaca a método preparado y consentimiento específico. Monto calculado en servidor.",
+      "salida": "orden_pago_id, estado, importe_bob, importe_usd, tasa_id, referencia_proveedor; client_secret solo al consumidor autorizado y nunca logs.",
+      "errores": [
+        "Stripe rechazado: conservar intento fallido; nuevo intento explícito y control de un único cobro efectivo.",
+        "Cobro tardío tras cancelación/vencimiento crea reembolso; no resucita entrega/stock por sí solo.",
+        "SCA: REQUIERE_ACCION_CLIENTE y notificación; cancelación/cobro se concilian sin duplicar"
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU22.md"
+    },
+    {
+      "cu": "CU23",
+      "dueno": "analitica",
+      "rutas": [
+        "GET /analitica/dashboard"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Administrador empresarial autorizado",
+      "entrada": "desde, hasta, sucursales permitidas, fecha_base CENTRAL/LOCAL, zona_horaria.",
+      "salida": "indicadores, series, filtros_efectivos, calculado_en, definiciones_metricas.",
+      "errores": [
+        "Sin datos mostrar ausencia de datos, no ventas inventadas.",
+        "Básico conserva reportes convencionales sin ML/generativo."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU23.md"
+    },
+    {
+      "cu": "CU24",
+      "dueno": "analitica",
+      "rutas": [
+        "POST /reportes/interpretar",
+        "POST /reportes/consultar",
+        "POST /reportes/exportar"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Administrador empresarial autorizado",
+      "entrada": "texto, tipo_reporte opcional, filtros propuestos; exportar por consulta_id y formato XLSX/CSV/PDF.",
+      "salida": "consulta_id, tipo, filtros_efectivos, columnas, filas, totales, grafico_sugerido, generado_en, origen=DATOS_REALES.",
+      "errores": [
+        "Ambigua: pedir precisión sin ejecutar consulta arbitraria. No soportada: informar opciones.",
+        "Gemini caído: informar y conservar entrada; no sustituir por datos estáticos. Escape de fórmulas al exportar CSV/Excel."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU24.md"
+    },
+    {
+      "cu": "CU25",
+      "dueno": "analitica",
+      "rutas": [
+        "GET /analitica/ventas-sucursal"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Encargado de sucursal o administrador empresarial autorizado",
+      "entrada": "sucursal_id, desde, hasta, fecha_base CENTRAL/LOCAL, estado_pago/cumplimiento, pagina.",
+      "salida": "ventas paginadas, totales desglosados, fechas, referencias y filtros efectivos.",
+      "errores": [
+        "Encargado no amplía sucursal modificando parámetros.",
+        "Venta local no sincronizada solo aparece en dispositivo autorizado y no se inventa en informe central."
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU25.md"
+    },
+    {
+      "cu": "CU26",
+      "dueno": "reservas_traslados",
+      "rutas": [
+        "POST /reservas/expiracion/ejecutar"
+      ],
+      "estado_rutas": "ruta administrativa manual existente; tarea interna programada existente pero desactivada por defecto",
+      "autorizacion": "Tarea interna sin actor humano; ejecución manual existente exige ENCARGADO o ADMINISTRADOR",
+      "entrada": "hora_servidor y lote de reserva_id; ejecución repetible con identificador de trabajo.",
+      "salida": "conteo procesadas/omitidas/incidencias y reservas vencidas con movimientos trazables.",
+      "errores": [
+        "Reserva local no enviada no existe como apartado central: CU04 la rechaza al llegar tarde.",
+        "No liberar cupos de caja ni compromisos de pedido digital desde esta tarea."
+      ],
+      "idempotencia": "Trabajo interno reentrante; bloqueo y estado de reserva evitan doble liberación. La ruta manual existente no recibe Idempotency-Key de cliente",
+      "contrato_detalle": "casos/CU26.md"
+    },
+    {
+      "cu": "CU27",
+      "dueno": "posventa",
+      "rutas": [
+        "POST /reembolsos",
+        "GET /reembolsos/{reembolso_id}",
+        "POST /reembolsos/{reembolso_id}/autorizar",
+        "POST /reembolsos/{reembolso_id}/ejecutar",
+        "POST /reembolsos/{reembolso_id}/conciliar"
+      ],
+      "estado_rutas": "propuestas/adaptaciones; cotejar checkout actual y conservar adaptadores",
+      "autorizacion": "Cliente solicita/consulta; encargado o administrador autoriza; proceso automático por incumplimiento",
+      "entrada": "origen PEDIDO_NO_CUMPLIBLE/DEVOLUCION/CAMBIO, recurso_id, unidades solicitadas si aplica, motivo, revision; Idempotency-Key. Pago y monto elegible se derivan en servidor, no del cliente.",
+      "salida": "reembolso_id, estado SOLICITADO/AUTORIZADO/EN_PROCESO/EN_VERIFICACION/COMPLETADO/FALLIDO/RECHAZADO, importes BOB/USD, referencia, motivo, comprobantes.",
+      "errores": [
+        "No hay pago capturado: cancelar intención/retención y documentar, no inventar un reembolso.",
+        "Pago mixto: dinero al medio original y saldo restaurado; suma de reembolsos ejecutados+reservados no supera componente pagado.",
+        "Fallo de proveedor no significa deuda saldada. Política configurable se congela al aprobar; no alterar reclamos históricos.",
+        "Defecto/incumplimiento tardío requiere evaluación autorizada; 48 h es objetivo interno configurable de inicio, sin garantía bancaria"
+      ],
+      "idempotencia": "Idempotency-Key en mutaciones; UUID propio en sync; eventos proveedor deduplicados",
+      "contrato_detalle": "casos/CU27.md"
+    }
+  ],
+  "transversales": [
+    "GET /notificaciones/mias",
+    "POST /notificaciones/suscripciones",
+    "DELETE /notificaciones/suscripciones/{suscripcion_id}",
+    "GET /sincronizacion/referencia-horaria",
+    "GET /comprobantes/{comprobante_id}"
+  ],
+  "limite": "Campos por CU requieren concretar DTO compatibles al auditar código; este mapa no afirma que toda ruta exista."
+}

@@ -1,0 +1,2 @@
+# Guía del agente de implementación
+La revisión ahora cubre27 CU; ocho de primera presentación se conservan históricamente. Comenzar por [PROMPT-AUDITORIA-CODEX.md](PROMPT-AUDITORIA-CODEX.md) y luego [flujo-trabajo.md](flujo-trabajo.md). No implementar todo automáticamente por leer este archivo: el equipo asigna bloques y autoriza código. Leer decisiones y ficha de CU antes de editar. No hacer commit/push ni migración activa sin instrucción concreta del usuario.

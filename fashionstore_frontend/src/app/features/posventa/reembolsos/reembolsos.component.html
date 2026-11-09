@@ -1,0 +1,239 @@
+<section class="reembolsos-container" aria-label="Gestión y seguimiento de reembolsos">
+  <div class="header-section">
+    <div>
+      <h1 class="page-title">Reembolsos</h1>
+      <p class="page-subtitle">Seguimiento y resolución de reintegros por devoluciones, cancelaciones o diferencias de cambio.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn-refresh" (click)="cargarReembolsos()" [disabled]="cargando" aria-label="Actualizar lista de reembolsos">
+        <span aria-hidden="true">↻</span>
+        <span>Actualizar</span>
+      </button>
+      <button type="button" class="btn-primary" (click)="abrirModalSolicitud()">
+        <span>+ Solicitar reembolso</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Alerta de éxito -->
+  <div *ngIf="exito" class="alert-box alert-success" role="status">
+    <div class="alert-content">
+      <span>{{ exito }}</span>
+    </div>
+    <button type="button" class="btn-alert-close" (click)="exito = null" aria-label="Cerrar notificación">&times;</button>
+  </div>
+
+  <!-- Alerta de error -->
+  <div *ngIf="error" class="alert-box alert-error" role="alert">
+    <div class="alert-content">
+      <strong>Aviso:</strong>
+      <span>{{ error }}</span>
+    </div>
+    <button type="button" class="btn-alert-close" (click)="error = null" aria-label="Cerrar alerta">&times;</button>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filters-card">
+    <div class="filter-group">
+      <label for="filtro-estado" class="filter-label">Estado:</label>
+      <select id="filtro-estado" [(ngModel)]="filtroEstado" class="filter-select">
+        <option value="TODOS">Todos los estados</option>
+        <option value="SOLICITADO">Pendiente de aprobación</option>
+        <option value="AUTORIZADO">Aprobado para devolución</option>
+        <option value="EN_PROCESO">En proceso bancario</option>
+        <option value="COMPLETADO">Completado</option>
+        <option value="RECHAZADO">Rechazado</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="filtro-medio" class="filter-label">Medio original:</label>
+      <select id="filtro-medio" [(ngModel)]="filtroMedio" class="filter-select">
+        <option value="TODOS">Todos los medios</option>
+        <option value="STRIPE">Tarjeta bancaria (Stripe)</option>
+        <option value="SALDO">Saldo a favor</option>
+        <option value="EFECTIVO">Efectivo en tienda</option>
+      </select>
+    </div>
+
+    <span class="results-badge">{{ reembolsosFiltrados.length }} solicitud(es)</span>
+  </div>
+
+  <!-- Estado de carga -->
+  <div *ngIf="cargando" class="loading-state" role="status" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Consultando el estado de reembolsos...</p>
+  </div>
+
+  <!-- Estado vacío -->
+  <div *ngIf="!cargando && reembolsosFiltrados.length === 0" class="empty-state">
+    <div class="empty-icon" aria-hidden="true">💸</div>
+    <h3 class="empty-title">Sin solicitudes de reembolso</h3>
+    <p class="empty-desc">
+      {{ filtroEstado !== 'TODOS' || filtroMedio !== 'TODOS' ? 'No hay reembolsos que coincidan con los filtros aplicados.' : 'No tienes solicitudes de reembolso registradas actualmente.' }}
+    </p>
+  </div>
+
+  <!-- Lista de tarjetas de reembolsos -->
+  <div *ngIf="!cargando && reembolsosFiltrados.length > 0" class="reembolsos-grid">
+    <article *ngFor="let r of reembolsosFiltrados" class="reembolso-card">
+      <div class="card-top">
+        <div class="badge-row">
+          <span [class]="'status-badge ' + claseEstado(r.estado)">
+            {{ etiquetaEstado(r.estado) }}
+          </span>
+          <span class="medio-tag">
+            <span aria-hidden="true">{{ iconoMedio(r.medio_original) }}</span>
+            <span>{{ etiquetaMedio(r.medio_original) }}</span>
+          </span>
+        </div>
+        <strong class="reembolso-amount">{{ bs(r.monto_bob) }}</strong>
+      </div>
+
+      <div class="card-details">
+        <div class="detail-row">
+          <span class="detail-label">Concepto:</span>
+          <span class="detail-value">{{ r.motivo_descripcion || r.motivo_codigo }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Fecha solicitud:</span>
+          <span class="detail-value">{{ fechaHora(r.creado_en) }}</span>
+        </div>
+        <div *ngIf="r.actualizado_en" class="detail-row">
+          <span class="detail-label">Último cambio:</span>
+          <span class="detail-value">{{ fechaHora(r.actualizado_en) }}</span>
+        </div>
+      </div>
+
+      <!-- Barra de progreso del flujo -->
+      <div class="progress-track" aria-hidden="true">
+        <div class="track-step" [class.step-done]="r.estado !== 'RECHAZADO'">
+          <span class="step-dot"></span>
+          <span class="step-label">Solicitado</span>
+        </div>
+        <div class="track-step" [class.step-done]="r.estado === 'AUTORIZADO' || r.estado === 'EN_PROCESO' || r.estado === 'COMPLETADO'">
+          <span class="step-dot"></span>
+          <span class="step-label">Aprobado</span>
+        </div>
+        <div class="track-step" [class.step-done]="r.estado === 'EN_PROCESO' || r.estado === 'COMPLETADO'">
+          <span class="step-dot"></span>
+          <span class="step-label">En proceso</span>
+        </div>
+        <div class="track-step" [class.step-done]="r.estado === 'COMPLETADO'">
+          <span class="step-dot"></span>
+          <span class="step-label">Reintegrado</span>
+        </div>
+      </div>
+
+      <!-- Acciones operativas para personal autorizado -->
+      <div *ngIf="esPersonal && (r.estado === 'SOLICITADO' || r.estado === 'PENDIENTE_AUTORIZACION' || r.estado === 'AUTORIZADO')" class="card-actions">
+        <button
+          *ngIf="r.estado === 'SOLICITADO' || r.estado === 'PENDIENTE_AUTORIZACION'"
+          type="button"
+          class="btn-action-primary"
+          (click)="iniciarAutorizacion(r)"
+        >
+          Aprobar reintegro
+        </button>
+
+        <button
+          *ngIf="r.estado === 'AUTORIZADO'"
+          type="button"
+          class="btn-action-execute"
+          (click)="iniciarEjecucion(r)"
+        >
+          Ejecutar reembolso a {{ etiquetaMedio(r.medio_original) }}
+        </button>
+      </div>
+    </article>
+  </div>
+
+  <!-- Modal para solicitar nuevo reembolso -->
+  <div *ngIf="modalSolicitudAbierto" class="modal-backdrop" (click)="cerrarModalSolicitud()" aria-hidden="true"></div>
+  <div
+    *ngIf="modalSolicitudAbierto"
+    class="modal-wrapper"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-solicitud-title"
+  >
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <div>
+          <h2 id="modal-solicitud-title" class="modal-title">Nueva solicitud de reembolso</h2>
+          <p class="modal-subtitle">Se reintegrará el importe al medio de pago original utilizado.</p>
+        </div>
+        <button type="button" class="btn-close" (click)="cerrarModalSolicitud()" aria-label="Cerrar ventana">&times;</button>
+      </header>
+
+      <div class="modal-body">
+        <div *ngIf="errorSolicitud" class="alert-box alert-error" role="alert">
+          <span>{{ errorSolicitud }}</span>
+        </div>
+
+        <div class="form-group">
+          <label for="tipo-origen" class="form-label">Tipo de operación original:</label>
+          <select id="tipo-origen" [(ngModel)]="solicitud.origen_tipo" class="form-control">
+            <option value="VENTA">Venta de tienda</option>
+            <option value="PEDIDO">Pedido online</option>
+            <option value="DEVOLUCION">Devolución física previa</option>
+            <option value="CAMBIO">Diferencia por cambio</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="origen-id" class="form-label">Número o código del comprobante:</label>
+          <input
+            id="origen-id"
+            type="text"
+            [(ngModel)]="solicitud.origen_id"
+            placeholder="Ej: VNT-0001 o identificador de compra"
+            class="form-control"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="motivo-codigo" class="form-label">Motivo de la solicitud:</label>
+          <select id="motivo-codigo" [(ngModel)]="solicitud.motivo_codigo" class="form-control">
+            <option value="DEFECTO_FABRICA">Falla o defecto de confección</option>
+            <option value="DISCONFORMIDAD_TALLA">Talla no adecuada / sin stock de cambio</option>
+            <option value="CANCELACION_PEDIDO">Cancelación oportuna de pedido</option>
+            <option value="DIFERENCIA_CAMBIO">Diferencia a favor por prenda de menor valor</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="motivo-desc" class="form-label">Detalles adicionales (opcional):</label>
+          <textarea
+            id="motivo-desc"
+            rows="3"
+            [(ngModel)]="solicitud.motivo_descripcion"
+            placeholder="Describe cualquier detalle relevante para acelerar la resolución..."
+            class="form-control textarea-control"
+          ></textarea>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="cerrarModalSolicitud()" [disabled]="solicitando">
+          Cancelar
+        </button>
+        <button type="button" class="btn-primary" (click)="enviarSolicitud()" [disabled]="solicitando || !solicitud.origen_id">
+          {{ solicitando ? 'Enviando...' : 'Enviar solicitud' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Diálogo de confirmación para autorizar o ejecutar -->
+  <app-confirm-dialog
+    [visible]="dialogoConfirmarVisible"
+    [titulo]="accionPendiente === 'AUTORIZAR' ? '¿Aprobar reintegro del importe?' : '¿Ejecutar reintegro hacia el medio original?'"
+    [descripcion]="accionPendiente === 'AUTORIZAR' ? 'El reembolso quedará listo para ejecución hacia el medio original (tarjeta, saldo o caja).' : 'Se enviará la orden de reintegro definitiva al procesador de pagos o libro de saldo.' + (reembolsoSeleccionado ? ' Importe: ' + bs(reembolsoSeleccionado.monto_bob) : '')"
+    [textoConfirmar]="accionPendiente === 'AUTORIZAR' ? 'Aprobar reintegro' : 'Ejecutar reintegro'"
+    [variante]="accionPendiente === 'AUTORIZAR' ? 'primary' : 'warning'"
+    [procesando]="procesandoAccion"
+    (confirmar)="confirmarAccion()"
+    (cancelar)="cancelarAccion()"
+  ></app-confirm-dialog>
+</section>

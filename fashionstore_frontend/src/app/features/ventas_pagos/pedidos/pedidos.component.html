@@ -1,0 +1,67 @@
+<section class="cycle-page">
+  <div class="cycle-hero"><div><p class="cycle-kicker">Cola operativa</p><h1>Pedidos</h1></div></div>
+
+  <div class="cycle-toolbar">
+    <label *ngIf="esAdmin"><span>Sucursal</span>
+      <select [(ngModel)]="sucursalFiltro" (ngModelChange)="cambiarFiltro()"><option value="">Todas</option><option *ngFor="let s of sucursales" [value]="s.id">{{ s.nombre }}</option></select>
+    </label>
+    <label><span>Estado</span>
+      <select [(ngModel)]="estadoFiltro" (ngModelChange)="cambiarFiltro()"><option value="">Todos</option><option *ngFor="let e of ESTADOS_FILTRO" [value]="e">{{ etiqueta(e) }}</option></select>
+    </label>
+  </div>
+
+  <div *ngIf="exito" class="cycle-alert success" role="status">{{ exito }}</div>
+  <div *ngIf="error" class="cycle-alert danger" role="alert">{{ error }} <button type="button" class="cycle-link" (click)="cargar()">Reintentar</button></div>
+  <div *ngIf="cargando" class="cycle-state" role="status"><p>Cargando pedidos…</p></div>
+  <div *ngIf="!cargando && !pedidos.length" class="cycle-state"><p>No hay pedidos que coincidan con los filtros.</p></div>
+
+  <div *ngIf="!cargando && pedidos.length" class="cycle-list">
+    <div *ngFor="let p of pedidos" class="cycle-card">
+      <div class="cycle-card-head">
+        <h2>{{ sucursalNombre(p.sucursal_id) }}</h2>
+        <span class="status" [class]="clase(p.estado)">{{ etiqueta(p.estado) }}</span>
+      </div>
+      <dl class="cycle-facts">
+        <div><dt>Modalidad</dt><dd>{{ etiqueta(p.modalidad) }}</dd></div>
+        <div><dt>Envío</dt><dd>{{ bs(p.costo_entrega) }}</dd></div>
+        <div><dt>Fecha</dt><dd>{{ fh(p.creada_en) }}</dd></div>
+      </dl>
+      <p *ngIf="p.codigo_recojo" class="codigo-recojo">Código: <strong>{{ p.codigo_recojo }}</strong></p>
+      <div class="cycle-actions" *ngIf="siguienteEstado(p)">
+        <button type="button" class="cycle-primary" (click)="avanzar(p)" [disabled]="!puedeAvanzar(p)">
+          {{ operando[p.id] ? 'Procesando…' : 'Avanzar a ' + etiqueta(siguienteEstado(p)!) }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paginación accesible -->
+  <nav *ngIf="!cargando && total > limit" class="cycle-pagination" aria-label="Paginación de pedidos">
+    <p class="cycle-pagination-info" aria-live="polite">
+      Mostrando {{ rangoInicio }} a {{ rangoFin }} de {{ total }} pedidos
+    </p>
+    <div class="cycle-pagination-actions">
+      <button
+        type="button"
+        class="cycle-secondary"
+        [disabled]="offset === 0"
+        (click)="paginaAnterior()"
+        aria-label="Página anterior"
+      >
+        Anterior
+      </button>
+      <span class="cycle-pagination-page" aria-current="page">
+        Página {{ paginaActual }} de {{ totalPaginas }}
+      </span>
+      <button
+        type="button"
+        class="cycle-secondary"
+        [disabled]="offset + limit >= total"
+        (click)="paginaSiguiente()"
+        aria-label="Página siguiente"
+      >
+        Siguiente
+      </button>
+    </div>
+  </nav>
+</section>

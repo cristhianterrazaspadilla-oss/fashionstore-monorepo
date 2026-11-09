@@ -1,0 +1,295 @@
+{
+  "nombre": "fashionstore-segundo-parcial",
+  "version": "0.2.0",
+  "estado": "diseno-documental-priorizado-primera-presentacion",
+  "base": "/api/v1",
+  "formato": {
+    "fecha_hora": "ISO 8601 con zona horaria",
+    "importe": "cadena decimal con dos posiciones, nunca float",
+    "moneda_comercial": "BOB",
+    "moneda_stripe_test": "USD",
+    "identificador": "UUID",
+    "autorizacion": "sesion autenticada; empresa y propietario validados en servidor"
+  },
+  "operacion": {
+    "obligatorios": [
+      "version_esquema",
+      "operacion_id",
+      "tipo",
+      "creada_local_en",
+      "empresa_id",
+      "usuario_id",
+      "dispositivo_id",
+      "secuencia_local",
+      "datos"
+    ],
+    "version_esquema": 1,
+    "tipos": {
+      "SOLICITAR_RESERVA": {
+        "datos_obligatorios": [
+          "sucursal_id",
+          "visita_en",
+          "lineas"
+        ],
+        "linea": [
+          "variante_id",
+          "cantidad"
+        ],
+        "regla": "24 h desde creacion local; 72 h solo con adelanto online confirmado antes del vencimiento"
+      },
+      "SOLICITAR_COMPRA": {
+        "datos_obligatorios": [
+          "sucursal_id",
+          "lineas"
+        ],
+        "linea": [
+          "variante_id",
+          "cantidad",
+          "precio_visto_bob"
+        ],
+        "regla": "sin cobro hasta comprobar stock y aceptar importe vigente online"
+      },
+      "REGISTRAR_VENTA_CAJA": {
+        "datos_obligatorios": [
+          "turno_id",
+          "habilitacion_id",
+          "version_precios",
+          "vendida_local_en",
+          "lineas",
+          "total_bob",
+          "efectivo_recibido_bob",
+          "entregada_local_en"
+        ],
+        "datos_opcionales": [
+          "cambio_entregado_bob"
+        ],
+        "linea": [
+          "variante_id",
+          "cantidad",
+          "precio_autorizado_bob"
+        ],
+        "regla": "Caja PWA o Flutter para personal autorizado; efectivo y entrega dentro de turno y cupo previos. Mismo contrato de negocio, persistencia local diferente."
+      }
+    }
+  },
+  "resultado": {
+    "obligatorios": [
+      "operacion_id",
+      "estado",
+      "codigo",
+      "recibida_en",
+      "detalle"
+    ],
+    "opcionales": [
+      "aceptada_en",
+      "vence_en",
+      "recurso_id",
+      "revision",
+      "venta_id",
+      "total_bob",
+      "total_usd",
+      "tasa_bob_por_usd",
+      "faltantes"
+    ],
+    "estados": [
+      "ACEPTADA",
+      "RECHAZADA",
+      "REQUIERE_ACEPTACION_PRECIO",
+      "PENDIENTE_PAGO",
+      "REGISTRADA_CENTRAL",
+      "CONCILIACION_REQUERIDA",
+      "CONFLICTO"
+    ],
+    "codigos": [
+      "OK",
+      "SIN_STOCK",
+      "PRECIO_CAMBIADO",
+      "SOLICITUD_VENCIDA",
+      "TIEMPO_INCOHERENTE",
+      "PLAN_NO_HABILITADO",
+      "CUPO_INSUFICIENTE",
+      "TASA_NO_VIGENTE",
+      "OPERACION_MODIFICADA",
+      "PAGO_EN_VERIFICACION"
+    ],
+    "reglas_reserva": {
+      "TIEMPO_INCOHERENTE": "CONFLICTO",
+      "SIN_STOCK": "RECHAZADA",
+      "SOLICITUD_VENCIDA": "RECHAZADA",
+      "PLAN_NO_HABILITADO": "RECHAZADA",
+      "OK": "ACEPTADA"
+    }
+  },
+  "rutas_nuevas_propuestas": [
+    {
+      "metodo": "POST",
+      "ruta": "/empresas",
+      "cuerpo": "alta de empresa; superadministrador",
+      "respuesta": "empresa y administrador inicial creados; plan pendiente de asignacion"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/empresas/{empresa_id}/suscripciones",
+      "cuerpo": "plan, fechas manuales y motivo; superadministrador",
+      "respuesta": "suscripcion versionada"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/empresas/mi-plan",
+      "respuesta": "plan, vigencia, gracia y capacidad efectiva"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/catalogo/descarga",
+      "respuesta": "catalogo publico versionado y fecha de descarga"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/sincronizacion/referencia-horaria",
+      "respuesta": "hora, referencia y vencimiento emitidos por servidor"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/sincronizacion/operaciones",
+      "cuerpo": "operacion",
+      "respuesta": "resultado",
+      "semantica": "una operacion y transaccion por solicitud; 200 incluso ante rechazo comercial"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/sincronizacion/operaciones/{operacion_id}",
+      "respuesta": "resultado durable o 404 dentro del ambito autorizado"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/compras/{operacion_id}/aceptar-precio",
+      "cuerpo": "revision y total_bob aceptados; Idempotency-Key",
+      "respuesta": "resultado tras revalidar stock y apartar"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/notificaciones/mias",
+      "respuesta": "bandeja persistida propia"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/notificaciones/suscripciones",
+      "cuerpo": "canal FCM o WEB_PUSH y credencial de dispositivo; Idempotency-Key",
+      "respuesta": "suscripcion_id y estado"
+    },
+    {
+      "metodo": "DELETE",
+      "ruta": "/notificaciones/suscripciones/{suscripcion_id}",
+      "respuesta": "204 tras desvincular del usuario actual"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/saldos/mio",
+      "respuesta": "saldo BOB propio y movimientos"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/ventas/{venta_id}/aplicar-saldo",
+      "cuerpo": "importe_bob, revision; Idempotency-Key",
+      "respuesta": "saldo reservado/usado y restante"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cambios",
+      "cuerpo": "venta, unidades devueltas, reemplazos y sucursal; Idempotency-Key",
+      "respuesta": "cambio valorado y diferencia"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cambios/{cambio_id}/confirmar",
+      "cuerpo": "revision, importe aceptado y pago; Idempotency-Key",
+      "respuesta": "cambio confirmado o pendiente de pago"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/plataforma/tasas-cambio",
+      "cuerpo": "BOB por USD, vigencia y motivo; superadministrador",
+      "respuesta": "tasa versionada"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cajas/turnos",
+      "cuerpo": "caja_id, sucursal_id, cupos por variante; Idempotency-Key",
+      "respuesta": "habilitacion, ventana de 8 h, cupos y precios versionados"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cajas/turnos/{turno_id}/cerrar",
+      "cuerpo": "revision y operaciones sincronizadas; Idempotency-Key",
+      "respuesta": "cierre y cupo liberado"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cajas/turnos/{turno_id}/recuperar",
+      "cuerpo": "conteo fisico por variante, motivo y evidencia; Idempotency-Key",
+      "respuesta": "ajuste auditado y cierre supervisado"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/reportes/interpretar",
+      "cuerpo": "texto o voz transcrita",
+      "respuesta": "tipo y filtros propuestos, sujetos a validacion backend"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/reportes/consultar",
+      "cuerpo": "tipo y filtros permitidos",
+      "respuesta": "tabla, totales y metadatos tipados"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/reportes/exportar",
+      "cuerpo": "misma consulta y formato excel, csv o pdf",
+      "respuesta": "archivo de los mismos datos"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/analitica/pronosticos",
+      "respuesta": "pronostico semanal, version y metricas; solo Profesional"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/analitica/grupos-productos",
+      "respuesta": "grupos de productos, version y metricas; solo Profesional"
+    }
+  ],
+  "rutas_existentes_a_extender": [
+    "POST /sesion",
+    "POST /reservas",
+    "POST /carritos/mio/checkout",
+    "POST /pagos/stripe/intenciones",
+    "GET /pagos/stripe/estado/{venta_id}",
+    "POST /pagos/stripe/webhook",
+    "POST /ventas/presenciales"
+  ],
+  "http": {
+    "200": "resultado consultable o rechazo comercial durable",
+    "400": "solicitud mal formada",
+    "401": "autenticacion requerida",
+    "403": "actor o empresa sin permiso",
+    "404": "recurso ausente o no visible en el ámbito autorizado; reconciliar/reintentar mismo UUID sin inferir que un envío anterior no pudo ejecutarse",
+    "409": "operacion_id reutilizado con contenido distinto o revision obsoleta",
+    "422": "validacion de campos",
+    "503": "dependencia externa no disponible; conservar operacion y consultar resultado"
+  },
+  "alcance_documental": {
+    "catalogo_cu": 26,
+    "primera_presentacion": [
+      "CU01",
+      "CU02",
+      "CU03",
+      "CU04",
+      "CU13",
+      "CU15",
+      "CU16",
+      "CU18"
+    ],
+    "equivalencias": "equivalencias-cu.json",
+    "nota": "Rutas propuestas; contrastar con código/OpenAPI. Versión documental coordinada: no es certificación de despliegue."
+  }
+}

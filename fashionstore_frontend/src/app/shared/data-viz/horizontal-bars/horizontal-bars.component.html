@@ -1,0 +1,42 @@
+<div class="h-bars-container" [attr.data-color]="colorTema" role="region" [attr.aria-label]="ariaLabel">
+  <div *ngIf="items.length === 0" class="h-bars-empty">
+    <p>{{ etiquetaVacio }}</p>
+  </div>
+
+  <ol *ngIf="items.length > 0" class="h-bars-list" role="list">
+    <li *ngFor="let item of items; let i = index" class="h-bar-row" role="listitem">
+      <div class="h-bar-head">
+        <div class="h-bar-label-group">
+          <span *ngIf="mostrarPosicion" class="h-bar-pos" aria-hidden="true">{{ i + 1 }}</span>
+          <span class="h-bar-label">{{ item.etiqueta }}</span>
+        </div>
+        <div class="h-bar-val-group">
+          <strong class="h-bar-value">{{ formatoValor(item) }}</strong>
+          <span *ngIf="item.subtitulo" class="h-bar-sub">{{ item.subtitulo }}</span>
+        </div>
+      </div>
+
+      <div class="h-bar-track" aria-hidden="true">
+        <svg
+          viewBox="0 0 100 8"
+          preserveAspectRatio="none"
+          class="h-bar-svg"
+          role="img"
+          [attr.aria-label]="item.etiqueta + ': ' + formatoValor(item)"
+        >
+          <rect x="0" y="0" width="100" height="8" rx="4" class="h-bar-track-bg" />
+          <rect
+            *ngIf="calcularPorcentaje(item.valor) > 0"
+            x="0"
+            y="0"
+            [attr.width]="calcularPorcentaje(item.valor)"
+            height="8"
+            rx="4"
+            class="h-bar-fill-rect"
+            [attr.data-nivel]="item.nivel ?? 'normal'"
+          />
+        </svg>
+      </div>
+    </li>
+  </ol>
+</div>

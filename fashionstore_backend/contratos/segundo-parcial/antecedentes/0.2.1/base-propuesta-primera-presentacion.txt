@@ -1,0 +1,1464 @@
+-- FASHIONSTORE - BASE PROPUESTA PARA DOCUMENTACION / PRIMERA PRESENTACION
+-- Revision estructural: 2026-10-25. Dialecto: PostgreSQL (NO Transact-SQL).
+-- Fuente: db_Presentacion.sql, exportacion ERD entregada por el equipo.
+-- Mantiene las 42 tablas originales, incluida la tabla tecnica de Alembic.
+-- Prioridad: CU01, CU02, CU03, CU04, CU13, CU15, CU16 y CU18.
+-- Los otros 18 CU no se declaran completos por este documento.
+--
+-- OBJETIVO: fuente estructural legible para dibujar el modelo de base de datos.
+-- PROPUESTA, NO evidencia de que estos cambios ya esten en codigo o en Neon.
+-- No se ejecuto este SQL en una base. No es migracion ni restaura datos.
+-- Si se ensaya posteriormente, usar una base vacia y aislada. CREATE falla
+-- deliberadamente si ya existen las tablas/tipos; no sobreescribe la base activa.
+-- En el proyecto real integrar mediante Alembic, backfill y pruebas de regresion.
+-- No insertar manualmente una revision ficticia en public.alembic_version.
+--
+-- AJUSTES PRINCIPALES
+-- 1. empresa_id en detalles, asociaciones y registros empresariales que lo omitian.
+-- 2. FKs compuestas para impedir referencias cruzadas entre empresas.
+-- 3. Correos unicos por empresa; cuentas de plataforma con ambito separado.
+-- 4. SKU, codigos y referencias de negocio unicos dentro de cada empresa.
+-- 5. CHECKs para importes, cantidades, fechas, alcance y sincronizacion.
+-- 6. Origen temporal obligatorio y plazo de reserva 24/72 h desde ese origen.
+-- 7. Esquemas y ENUMs incluidos; planes iniciales 2/10 configurables.
+--
+-- LECTURA PARA EL DIAGRAMA
+-- id sigue siendo PK global UUID. UNIQUE(id,empresa_id) permite FKs de tenant.
+-- empresa_id repetido en detalles es redundancia controlada de integridad.
+-- Una columna de FK nullable representa una relacion opcional.
+-- clientes y empleados usan usuario_id como PK y FK (especializaciones).
+-- ciudades, roles y planes son referencias globales; empresas son los tenants.
+-- El administrador inicial se representa por usuario EMPRESA + rol autorizado;
+-- el alta consistente de empresa y administrador se realiza desde el backend.
+-- Alembic_version es metadato tecnico y puede omitirse del diagrama de negocio.
+
+BEGIN;
+
+CREATE SCHEMA IF NOT EXISTS catalogo;
+CREATE SCHEMA IF NOT EXISTS comercial;
+CREATE SCHEMA IF NOT EXISTS inventario;
+CREATE SCHEMA IF NOT EXISTS organizacion;
+CREATE SCHEMA IF NOT EXISTS plataforma;
+CREATE SCHEMA IF NOT EXISTS seguridad;
+CREATE SCHEMA IF NOT EXISTS inteligencia;
+
+CREATE TYPE comercial.estado_reserva AS ENUM (
+    'PENDIENTE_TRASLADO','PENDIENTE','PREPARADA','ATENDIDA','COMPLETADA','CANCELADA','VENCIDA'
+);
+CREATE TYPE comercial.estado_venta AS ENUM (
+    'PENDIENTE_PAGO','PAGADA','CANCELADA','PARCIALMENTE_DEVUELTA','DEVUELTA'
+);
+CREATE TYPE inventario.estado_traslado AS ENUM (
+    'SOLICITADO','APROBADO','RECHAZADO','DESPACHADO','RECIBIDO','CANCELADO'
+);
+
+CREATE TABLE catalogo.categorias
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    categoria_padre_id uuid,
+    nombre character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    descripcion text COLLATE pg_catalog."default",
+    activo boolean NOT NULL DEFAULT true,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT categorias_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_categorias_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_categoria_no_autopadre CHECK (categoria_padre_id IS NULL OR categoria_padre_id <> id)
+);
+
+CREATE TABLE catalogo.colecciones
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    nombre character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    descripcion text COLLATE pg_catalog."default",
+    activa boolean NOT NULL DEFAULT true,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT colecciones_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_colecciones_id_empresa UNIQUE (id, empresa_id)
+);
+
+CREATE TABLE catalogo.colores
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    nombre character varying(60) COLLATE pg_catalog."default" NOT NULL,
+    codigo_hex character(7) COLLATE pg_catalog."default",
+    activo boolean NOT NULL DEFAULT true,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT colores_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_colores_id_empresa UNIQUE (id, empresa_id)
+);
+
+CREATE TABLE catalogo.imagenes_producto
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    producto_id uuid NOT NULL,
+    enlace_imagen text COLLATE pg_catalog."default" NOT NULL,
+    texto_alternativo character varying(180) COLLATE pg_catalog."default",
+    orden smallint NOT NULL DEFAULT 0,
+    es_principal boolean NOT NULL DEFAULT false,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT imagenes_producto_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_imagenes_producto_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_imagenes_orden CHECK (orden >= 0)
+);
+
+CREATE TABLE catalogo.producto_coleccion
+(
+    producto_id uuid NOT NULL,
+    coleccion_id uuid NOT NULL,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT producto_coleccion_pkey PRIMARY KEY (producto_id, coleccion_id)
+);
+
+CREATE TABLE catalogo.producto_temporada
+(
+    producto_id uuid NOT NULL,
+    temporada_id uuid NOT NULL,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT producto_temporada_pkey PRIMARY KEY (producto_id, temporada_id)
+);
+
+CREATE TABLE catalogo.productos
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    categoria_id uuid,
+    proveedor_principal_id uuid,
+    nombre character varying(180) COLLATE pg_catalog."default" NOT NULL,
+    descripcion text COLLATE pg_catalog."default",
+    genero character varying(30) COLLATE pg_catalog."default",
+    marca character varying(100) COLLATE pg_catalog."default",
+    precio_base numeric(12, 2) NOT NULL,
+    activo boolean NOT NULL DEFAULT true,
+    creado_en timestamp with time zone NOT NULL DEFAULT now(),
+    actualizado_en timestamp with time zone NOT NULL DEFAULT now(),
+    empresa_id uuid NOT NULL,
+    CONSTRAINT productos_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_productos_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_productos_precio_base_nneg CHECK (precio_base >= 0)
+);
+
+CREATE TABLE catalogo.promocion_variante
+(
+    promocion_id uuid NOT NULL,
+    variante_id uuid NOT NULL,
+    creada_en timestamp with time zone NOT NULL DEFAULT now(),
+    empresa_id uuid NOT NULL,
+    CONSTRAINT promocion_variante_pkey PRIMARY KEY (promocion_id, variante_id)
+);
+
+CREATE TABLE catalogo.promociones
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    codigo character varying(40) COLLATE pg_catalog."default" NOT NULL,
+    nombre character varying(180) COLLATE pg_catalog."default" NOT NULL,
+    descripcion text COLLATE pg_catalog."default",
+    tipo character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    valor numeric(12, 2) NOT NULL,
+    activa boolean NOT NULL DEFAULT true,
+    vigencia_inicio timestamp with time zone,
+    vigencia_fin timestamp with time zone,
+    creada_en timestamp with time zone NOT NULL DEFAULT now(),
+    actualizada_en timestamp with time zone NOT NULL DEFAULT now(),
+    creada_por uuid,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT promociones_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_promociones_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_promociones_valor_nneg CHECK (valor >= 0),
+    CONSTRAINT ck_promociones_fechas CHECK (vigencia_inicio IS NULL OR vigencia_fin IS NULL OR vigencia_inicio < vigencia_fin),
+    CONSTRAINT uq_promociones_empresa_codigo UNIQUE (empresa_id, codigo)
+);
+
+CREATE TABLE catalogo.proveedores
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    razon_social character varying(180) COLLATE pg_catalog."default" NOT NULL,
+    nit character varying(40) COLLATE pg_catalog."default",
+    contacto character varying(160) COLLATE pg_catalog."default",
+    telefono character varying(30) COLLATE pg_catalog."default",
+    correo_electronico character varying(160) COLLATE pg_catalog."default",
+    direccion text COLLATE pg_catalog."default",
+    convenio text COLLATE pg_catalog."default",
+    activo boolean NOT NULL DEFAULT true,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT proveedores_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_proveedores_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT uq_proveedores_empresa_nit UNIQUE (empresa_id, nit)
+);
+
+CREATE TABLE catalogo.tallas
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    nombre character varying(30) COLLATE pg_catalog."default" NOT NULL,
+    orden smallint NOT NULL DEFAULT 0,
+    activo boolean NOT NULL DEFAULT true,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT tallas_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_tallas_id_empresa UNIQUE (id, empresa_id)
+);
+
+CREATE TABLE catalogo.temporadas
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    nombre character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    fecha_inicio date,
+    fecha_fin date,
+    activa boolean NOT NULL DEFAULT true,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT temporadas_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_temporadas_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_temporadas_fechas CHECK (fecha_inicio IS NULL OR fecha_fin IS NULL OR fecha_inicio <= fecha_fin)
+);
+
+CREATE TABLE catalogo.variantes_producto
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    producto_id uuid NOT NULL,
+    talla_id uuid NOT NULL,
+    color_id uuid NOT NULL,
+    sku character varying(80) COLLATE pg_catalog."default" NOT NULL,
+    codigo_barras character varying(80) COLLATE pg_catalog."default",
+    precio numeric(12, 2) NOT NULL,
+    peso_gramos integer,
+    costo_promedio numeric(12, 2) NOT NULL DEFAULT 0,
+    costo_ultimo numeric(12, 2) NOT NULL DEFAULT 0,
+    recurso_prueba_virtual text COLLATE pg_catalog."default",
+    activa boolean NOT NULL DEFAULT true,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT variantes_producto_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_variantes_producto_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT variantes_producto_producto_id_talla_id_color_id_key UNIQUE (producto_id, talla_id, color_id),
+    CONSTRAINT ck_variantes_producto_precio_nneg CHECK (precio >= 0),
+    CONSTRAINT ck_variantes_producto_costo_promedio_nneg CHECK (costo_promedio >= 0),
+    CONSTRAINT ck_variantes_producto_costo_ultimo_nneg CHECK (costo_ultimo >= 0),
+    CONSTRAINT ck_variantes_peso CHECK (peso_gramos IS NULL OR peso_gramos >= 0),
+    CONSTRAINT uq_variantes_producto_empresa_sku UNIQUE (empresa_id, sku),
+    CONSTRAINT uq_variantes_producto_empresa_codigo_barras UNIQUE (empresa_id, codigo_barras)
+);
+
+CREATE TABLE comercial.carritos
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    cliente_id uuid NOT NULL,
+    canal character varying(10) COLLATE pg_catalog."default" NOT NULL DEFAULT 'WEB'::character varying,
+    estado character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT 'ACTIVO'::character varying,
+    creada_en timestamp with time zone NOT NULL DEFAULT now(),
+    actualizada_en timestamp with time zone NOT NULL DEFAULT now(),
+    convertida_en timestamp with time zone,
+    venta_id uuid,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT carritos_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_carritos_id_empresa UNIQUE (id, empresa_id)
+);
+
+CREATE TABLE comercial.detalles_carrito
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    carrito_id uuid NOT NULL,
+    variante_id uuid NOT NULL,
+    cantidad integer NOT NULL,
+    agregado_en timestamp with time zone NOT NULL DEFAULT now(),
+    actualizado_en timestamp with time zone NOT NULL DEFAULT now(),
+    empresa_id uuid NOT NULL,
+    CONSTRAINT detalles_carrito_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_detalle_carrito_carrito_variante UNIQUE (carrito_id, variante_id),
+    CONSTRAINT uq_detalles_carrito_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_detalles_carrito_cantidad_positiva CHECK (cantidad > 0)
+);
+
+CREATE TABLE comercial.detalles_reserva
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    reserva_id uuid NOT NULL,
+    variante_id uuid NOT NULL,
+    cantidad_solicitada integer NOT NULL,
+    cantidad_reservada integer NOT NULL DEFAULT 0,
+    cantidad_pendiente_traslado integer NOT NULL DEFAULT 0,
+    cantidad_vendida integer NOT NULL DEFAULT 0,
+    cantidad_liberada integer NOT NULL DEFAULT 0,
+    estado_linea character varying(30) COLLATE pg_catalog."default" NOT NULL DEFAULT 'RESERVADA'::character varying,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT detalles_reserva_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_detalles_reserva_reserva_variante UNIQUE (reserva_id, variante_id),
+    CONSTRAINT uq_detalles_reserva_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_detalles_reserva_cantidades CHECK (cantidad_solicitada > 0 AND cantidad_reservada BETWEEN 0 AND cantidad_solicitada AND cantidad_pendiente_traslado BETWEEN 0 AND cantidad_solicitada AND cantidad_vendida BETWEEN 0 AND cantidad_solicitada AND cantidad_liberada BETWEEN 0 AND cantidad_solicitada)
+);
+
+CREATE TABLE comercial.detalles_venta
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    venta_id uuid NOT NULL,
+    detalle_reserva_id uuid,
+    variante_id uuid NOT NULL,
+    cantidad integer NOT NULL,
+    precio_unitario numeric(12, 2) NOT NULL,
+    descuento numeric(12, 2) NOT NULL DEFAULT 0,
+    costo_promedio numeric(12, 2) NOT NULL DEFAULT 0,
+    promocion_id uuid,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT detalles_venta_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_detalles_venta_venta_variante UNIQUE (venta_id, variante_id),
+    CONSTRAINT uq_detalles_venta_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_detalles_venta_cantidad_positiva CHECK (cantidad > 0),
+    CONSTRAINT ck_detalles_venta_importes CHECK (precio_unitario >= 0 AND descuento >= 0 AND costo_promedio >= 0 AND descuento <= cantidad * precio_unitario)
+);
+
+CREATE TABLE comercial.operaciones_sincronizacion
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    empresa_id uuid NOT NULL,
+    usuario_id uuid NOT NULL,
+    operacion_id uuid NOT NULL,
+    tipo character varying(40) COLLATE pg_catalog."default" NOT NULL,
+    version_esquema integer NOT NULL,
+    dispositivo_id uuid NOT NULL,
+    secuencia_local bigint NOT NULL,
+    creada_local_en timestamp with time zone NOT NULL,
+    recibida_en timestamp with time zone NOT NULL,
+    aceptada_en timestamp with time zone,
+    referencia_horaria_id uuid,
+    hash_solicitud character varying(64) COLLATE pg_catalog."default" NOT NULL,
+    solicitud jsonb NOT NULL,
+    estado character varying(40) COLLATE pg_catalog."default" NOT NULL,
+    codigo character varying(40) COLLATE pg_catalog."default" NOT NULL,
+    detalle text COLLATE pg_catalog."default" NOT NULL,
+    resultado jsonb NOT NULL,
+    recurso_id uuid,
+    revision integer NOT NULL DEFAULT 1,
+    CONSTRAINT operaciones_sincronizacion_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_operaciones_actor_uuid UNIQUE (empresa_id, usuario_id, operacion_id),
+    CONSTRAINT uq_operaciones_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_operaciones_version_secuencia CHECK (version_esquema >= 1 AND secuencia_local >= 1 AND revision >= 1),
+    CONSTRAINT ck_operaciones_solicitud_objeto CHECK (jsonb_typeof(solicitud) = 'object' AND jsonb_typeof(resultado) = 'object'),
+    CONSTRAINT ck_operaciones_hash CHECK (hash_solicitud ~ '^[0-9a-f]{64}$'),
+    CONSTRAINT ck_operaciones_tipo CHECK (tipo IN ('SOLICITAR_RESERVA','SOLICITAR_COMPRA','REGISTRAR_VENTA_CAJA')),
+    CONSTRAINT ck_operaciones_estado CHECK (estado IN ('ACEPTADA','RECHAZADA','CONFLICTO','REQUIERE_ACEPTACION_PRECIO','PENDIENTE_PAGO','REGISTRADA_CENTRAL','CONCILIACION_REQUERIDA')),
+    CONSTRAINT ck_operaciones_tiempo_conflicto CHECK ((codigo <> 'TIEMPO_INCOHERENTE' OR estado = 'CONFLICTO') AND (estado <> 'CONFLICTO' OR codigo = 'TIEMPO_INCOHERENTE')),
+    CONSTRAINT ck_operaciones_aceptacion_fecha CHECK (aceptada_en IS NULL OR aceptada_en >= recibida_en)
+);
+
+CREATE TABLE comercial.pagos
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    contexto character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    reserva_id uuid,
+    venta_id uuid,
+    metodo character varying(30) COLLATE pg_catalog."default" NOT NULL,
+    tipo_pago character varying(20) COLLATE pg_catalog."default",
+    modalidad_adelanto character varying(20) COLLATE pg_catalog."default",
+    monto numeric(12, 2) NOT NULL,
+    no_reembolsable boolean NOT NULL DEFAULT false,
+    estado character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT 'PENDIENTE'::character varying,
+    referencia_externa character varying(160) COLLATE pg_catalog."default",
+    proveedor_pago character varying(40) COLLATE pg_catalog."default",
+    pagado_en timestamp with time zone,
+    clave_idempotencia uuid,
+    hash_solicitud text COLLATE pg_catalog."default",
+    empresa_id uuid NOT NULL,
+    CONSTRAINT pagos_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_pagos_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_pagos_monto CHECK (monto > 0),
+    CONSTRAINT ck_pagos_recurso_unico CHECK ((reserva_id IS NOT NULL) <> (venta_id IS NOT NULL)),
+    CONSTRAINT uq_pagos_empresa_idempotencia UNIQUE (empresa_id, clave_idempotencia)
+);
+
+CREATE TABLE comercial.pedidos_entrega
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    venta_id uuid NOT NULL,
+    sucursal_id uuid NOT NULL,
+    cliente_id uuid NOT NULL,
+    modalidad character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    estado character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT 'SOLICITADO'::character varying,
+    anillo_sucursal smallint,
+    anillo_destino smallint,
+    anillo_minimo smallint,
+    anillo_maximo smallint,
+    direccion text COLLATE pg_catalog."default",
+    tarifa_base numeric(12, 2) NOT NULL DEFAULT 0,
+    incremento_anillo numeric(12, 2) NOT NULL DEFAULT 0,
+    costo_entrega numeric(12, 2) NOT NULL DEFAULT 0,
+    codigo_recojo character varying(20) COLLATE pg_catalog."default",
+    creada_en timestamp with time zone NOT NULL DEFAULT now(),
+    actualizada_en timestamp with time zone NOT NULL DEFAULT now(),
+    empresa_id uuid NOT NULL,
+    CONSTRAINT pedidos_entrega_pkey PRIMARY KEY (id),
+    CONSTRAINT pedidos_entrega_venta_id_key UNIQUE (venta_id),
+    CONSTRAINT uq_pedidos_entrega_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_entrega_importes CHECK (tarifa_base >= 0 AND incremento_anillo >= 0 AND costo_entrega >= 0)
+);
+
+CREATE TABLE comercial.referencias_horarias
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    empresa_id uuid NOT NULL,
+    usuario_id uuid NOT NULL,
+    dispositivo_id uuid NOT NULL,
+    emitida_en timestamp with time zone NOT NULL,
+    vence_en timestamp with time zone NOT NULL,
+    CONSTRAINT referencias_horarias_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_referencias_ambito UNIQUE (id, empresa_id, usuario_id, dispositivo_id),
+    CONSTRAINT uq_referencias_horarias_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_referencias_fechas CHECK (emitida_en < vence_en)
+);
+
+CREATE TABLE comercial.registros_idempotencia
+(
+    clave uuid NOT NULL DEFAULT gen_random_uuid(),
+    hash_solicitud text COLLATE pg_catalog."default" NOT NULL,
+    recurso_tipo character varying(40) COLLATE pg_catalog."default" NOT NULL,
+    recurso_id uuid,
+    respuesta jsonb NOT NULL DEFAULT '{}'::jsonb,
+    creada_en timestamp with time zone NOT NULL DEFAULT now(),
+    expira_en timestamp with time zone,
+    usuario_id uuid NOT NULL,
+    operacion character varying(80) COLLATE pg_catalog."default" NOT NULL,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT registros_idempotencia_pkey PRIMARY KEY (clave, usuario_id, recurso_tipo, operacion),
+    CONSTRAINT ck_idempotencia_fechas CHECK (expira_en IS NULL OR expira_en > creada_en)
+);
+
+CREATE TABLE comercial.reservas
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    cliente_id uuid NOT NULL,
+    sucursal_destino_id uuid NOT NULL,
+    codigo character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    estado comercial.estado_reserva NOT NULL DEFAULT 'PENDIENTE'::comercial.estado_reserva,
+    fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
+    fecha_visita timestamp with time zone,
+    vence_en timestamp with time zone NOT NULL,
+    observacion text COLLATE pg_catalog."default",
+    adelanto_modalidad character varying(20) COLLATE pg_catalog."default",
+    adelanto_valor numeric(12, 2),
+    adelanto_monto numeric(12, 2),
+    clave_idempotencia uuid,
+    hash_solicitud text COLLATE pg_catalog."default",
+    preparada_en timestamp with time zone,
+    atendida_en timestamp with time zone,
+    preparada_por uuid,
+    atendida_por uuid,
+    empresa_id uuid NOT NULL,
+    origen_plazo_en timestamp with time zone NOT NULL,
+    operacion_sincronizacion_id uuid,
+    CONSTRAINT reservas_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_reservas_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT uq_reservas_operacion_sincronizacion UNIQUE (operacion_sincronizacion_id),
+    CONSTRAINT ck_reservas_plazo_acordado CHECK (vence_en = origen_plazo_en + interval '24 hours' OR vence_en = origen_plazo_en + interval '72 hours'),
+    CONSTRAINT ck_reservas_visita_posterior CHECK (fecha_visita IS NULL OR fecha_visita >= origen_plazo_en),
+    CONSTRAINT uq_reservas_empresa_codigo UNIQUE (empresa_id, codigo),
+    CONSTRAINT uq_reservas_empresa_idempotencia UNIQUE (empresa_id, clave_idempotencia)
+);
+
+CREATE TABLE comercial.ventas
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    numero character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    cliente_id uuid,
+    reserva_id uuid,
+    sucursal_id uuid NOT NULL,
+    cajero_id uuid,
+    canal character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    estado comercial.estado_venta NOT NULL DEFAULT 'PENDIENTE_PAGO'::comercial.estado_venta,
+    subtotal numeric(12, 2) NOT NULL,
+    descuento numeric(12, 2) NOT NULL DEFAULT 0,
+    costo_entrega numeric(12, 2) NOT NULL DEFAULT 0,
+    total numeric(12, 2) NOT NULL,
+    creada_en timestamp with time zone NOT NULL DEFAULT now(),
+    confirmada_en timestamp with time zone,
+    clave_idempotencia uuid,
+    hash_solicitud text COLLATE pg_catalog."default",
+    adelanto_descontado numeric(12, 2) NOT NULL DEFAULT 0,
+    expira_en timestamp with time zone,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT ventas_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_ventas_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_ventas_importes CHECK (subtotal >= 0 AND descuento >= 0 AND costo_entrega >= 0 AND total >= 0 AND adelanto_descontado >= 0 AND descuento <= subtotal AND adelanto_descontado <= subtotal - descuento + costo_entrega),
+    CONSTRAINT uq_ventas_empresa_numero UNIQUE (empresa_id, numero),
+    CONSTRAINT uq_ventas_empresa_idempotencia UNIQUE (empresa_id, clave_idempotencia)
+);
+
+CREATE TABLE inteligencia.historial_navegacion
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    cliente_id uuid,
+    usuario_id uuid,
+    variante_id uuid,
+    producto_id uuid,
+    evento character varying(40) COLLATE pg_catalog."default" NOT NULL,
+    metadatos jsonb NOT NULL DEFAULT '{}'::jsonb,
+    creada_en timestamp with time zone NOT NULL DEFAULT now(),
+    empresa_id uuid NOT NULL,
+    CONSTRAINT historial_navegacion_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_historial_navegacion_id_empresa UNIQUE (id, empresa_id)
+);
+
+CREATE TABLE inteligencia.solicitudes_ia
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    usuario_id uuid,
+    cliente_id uuid,
+    tipo character varying(30) COLLATE pg_catalog."default" NOT NULL,
+    entrada text COLLATE pg_catalog."default" NOT NULL DEFAULT ''::text,
+    funcion_usada character varying(60) COLLATE pg_catalog."default",
+    parametros jsonb NOT NULL DEFAULT '{}'::jsonb,
+    respuesta text COLLATE pg_catalog."default" NOT NULL DEFAULT ''::text,
+    datos jsonb NOT NULL DEFAULT '{}'::jsonb,
+    proveedor character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT 'DETERMINISTA'::character varying,
+    latencia_ms integer NOT NULL DEFAULT 0,
+    creada_en timestamp with time zone NOT NULL DEFAULT now(),
+    empresa_id uuid NOT NULL,
+    CONSTRAINT solicitudes_ia_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_solicitudes_ia_id_empresa UNIQUE (id, empresa_id)
+);
+
+CREATE TABLE inventario.detalles_lote_recepcion
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    lote_id uuid NOT NULL,
+    variante_id uuid NOT NULL,
+    cantidad integer NOT NULL,
+    costo_unitario numeric(12, 2) NOT NULL,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT detalles_lote_recepcion_pkey PRIMARY KEY (id),
+    CONSTRAINT detalles_lote_recepcion_lote_id_variante_id_key UNIQUE (lote_id, variante_id),
+    CONSTRAINT uq_detalles_lote_recepcion_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_detalles_lote_recepcion_costo_unitario_nneg CHECK (costo_unitario >= 0),
+    CONSTRAINT ck_detalles_lote_recepcion_cantidad_positiva CHECK (cantidad > 0)
+);
+
+CREATE TABLE inventario.detalles_traslado
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    traslado_id uuid NOT NULL,
+    detalle_reserva_id uuid,
+    variante_id uuid NOT NULL,
+    cantidad integer NOT NULL,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT detalles_traslado_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_detalles_traslado_traslado_variante UNIQUE (traslado_id, variante_id),
+    CONSTRAINT uq_detalles_traslado_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_detalles_traslado_cantidad_positiva CHECK (cantidad > 0)
+);
+
+CREATE TABLE inventario.inventario_sucursal
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    variante_id uuid NOT NULL,
+    sucursal_id uuid NOT NULL,
+    disponible integer NOT NULL DEFAULT 0,
+    reservado integer NOT NULL DEFAULT 0,
+    comprometido_traslado integer NOT NULL DEFAULT 0,
+    en_transito integer NOT NULL DEFAULT 0,
+    actualizado_en timestamp with time zone NOT NULL DEFAULT now(),
+    empresa_id uuid NOT NULL,
+    CONSTRAINT inventario_sucursal_pkey PRIMARY KEY (id),
+    CONSTRAINT inventario_sucursal_variante_id_sucursal_id_key UNIQUE (variante_id, sucursal_id),
+    CONSTRAINT uq_inventario_sucursal_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_inventario_cantidades CHECK (disponible >= 0 AND reservado >= 0 AND comprometido_traslado >= 0 AND en_transito >= 0)
+);
+
+CREATE TABLE inventario.lotes_recepcion
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    proveedor_id uuid NOT NULL,
+    sucursal_id uuid NOT NULL,
+    temporada_id uuid,
+    coleccion_id uuid,
+    recibido_por_id uuid NOT NULL,
+    numero_documento character varying(100) COLLATE pg_catalog."default",
+    fecha_recepcion timestamp with time zone NOT NULL DEFAULT now(),
+    observacion text COLLATE pg_catalog."default",
+    empresa_id uuid NOT NULL,
+    CONSTRAINT lotes_recepcion_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_lotes_recepcion_id_empresa UNIQUE (id, empresa_id)
+);
+
+CREATE TABLE inventario.movimientos_inventario
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    variante_id uuid NOT NULL,
+    sucursal_origen_id uuid,
+    sucursal_destino_id uuid,
+    responsable_id uuid,
+    tipo character varying(40) COLLATE pg_catalog."default" NOT NULL,
+    cantidad integer NOT NULL,
+    costo_unitario numeric(12, 2) NOT NULL DEFAULT 0,
+    referencia_tipo character varying(40) COLLATE pg_catalog."default",
+    referencia_id uuid,
+    fecha_hora timestamp with time zone NOT NULL DEFAULT now(),
+    observacion text COLLATE pg_catalog."default",
+    clave_idempotencia uuid,
+    linea_referencia_id uuid,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT movimientos_inventario_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_movimientos_inventario_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_movimientos_inventario_costo_unitario_nneg CHECK (costo_unitario >= 0),
+    CONSTRAINT ck_movimientos_inventario_cantidad_positiva CHECK (cantidad > 0)
+);
+
+CREATE TABLE inventario.traslados
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    reserva_id uuid,
+    sucursal_origen_id uuid NOT NULL,
+    sucursal_destino_id uuid NOT NULL,
+    estado inventario.estado_traslado NOT NULL DEFAULT 'SOLICITADO'::inventario.estado_traslado,
+    solicitado_por_id uuid NOT NULL,
+    aprobado_por_id uuid,
+    fecha_solicitud timestamp with time zone NOT NULL DEFAULT now(),
+    fecha_aprobacion timestamp with time zone,
+    fecha_despacho timestamp with time zone,
+    fecha_recepcion timestamp with time zone,
+    motivo_rechazo text COLLATE pg_catalog."default",
+    clave_idempotencia uuid,
+    hash_solicitud text COLLATE pg_catalog."default",
+    empresa_id uuid NOT NULL,
+    CONSTRAINT traslados_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_traslados_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_traslados_sucursales_distintas CHECK (sucursal_origen_id <> sucursal_destino_id),
+    CONSTRAINT uq_traslados_empresa_idempotencia UNIQUE (empresa_id, clave_idempotencia)
+);
+
+CREATE TABLE organizacion.ciudades
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    nombre character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    activo boolean NOT NULL DEFAULT true,
+    CONSTRAINT ciudades_pkey PRIMARY KEY (id),
+    CONSTRAINT ciudades_nombre_key UNIQUE (nombre)
+);
+
+CREATE TABLE organizacion.empresas
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    codigo character varying(60) COLLATE pg_catalog."default" NOT NULL,
+    nombre character varying(180) COLLATE pg_catalog."default" NOT NULL,
+    estado character varying(24) COLLATE pg_catalog."default" NOT NULL DEFAULT 'PENDIENTE_PLAN'::character varying,
+    catalogo_version bigint NOT NULL DEFAULT 1,
+    catalogo_actualizado_en timestamp with time zone NOT NULL DEFAULT now(),
+    plazo_cambios_dias integer NOT NULL DEFAULT 15,
+    creada_en timestamp with time zone NOT NULL DEFAULT now(),
+    actualizada_en timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT empresas_pkey PRIMARY KEY (id),
+    CONSTRAINT empresas_codigo_key UNIQUE (codigo),
+    CONSTRAINT ck_empresas_codigo_publico CHECK (codigo ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+    CONSTRAINT ck_empresas_catalogo_version CHECK (catalogo_version >= 1),
+    CONSTRAINT ck_empresas_plazo_cambios CHECK (plazo_cambios_dias > 0),
+    CONSTRAINT ck_empresas_estado CHECK (estado IN ('PENDIENTE_PLAN','ACTIVA','SUSPENDIDA','INACTIVA'))
+);
+
+CREATE TABLE organizacion.sucursales
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    ciudad_id uuid NOT NULL,
+    nombre character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    direccion text COLLATE pg_catalog."default" NOT NULL,
+    telefono character varying(30) COLLATE pg_catalog."default",
+    numero_anillo smallint,
+    tarifa_base_delivery numeric(12, 2) NOT NULL DEFAULT 0,
+    incremento_anillo_delivery numeric(12, 2) NOT NULL DEFAULT 0,
+    anillo_minimo_delivery smallint NOT NULL DEFAULT 1,
+    anillo_maximo_delivery smallint NOT NULL DEFAULT 10,
+    delivery_activo boolean NOT NULL DEFAULT true,
+    activa boolean NOT NULL DEFAULT true,
+    adelanto_activo boolean NOT NULL DEFAULT false,
+    modalidad_adelanto character varying(20) COLLATE pg_catalog."default",
+    valor_adelanto numeric(12, 2) NOT NULL DEFAULT 0,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT sucursales_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_sucursales_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_sucursales_tarifas CHECK (tarifa_base_delivery >= 0 AND incremento_anillo_delivery >= 0 AND anillo_minimo_delivery >= 0 AND anillo_maximo_delivery >= anillo_minimo_delivery),
+    CONSTRAINT ck_sucursales_adelanto CHECK (valor_adelanto >= 0 AND (modalidad_adelanto IS NULL OR modalidad_adelanto IN ('MONTO_FIJO','PORCENTAJE')) AND (modalidad_adelanto IS DISTINCT FROM 'PORCENTAJE' OR valor_adelanto <= 100) AND (NOT adelanto_activo OR (modalidad_adelanto IS NOT NULL AND valor_adelanto > 0))),
+    CONSTRAINT uq_sucursales_empresa_ciudad_nombre UNIQUE (empresa_id, ciudad_id, nombre)
+);
+
+CREATE TABLE organizacion.suscripciones
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    empresa_id uuid NOT NULL,
+    plan_id uuid NOT NULL,
+    version integer NOT NULL,
+    inicia_en timestamp with time zone NOT NULL,
+    vence_en timestamp with time zone NOT NULL,
+    creada_en timestamp with time zone NOT NULL DEFAULT now(),
+    creada_por uuid NOT NULL,
+    motivo text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT suscripciones_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_suscripciones_empresa_version UNIQUE (empresa_id, version),
+    CONSTRAINT uq_suscripciones_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_suscripciones_fechas CHECK (inicia_en < vence_en),
+    CONSTRAINT ck_suscripciones_version CHECK (version >= 1),
+    CONSTRAINT ck_suscripciones_motivo CHECK (length(btrim(motivo)) > 0)
+);
+
+CREATE TABLE plataforma.planes
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    codigo character varying(30) COLLATE pg_catalog."default" NOT NULL,
+    nombre character varying(80) COLLATE pg_catalog."default" NOT NULL,
+    max_sucursales_activas integer NOT NULL,
+    reportes_generativos boolean NOT NULL DEFAULT false,
+    modelos_ml boolean NOT NULL DEFAULT false,
+    permite_operacion_offline boolean NOT NULL DEFAULT true,
+    activo boolean NOT NULL DEFAULT true,
+    creado_en timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT planes_pkey PRIMARY KEY (id),
+    CONSTRAINT planes_codigo_key UNIQUE (codigo),
+    CONSTRAINT ck_planes_limite CHECK (max_sucursales_activas > 0)
+);
+
+CREATE TABLE public.alembic_version
+(
+    version_num character varying(32) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT alembic_version_pk PRIMARY KEY (version_num)
+);
+
+CREATE TABLE seguridad.clientes
+(
+    usuario_id uuid NOT NULL,
+    direccion_referencia text COLLATE pg_catalog."default",
+    fecha_nacimiento date,
+    preferencias jsonb NOT NULL DEFAULT '{}'::jsonb,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT clientes_pkey PRIMARY KEY (usuario_id),
+    CONSTRAINT uq_clientes_id_empresa UNIQUE (usuario_id, empresa_id)
+);
+
+CREATE TABLE seguridad.empleados
+(
+    usuario_id uuid NOT NULL,
+    sucursal_id uuid,
+    cargo character varying(80) COLLATE pg_catalog."default" NOT NULL,
+    activo boolean NOT NULL DEFAULT true,
+    empresa_id uuid NOT NULL,
+    CONSTRAINT empleados_pkey PRIMARY KEY (usuario_id),
+    CONSTRAINT uq_empleados_id_empresa UNIQUE (usuario_id, empresa_id)
+);
+
+CREATE TABLE seguridad.roles
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    nombre character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    ambito character varying(16) NOT NULL DEFAULT 'EMPRESA',
+    descripcion text COLLATE pg_catalog."default",
+    activo boolean NOT NULL DEFAULT true,
+    creado_en timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT roles_pkey PRIMARY KEY (id),
+    CONSTRAINT roles_nombre_key UNIQUE (nombre),
+    CONSTRAINT uq_roles_id_ambito UNIQUE (id, ambito),
+    CONSTRAINT ck_roles_ambito CHECK (ambito IN ('EMPRESA', 'PLATAFORMA'))
+);
+
+CREATE TABLE seguridad.usuarios
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    rol_id uuid NOT NULL,
+    nombres character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    apellidos character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    correo_electronico character varying(160) COLLATE pg_catalog."default" NOT NULL,
+    contrasenia_hash character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    telefono character varying(30) COLLATE pg_catalog."default",
+    estado character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT 'ACTIVO'::character varying,
+    creado_en timestamp with time zone NOT NULL DEFAULT now(),
+    actualizado_en timestamp with time zone NOT NULL DEFAULT now(),
+    empresa_id uuid,
+    ambito character varying(16) NOT NULL DEFAULT 'EMPRESA',
+    CONSTRAINT usuarios_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_usuarios_id_empresa UNIQUE (id, empresa_id),
+    CONSTRAINT ck_usuarios_ambito_empresa CHECK ((ambito = 'EMPRESA' AND empresa_id IS NOT NULL) OR (ambito = 'PLATAFORMA' AND empresa_id IS NULL)),
+    CONSTRAINT ck_usuarios_correo_normalizado CHECK (correo_electronico = lower(btrim(correo_electronico)) AND length(correo_electronico) > 0)
+);
+
+-- RELACIONES: los hijos empresariales validan tanto ID como empresa.
+
+ALTER TABLE catalogo.categorias
+    ADD CONSTRAINT categorias_categoria_padre_id_fkey FOREIGN KEY (categoria_padre_id, empresa_id)
+    REFERENCES catalogo.categorias (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.categorias
+    ADD CONSTRAINT fk_categorias_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.colecciones
+    ADD CONSTRAINT fk_colecciones_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.colores
+    ADD CONSTRAINT fk_colores_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.imagenes_producto
+    ADD CONSTRAINT imagenes_producto_producto_id_fkey FOREIGN KEY (producto_id, empresa_id)
+    REFERENCES catalogo.productos (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE catalogo.producto_coleccion
+    ADD CONSTRAINT producto_coleccion_coleccion_id_fkey FOREIGN KEY (coleccion_id, empresa_id)
+    REFERENCES catalogo.colecciones (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.producto_coleccion
+    ADD CONSTRAINT producto_coleccion_producto_id_fkey FOREIGN KEY (producto_id, empresa_id)
+    REFERENCES catalogo.productos (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE catalogo.producto_temporada
+    ADD CONSTRAINT producto_temporada_producto_id_fkey FOREIGN KEY (producto_id, empresa_id)
+    REFERENCES catalogo.productos (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE catalogo.producto_temporada
+    ADD CONSTRAINT producto_temporada_temporada_id_fkey FOREIGN KEY (temporada_id, empresa_id)
+    REFERENCES catalogo.temporadas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.productos
+    ADD CONSTRAINT fk_productos_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.productos
+    ADD CONSTRAINT productos_categoria_id_fkey FOREIGN KEY (categoria_id, empresa_id)
+    REFERENCES catalogo.categorias (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.productos
+    ADD CONSTRAINT productos_proveedor_principal_id_fkey FOREIGN KEY (proveedor_principal_id, empresa_id)
+    REFERENCES catalogo.proveedores (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.promocion_variante
+    ADD CONSTRAINT promocion_variante_promocion_id_fkey FOREIGN KEY (promocion_id, empresa_id)
+    REFERENCES catalogo.promociones (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE catalogo.promocion_variante
+    ADD CONSTRAINT promocion_variante_variante_id_fkey FOREIGN KEY (variante_id, empresa_id)
+    REFERENCES catalogo.variantes_producto (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE catalogo.promociones
+    ADD CONSTRAINT fk_promociones_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.promociones
+    ADD CONSTRAINT promociones_creada_por_fkey FOREIGN KEY (creada_por, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.proveedores
+    ADD CONSTRAINT fk_proveedores_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.tallas
+    ADD CONSTRAINT fk_tallas_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.temporadas
+    ADD CONSTRAINT fk_temporadas_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.variantes_producto
+    ADD CONSTRAINT fk_variantes_producto_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.variantes_producto
+    ADD CONSTRAINT variantes_producto_color_id_fkey FOREIGN KEY (color_id, empresa_id)
+    REFERENCES catalogo.colores (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.variantes_producto
+    ADD CONSTRAINT variantes_producto_producto_id_fkey FOREIGN KEY (producto_id, empresa_id)
+    REFERENCES catalogo.productos (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE catalogo.variantes_producto
+    ADD CONSTRAINT variantes_producto_talla_id_fkey FOREIGN KEY (talla_id, empresa_id)
+    REFERENCES catalogo.tallas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.carritos
+    ADD CONSTRAINT carritos_cliente_id_fkey FOREIGN KEY (cliente_id, empresa_id)
+    REFERENCES seguridad.clientes (usuario_id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.carritos
+    ADD CONSTRAINT carritos_venta_id_fkey FOREIGN KEY (venta_id, empresa_id)
+    REFERENCES comercial.ventas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.carritos
+    ADD CONSTRAINT fk_carritos_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.detalles_carrito
+    ADD CONSTRAINT detalles_carrito_carrito_id_fkey FOREIGN KEY (carrito_id, empresa_id)
+    REFERENCES comercial.carritos (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE comercial.detalles_carrito
+    ADD CONSTRAINT detalles_carrito_variante_id_fkey FOREIGN KEY (variante_id, empresa_id)
+    REFERENCES catalogo.variantes_producto (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.detalles_reserva
+    ADD CONSTRAINT detalles_reserva_reserva_id_fkey FOREIGN KEY (reserva_id, empresa_id)
+    REFERENCES comercial.reservas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE comercial.detalles_reserva
+    ADD CONSTRAINT detalles_reserva_variante_id_fkey FOREIGN KEY (variante_id, empresa_id)
+    REFERENCES catalogo.variantes_producto (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.detalles_venta
+    ADD CONSTRAINT detalles_venta_detalle_reserva_id_fkey FOREIGN KEY (detalle_reserva_id, empresa_id)
+    REFERENCES comercial.detalles_reserva (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.detalles_venta
+    ADD CONSTRAINT detalles_venta_promocion_id_fkey FOREIGN KEY (promocion_id, empresa_id)
+    REFERENCES catalogo.promociones (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.detalles_venta
+    ADD CONSTRAINT detalles_venta_variante_id_fkey FOREIGN KEY (variante_id, empresa_id)
+    REFERENCES catalogo.variantes_producto (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.detalles_venta
+    ADD CONSTRAINT detalles_venta_venta_id_fkey FOREIGN KEY (venta_id, empresa_id)
+    REFERENCES comercial.ventas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE comercial.operaciones_sincronizacion
+    ADD CONSTRAINT fk_operaciones_referencia FOREIGN KEY (referencia_horaria_id, empresa_id, usuario_id, dispositivo_id)
+    REFERENCES comercial.referencias_horarias (id, empresa_id, usuario_id, dispositivo_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.operaciones_sincronizacion
+    ADD CONSTRAINT fk_operaciones_usuario_empresa FOREIGN KEY (usuario_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.operaciones_sincronizacion
+    ADD CONSTRAINT operaciones_sincronizacion_empresa_id_fkey FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.pagos
+    ADD CONSTRAINT pagos_reserva_id_fkey FOREIGN KEY (reserva_id, empresa_id)
+    REFERENCES comercial.reservas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.pagos
+    ADD CONSTRAINT pagos_venta_id_fkey FOREIGN KEY (venta_id, empresa_id)
+    REFERENCES comercial.ventas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.pedidos_entrega
+    ADD CONSTRAINT pedidos_entrega_cliente_id_fkey FOREIGN KEY (cliente_id, empresa_id)
+    REFERENCES seguridad.clientes (usuario_id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.pedidos_entrega
+    ADD CONSTRAINT pedidos_entrega_sucursal_id_fkey FOREIGN KEY (sucursal_id, empresa_id)
+    REFERENCES organizacion.sucursales (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.pedidos_entrega
+    ADD CONSTRAINT pedidos_entrega_venta_id_fkey FOREIGN KEY (venta_id, empresa_id)
+    REFERENCES comercial.ventas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE comercial.referencias_horarias
+    ADD CONSTRAINT fk_referencias_usuario_empresa FOREIGN KEY (usuario_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.referencias_horarias
+    ADD CONSTRAINT referencias_horarias_empresa_id_fkey FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.reservas
+    ADD CONSTRAINT fk_reservas_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.reservas
+    ADD CONSTRAINT fk_reservas_operacion_empresa FOREIGN KEY (operacion_sincronizacion_id, empresa_id)
+    REFERENCES comercial.operaciones_sincronizacion (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.reservas
+    ADD CONSTRAINT reservas_atendida_por_fkey FOREIGN KEY (atendida_por, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.reservas
+    ADD CONSTRAINT reservas_cliente_id_fkey FOREIGN KEY (cliente_id, empresa_id)
+    REFERENCES seguridad.clientes (usuario_id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.reservas
+    ADD CONSTRAINT reservas_preparada_por_fkey FOREIGN KEY (preparada_por, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.reservas
+    ADD CONSTRAINT reservas_sucursal_destino_id_fkey FOREIGN KEY (sucursal_destino_id, empresa_id)
+    REFERENCES organizacion.sucursales (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.ventas
+    ADD CONSTRAINT fk_ventas_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.ventas
+    ADD CONSTRAINT ventas_cajero_id_fkey FOREIGN KEY (cajero_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.ventas
+    ADD CONSTRAINT ventas_cliente_id_fkey FOREIGN KEY (cliente_id, empresa_id)
+    REFERENCES seguridad.clientes (usuario_id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.ventas
+    ADD CONSTRAINT ventas_reserva_id_fkey FOREIGN KEY (reserva_id, empresa_id)
+    REFERENCES comercial.reservas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.ventas
+    ADD CONSTRAINT ventas_sucursal_id_fkey FOREIGN KEY (sucursal_id, empresa_id)
+    REFERENCES organizacion.sucursales (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inteligencia.historial_navegacion
+    ADD CONSTRAINT fk_historial_navegacion_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inteligencia.historial_navegacion
+    ADD CONSTRAINT historial_navegacion_cliente_id_fkey FOREIGN KEY (cliente_id, empresa_id)
+    REFERENCES seguridad.clientes (usuario_id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inteligencia.historial_navegacion
+    ADD CONSTRAINT historial_navegacion_producto_id_fkey FOREIGN KEY (producto_id, empresa_id)
+    REFERENCES catalogo.productos (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inteligencia.historial_navegacion
+    ADD CONSTRAINT historial_navegacion_usuario_id_fkey FOREIGN KEY (usuario_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inteligencia.historial_navegacion
+    ADD CONSTRAINT historial_navegacion_variante_id_fkey FOREIGN KEY (variante_id, empresa_id)
+    REFERENCES catalogo.variantes_producto (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inteligencia.solicitudes_ia
+    ADD CONSTRAINT fk_solicitudes_ia_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inteligencia.solicitudes_ia
+    ADD CONSTRAINT solicitudes_ia_cliente_id_fkey FOREIGN KEY (cliente_id, empresa_id)
+    REFERENCES seguridad.clientes (usuario_id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inteligencia.solicitudes_ia
+    ADD CONSTRAINT solicitudes_ia_usuario_id_fkey FOREIGN KEY (usuario_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.detalles_lote_recepcion
+    ADD CONSTRAINT detalles_lote_recepcion_lote_id_fkey FOREIGN KEY (lote_id, empresa_id)
+    REFERENCES inventario.lotes_recepcion (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE inventario.detalles_lote_recepcion
+    ADD CONSTRAINT detalles_lote_recepcion_variante_id_fkey FOREIGN KEY (variante_id, empresa_id)
+    REFERENCES catalogo.variantes_producto (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.detalles_traslado
+    ADD CONSTRAINT detalles_traslado_detalle_reserva_id_fkey FOREIGN KEY (detalle_reserva_id, empresa_id)
+    REFERENCES comercial.detalles_reserva (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.detalles_traslado
+    ADD CONSTRAINT detalles_traslado_traslado_id_fkey FOREIGN KEY (traslado_id, empresa_id)
+    REFERENCES inventario.traslados (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE CASCADE;
+
+ALTER TABLE inventario.detalles_traslado
+    ADD CONSTRAINT detalles_traslado_variante_id_fkey FOREIGN KEY (variante_id, empresa_id)
+    REFERENCES catalogo.variantes_producto (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.inventario_sucursal
+    ADD CONSTRAINT inventario_sucursal_sucursal_id_fkey FOREIGN KEY (sucursal_id, empresa_id)
+    REFERENCES organizacion.sucursales (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.inventario_sucursal
+    ADD CONSTRAINT inventario_sucursal_variante_id_fkey FOREIGN KEY (variante_id, empresa_id)
+    REFERENCES catalogo.variantes_producto (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.lotes_recepcion
+    ADD CONSTRAINT fk_lotes_recepcion_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.lotes_recepcion
+    ADD CONSTRAINT lotes_recepcion_coleccion_id_fkey FOREIGN KEY (coleccion_id, empresa_id)
+    REFERENCES catalogo.colecciones (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.lotes_recepcion
+    ADD CONSTRAINT lotes_recepcion_proveedor_id_fkey FOREIGN KEY (proveedor_id, empresa_id)
+    REFERENCES catalogo.proveedores (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.lotes_recepcion
+    ADD CONSTRAINT lotes_recepcion_recibido_por_id_fkey FOREIGN KEY (recibido_por_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.lotes_recepcion
+    ADD CONSTRAINT lotes_recepcion_sucursal_id_fkey FOREIGN KEY (sucursal_id, empresa_id)
+    REFERENCES organizacion.sucursales (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.lotes_recepcion
+    ADD CONSTRAINT lotes_recepcion_temporada_id_fkey FOREIGN KEY (temporada_id, empresa_id)
+    REFERENCES catalogo.temporadas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.movimientos_inventario
+    ADD CONSTRAINT movimientos_inventario_responsable_id_fkey FOREIGN KEY (responsable_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.movimientos_inventario
+    ADD CONSTRAINT movimientos_inventario_sucursal_destino_id_fkey FOREIGN KEY (sucursal_destino_id, empresa_id)
+    REFERENCES organizacion.sucursales (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.movimientos_inventario
+    ADD CONSTRAINT movimientos_inventario_sucursal_origen_id_fkey FOREIGN KEY (sucursal_origen_id, empresa_id)
+    REFERENCES organizacion.sucursales (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.movimientos_inventario
+    ADD CONSTRAINT movimientos_inventario_variante_id_fkey FOREIGN KEY (variante_id, empresa_id)
+    REFERENCES catalogo.variantes_producto (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.traslados
+    ADD CONSTRAINT fk_traslados_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.traslados
+    ADD CONSTRAINT traslados_aprobado_por_id_fkey FOREIGN KEY (aprobado_por_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.traslados
+    ADD CONSTRAINT traslados_reserva_id_fkey FOREIGN KEY (reserva_id, empresa_id)
+    REFERENCES comercial.reservas (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.traslados
+    ADD CONSTRAINT traslados_solicitado_por_id_fkey FOREIGN KEY (solicitado_por_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.traslados
+    ADD CONSTRAINT traslados_sucursal_destino_id_fkey FOREIGN KEY (sucursal_destino_id, empresa_id)
+    REFERENCES organizacion.sucursales (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.traslados
+    ADD CONSTRAINT traslados_sucursal_origen_id_fkey FOREIGN KEY (sucursal_origen_id, empresa_id)
+    REFERENCES organizacion.sucursales (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE organizacion.sucursales
+    ADD CONSTRAINT fk_sucursales_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE organizacion.sucursales
+    ADD CONSTRAINT sucursales_ciudad_id_fkey FOREIGN KEY (ciudad_id)
+    REFERENCES organizacion.ciudades (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE organizacion.suscripciones
+    ADD CONSTRAINT suscripciones_creada_por_fkey FOREIGN KEY (creada_por)
+    REFERENCES seguridad.usuarios (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE organizacion.suscripciones
+    ADD CONSTRAINT suscripciones_empresa_id_fkey FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE organizacion.suscripciones
+    ADD CONSTRAINT suscripciones_plan_id_fkey FOREIGN KEY (plan_id)
+    REFERENCES plataforma.planes (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE seguridad.clientes
+    ADD CONSTRAINT clientes_usuario_id_fkey FOREIGN KEY (usuario_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE seguridad.empleados
+    ADD CONSTRAINT empleados_sucursal_id_fkey FOREIGN KEY (sucursal_id, empresa_id)
+    REFERENCES organizacion.sucursales (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE seguridad.empleados
+    ADD CONSTRAINT empleados_usuario_id_fkey FOREIGN KEY (usuario_id, empresa_id)
+    REFERENCES seguridad.usuarios (id, empresa_id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE seguridad.usuarios
+    ADD CONSTRAINT fk_usuarios_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE seguridad.usuarios
+    ADD CONSTRAINT usuarios_rol_id_fkey FOREIGN KEY (rol_id, ambito)
+    REFERENCES seguridad.roles (id, ambito)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.imagenes_producto
+    ADD CONSTRAINT fk_imagenes_producto_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.producto_coleccion
+    ADD CONSTRAINT fk_producto_coleccion_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.producto_temporada
+    ADD CONSTRAINT fk_producto_temporada_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE catalogo.promocion_variante
+    ADD CONSTRAINT fk_promocion_variante_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.detalles_carrito
+    ADD CONSTRAINT fk_detalles_carrito_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.detalles_reserva
+    ADD CONSTRAINT fk_detalles_reserva_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.detalles_venta
+    ADD CONSTRAINT fk_detalles_venta_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.pagos
+    ADD CONSTRAINT fk_pagos_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.pedidos_entrega
+    ADD CONSTRAINT fk_pedidos_entrega_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE comercial.registros_idempotencia
+    ADD CONSTRAINT fk_registros_idempotencia_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.detalles_lote_recepcion
+    ADD CONSTRAINT fk_detalles_lote_recepcion_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.detalles_traslado
+    ADD CONSTRAINT fk_detalles_traslado_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.inventario_sucursal
+    ADD CONSTRAINT fk_inventario_sucursal_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE inventario.movimientos_inventario
+    ADD CONSTRAINT fk_movimientos_inventario_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE seguridad.clientes
+    ADD CONSTRAINT fk_clientes_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+ALTER TABLE seguridad.empleados
+    ADD CONSTRAINT fk_empleados_empresa FOREIGN KEY (empresa_id)
+    REFERENCES organizacion.empresas (id)
+    ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+-- Se almacena correo normalizado; se permiten correos iguales en empresas distintas.
+CREATE UNIQUE INDEX uq_usuarios_empresa_correo
+    ON seguridad.usuarios (empresa_id, correo_electronico)
+    WHERE ambito = 'EMPRESA';
+CREATE UNIQUE INDEX uq_usuarios_plataforma_correo
+    ON seguridad.usuarios (correo_electronico)
+    WHERE ambito = 'PLATAFORMA';
+
+CREATE INDEX ix_catalogo_categorias_empresa ON catalogo.categorias (empresa_id);
+CREATE INDEX ix_catalogo_colecciones_empresa ON catalogo.colecciones (empresa_id);
+CREATE INDEX ix_catalogo_colores_empresa ON catalogo.colores (empresa_id);
+CREATE INDEX ix_catalogo_imagenes_producto_empresa ON catalogo.imagenes_producto (empresa_id);
+CREATE INDEX ix_catalogo_producto_coleccion_empresa ON catalogo.producto_coleccion (empresa_id);
+CREATE INDEX ix_catalogo_producto_temporada_empresa ON catalogo.producto_temporada (empresa_id);
+CREATE INDEX ix_catalogo_productos_empresa ON catalogo.productos (empresa_id);
+CREATE INDEX ix_catalogo_promocion_variante_empresa ON catalogo.promocion_variante (empresa_id);
+CREATE INDEX ix_catalogo_promociones_empresa ON catalogo.promociones (empresa_id);
+CREATE INDEX ix_catalogo_proveedores_empresa ON catalogo.proveedores (empresa_id);
+CREATE INDEX ix_catalogo_tallas_empresa ON catalogo.tallas (empresa_id);
+CREATE INDEX ix_catalogo_temporadas_empresa ON catalogo.temporadas (empresa_id);
+CREATE INDEX ix_catalogo_variantes_producto_empresa ON catalogo.variantes_producto (empresa_id);
+CREATE INDEX ix_comercial_carritos_empresa ON comercial.carritos (empresa_id);
+CREATE INDEX ix_comercial_detalles_carrito_empresa ON comercial.detalles_carrito (empresa_id);
+CREATE INDEX ix_comercial_detalles_reserva_empresa ON comercial.detalles_reserva (empresa_id);
+CREATE INDEX ix_comercial_detalles_venta_empresa ON comercial.detalles_venta (empresa_id);
+CREATE INDEX ix_comercial_pagos_empresa ON comercial.pagos (empresa_id);
+CREATE INDEX ix_comercial_pedidos_entrega_empresa ON comercial.pedidos_entrega (empresa_id);
+CREATE INDEX ix_comercial_referencias_horarias_empresa ON comercial.referencias_horarias (empresa_id);
+CREATE INDEX ix_comercial_registros_idempotencia_empresa ON comercial.registros_idempotencia (empresa_id);
+CREATE INDEX ix_comercial_reservas_empresa ON comercial.reservas (empresa_id);
+CREATE INDEX ix_comercial_ventas_empresa ON comercial.ventas (empresa_id);
+CREATE INDEX ix_inteligencia_historial_navegacion_empresa ON inteligencia.historial_navegacion (empresa_id);
+CREATE INDEX ix_inteligencia_solicitudes_ia_empresa ON inteligencia.solicitudes_ia (empresa_id);
+CREATE INDEX ix_inventario_detalles_lote_recepcion_empresa ON inventario.detalles_lote_recepcion (empresa_id);
+CREATE INDEX ix_inventario_detalles_traslado_empresa ON inventario.detalles_traslado (empresa_id);
+CREATE INDEX ix_inventario_inventario_sucursal_empresa ON inventario.inventario_sucursal (empresa_id);
+CREATE INDEX ix_inventario_lotes_recepcion_empresa ON inventario.lotes_recepcion (empresa_id);
+CREATE INDEX ix_inventario_movimientos_inventario_empresa ON inventario.movimientos_inventario (empresa_id);
+CREATE INDEX ix_inventario_traslados_empresa ON inventario.traslados (empresa_id);
+CREATE INDEX ix_organizacion_sucursales_empresa ON organizacion.sucursales (empresa_id);
+CREATE INDEX ix_seguridad_clientes_empresa ON seguridad.clientes (empresa_id);
+CREATE INDEX ix_seguridad_empleados_empresa ON seguridad.empleados (empresa_id);
+CREATE INDEX ix_seguridad_usuarios_empresa ON seguridad.usuarios (empresa_id);
+
+CREATE INDEX ix_reservas_empresa_cliente ON comercial.reservas (empresa_id, cliente_id);
+CREATE INDEX ix_reservas_empresa_sucursal_estado_vence ON comercial.reservas (empresa_id, sucursal_destino_id, estado, vence_en);
+CREATE INDEX ix_operaciones_empresa_actor_recibida ON comercial.operaciones_sincronizacion (empresa_id, usuario_id, recibida_en);
+CREATE INDEX ix_operaciones_empresa_dispositivo_secuencia ON comercial.operaciones_sincronizacion (empresa_id, dispositivo_id, secuencia_local);
+CREATE INDEX ix_suscripciones_empresa_version ON organizacion.suscripciones (empresa_id, version DESC);
+CREATE INDEX ix_movimientos_empresa_variante_fecha ON inventario.movimientos_inventario (empresa_id, variante_id, fecha_hora);
+
+-- Planes iniciales: no son suscripciones ni ingresos SaaS. Limites editables.
+INSERT INTO plataforma.planes (id, codigo, nombre, max_sucursales_activas,
+    reportes_generativos, modelos_ml, permite_operacion_offline)
+VALUES
+    ('10000000-0000-4000-8000-000000000001', 'BASICO', 'Basico', 2, false, false, true),
+    ('10000000-0000-4000-8000-000000000002', 'PROFESIONAL', 'Profesional', 10, true, true, true);
+
+COMMENT ON COLUMN seguridad.usuarios.ambito IS
+'EMPRESA exige empresa_id; PLATAFORMA exige empresa_id NULL. El rol debe tener el mismo ambito.';
+COMMENT ON COLUMN organizacion.empresas.codigo IS
+'Codigo publico unico de navegacion /tienda/{empresa_codigo}; no autoriza acceso privado.';
+COMMENT ON COLUMN organizacion.empresas.catalogo_version IS
+'El backend incrementa la revision al cambiar el catalogo publicado; descargar en una instantanea consistente y registrar fecha/ambito.';
+COMMENT ON COLUMN organizacion.suscripciones.version IS
+'Historial por empresa; politica de vigencia y cambios serializada desde backend, sin interpretar versiones anteriores como planes simultaneos.';
+COMMENT ON COLUMN comercial.reservas.origen_plazo_en IS
+'Online: creacion central. Offline aceptada: creacion local validada. No usar fecha_visita ni reiniciar por recepcion/reintento.';
+COMMENT ON COLUMN comercial.reservas.vence_en IS
+'24 h desde origen; hasta 72 h desde el mismo origen solo con adelanto confirmado online dentro de vigencia. CHECK no verifica por si solo el pago.';
+COMMENT ON COLUMN comercial.operaciones_sincronizacion.recurso_id IS
+'Referencia polimorfica: verificar tipo y pertenencia empresarial en backend; no es una FK universal.';
+COMMENT ON COLUMN inventario.movimientos_inventario.referencia_id IS
+'Referencia polimorfica a reserva/venta/traslado: validar coherencia con empresa y linea en backend.';
+
+COMMIT;
+
+-- REGLAS QUE ESTE MODELO NO EJECUTA AUTOMATICAMENTE
+-- * Aislamiento de lectura/escritura: backend valida actor, empresa y cada recurso.
+--   Las FKs impiden cruces referenciales, pero NO filtran consultas SELECT.
+--   RLS: disenar politicas con el rol real de aplicacion sin BYPASSRLS; no usar
+--   un indicador libre del cliente para obtener privilegios de plataforma.
+--   Este SQL no habilita RLS porque falta el contrato definitivo de roles y
+--   contexto transaccional del backend; NO declara aislamiento completo probado.
+-- * Usuarios de plataforma: rutas y permisos separados. No basta su ambito en BD.
+--   Normalizar correo antes de insertar. Login empresarial resuelve la empresa.
+-- * Alta CU01: empresa y administrador inicial en una transaccion consistente.
+-- * Suscripcion CU02: seleccionar version efectiva, fechas manuales y gracia
+--   de 72 h. Al reducir plan comprobar sucursales activas/compromisos; al crear
+--   o activar sucursales serializar por empresa para evitar exceder 2/10 en carrera.
+--   La version de suscripcion no debe quedar ambigua ante cambios programados.
+--   Tras gracia bloquear nuevas ventas/reservas/turnos, permitir consultas,
+--   posventa valida y conclusion de compromisos aceptados.
+-- * Empresa heredada: conservar IDs/datos/sucursales. Confirmar conteos reales.
+--   Si conserva 3 sucursales activas, asignar Profesional con fechas explicitas.
+--   No se incluyen fechas inventadas ni datos heredados en este documento.
+-- * Ciudades: lista global administrada por plataforma. Empresa solo selecciona;
+--   sucursales y tarifas son empresariales. Rol global no implica permiso global.
+-- * Descarga CU03/CU16: lectura consistente de productos, variantes, precios,
+--   sucursales y existencias conocidas, con version y fecha. Implementar actualizacion
+--   de catalogo_version/catalogo_actualizado_en en cada cambio relevante.
+-- * Reservas CU04/CU18: revalidar identidad/plan/tiempo/visita/stock; guardar
+--   reserva, lineas, movimientos y resultado durable en una transaccion.
+--   Los rechazos/conflictos no crean reserva y tambien deben persistirse.
+--   UUID y payload original estables: reautorizar antes de recuperar resultados;
+--   misma clave/contenido devuelve resultado anterior; distinto contenido es conflicto.
+--   No aceptar otra vez el mismo intento mientras otro lo procesa.
+--   Efectos por linea (reservar, vender, liberar, trasladar) requieren deduplicacion
+--   e integridad transaccional; cantidades no negativas no bastan por si solas.
+-- * Plazo: verificar adelanto antes de aceptar 72 h; no reiniciar desde pago/visita.
+--   Validar reloj local con referencias; TIEMPO_INCOHERENTE = CONFLICTO sin apartado.
+-- * CU26: vence_en no expira filas por si sola. Hace falta proceso programado y
+--   liberacion de stock idempotente, coordinada con pagos/cancelacion/venta.
+-- * Fechas de actualizacion DEFAULT now() no se actualizan automaticamente en UPDATE;
+--   hacerlo desde servicios o triggers ensayados y versionados en Alembic.
+-- * Los campos de cliente y documento padre en pedidos/detalles deben coincidir;
+--   validar ademas coherencia comercial entre registros de la MISMA empresa.
+--   Ejemplo: venta_id y cliente_id de un pedido deben corresponder entre si.
+-- * Identidad offline: 8 h de visualizacion privada desde login online, ocultar
+--   al vencer/logout sin borrar pendientes. Es distinta de la vigencia JWT.
+--   Esta politica y persistencia IndexedDB/SQLite viven tambien en los clientes.
+-- * Polimorfismo de IDs/JSONB requiere validacion: no todo puede ser una FK.
+-- * Dos empresas de prueba deben crearse mediante el flujo autorizado; no se
+--   inventan administradores, contrasenas, suscripciones ni datos comerciales.
+-- * SQLite e IndexedDB requieren modelos locales/versiones propios; no ejecutar
+--   este DDL PostgreSQL dentro de ellos.
+-- * Neon: para migraciones usar conexion directa y entorno aislado; revisar el
+--   contexto de tenant por transaccion si se usa pool. Nunca incrustar secretos.
+-- * Presentaciones posteriores: faltan modelos especificos de turnos/cupos/ventas
+--   offline, cambios/saldo, tasas BOB/USD y artefactos ML; no se agregan ahora.
+-- * Mantener roles/estados y migraciones alineados con el codigo real antes de
+--   desplegar. ENUMs conservados segun el codigo base inspeccionado; validarlos.

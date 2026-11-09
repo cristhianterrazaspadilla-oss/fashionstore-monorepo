@@ -1,0 +1,378 @@
+<div class="module-container">
+  <div class="module-header">
+    <div>
+      <div class="badge-tag">Plataforma multitenant</div>
+      <h2>Panel de plataforma</h2>
+      <p>Administra las tiendas, sus planes y la red de sucursales desde un solo lugar.</p>
+    </div>
+  </div>
+
+  <section class="platform-summary" aria-label="Resumen de la plataforma">
+    <article><span>Tiendas registradas</span><strong>{{ empresas.length }}</strong></article>
+    <article><span>Tiendas activas</span><strong>{{ empresasActivas }}</strong></article>
+    <article><span>Pendientes de plan</span><strong>{{ empresasPendientes }}</strong></article>
+    <article><span>Sucursales activas</span><strong>{{ sucursalesActivas }}</strong></article>
+  </section>
+
+  <div *ngIf="mensajeError" class="alert-box alert-danger" role="alert">
+    {{ mensajeError }}
+  </div>
+
+  <div *ngIf="mensajeExito" class="alert-box alert-success" role="status">
+    {{ mensajeExito }}
+  </div>
+
+  <div class="module-grid">
+    <!-- PANEL FORMULARIO REGISTRAR EMPRESA -->
+    <div class="card-panel">
+      <div class="card-panel-header">
+        <span class="panel-kicker">Alta corporativa</span>
+        <h3>Crear tienda</h3>
+        <p class="panel-subtitle">Registra la tienda y su administrador inicial. El plan se activa a continuación.</p>
+      </div>
+
+      <form (ngSubmit)="crearEmpresa()">
+        <div class="form-group">
+          <label for="razonSocial">Razón social *</label>
+          <input
+            type="text"
+            id="razonSocial"
+            name="razonSocial"
+            [(ngModel)]="nuevaEmpresa.razon_social"
+            placeholder="Ej. Boutique Urbana S.R.L."
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="nombreComercial">Nombre comercial *</label>
+          <input
+            type="text"
+            id="nombreComercial"
+            name="nombreComercial"
+            [(ngModel)]="nuevaEmpresa.nombre_comercial"
+            placeholder="Ej. Atelier Elegance"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="empresaCodigo">Identificador de empresa *</label>
+          <input
+            type="text"
+            id="empresaCodigo"
+            name="empresaCodigo"
+            [(ngModel)]="nuevaEmpresa.empresa_codigo"
+            placeholder="ej. atelier-elegance"
+            required
+          />
+          <small class="field-help">Código único para URL y aislamiento de datos (sin espacios).</small>
+        </div>
+
+        <div class="divider-form">
+          <span>Administrador inicial</span>
+        </div>
+
+        <div class="form-group">
+          <label for="adminNombre">Nombre del administrador *</label>
+          <input
+            type="text"
+            id="adminNombre"
+            name="adminNombre"
+            [(ngModel)]="nuevaEmpresa.administrador.nombre"
+            placeholder="Ej. Andrea Morales"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="adminCorreo">Correo corporativo *</label>
+          <input
+            type="email"
+            id="adminCorreo"
+            name="adminCorreo"
+            [(ngModel)]="nuevaEmpresa.administrador.correo"
+            placeholder="andrea@elegance.bo"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="adminClave">Credencial de acceso inicial *</label>
+          <input
+            type="password"
+            id="adminClave"
+            name="adminClave"
+            [(ngModel)]="nuevaEmpresa.administrador.credencial_inicial"
+            placeholder="••••••••"
+            required
+          />
+
+          <!-- Indicador de requisitos de seguridad de contraseña -->
+          <div *ngIf="claveActual.length > 0" class="password-checklist" aria-live="polite">
+            <div class="checklist-header" [class.valid-all]="contraseniaValida">
+              <span *ngIf="!contraseniaValida">Falta: <strong>{{ obtenerRequisitosFaltantes().join(', ') }}</strong></span>
+              <span *ngIf="contraseniaValida" class="checklist-ok">✓ Credencial segura</span>
+            </div>
+            <div class="checklist-grid">
+              <span class="rule-chip" [class.chip-ok]="tieneLongitudMinima">
+                <span class="chip-icon">{{ tieneLongitudMinima ? '✓' : '•' }}</span> Mín. 6 caracteres
+              </span>
+              <span class="rule-chip" [class.chip-ok]="tieneMinuscula">
+                <span class="chip-icon">{{ tieneMinuscula ? '✓' : '•' }}</span> Minúscula
+              </span>
+              <span class="rule-chip" [class.chip-ok]="tieneMayuscula">
+                <span class="chip-icon">{{ tieneMayuscula ? '✓' : '•' }}</span> Mayúscula
+              </span>
+              <span class="rule-chip" [class.chip-ok]="tieneNumero">
+                <span class="chip-icon">{{ tieneNumero ? '✓' : '•' }}</span> Número
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider-form"><span>Plan de la tienda</span></div>
+        <div class="form-group">
+          <label for="planNuevo">Plan *</label>
+          <select id="planNuevo" name="planNuevo" [(ngModel)]="planIdNuevo" required>
+            <option value="">Selecciona un plan</option>
+            <option *ngFor="let plan of planes" [value]="plan.id">{{ plan.nombre }} · hasta {{ plan.max_sucursales_activas }} sucursales</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="vigenciaNueva">Vigente hasta *</label>
+          <input id="vigenciaNueva" name="vigenciaNueva" type="date" [(ngModel)]="fechaVencimiento" required>
+        </div>
+        <p class="plan-note">Esta asignación administrativa habilita el plan; no registra un cobro.</p>
+
+        <button type="submit" class="btn-primary" [disabled]="guardando || asignandoPlan || !planes.length">
+          <span *ngIf="!guardando && !asignandoPlan">Crear tienda y asignar plan</span>
+          <span *ngIf="guardando || asignandoPlan">Guardando tienda…</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- PANEL LISTADO DE EMPRESAS -->
+    <div class="card-panel">
+      <div class="card-panel-header">
+        <div class="panel-title-row">
+          <div>
+            <span class="panel-kicker">Supervisión</span>
+            <h3>Tiendas en plataforma</h3>
+          </div>
+          <span class="users-count-badge" *ngIf="!cargando">{{ empresas.length }} {{ empresas.length === 1 ? 'empresa' : 'empresas' }}</span>
+        </div>
+        <p class="panel-subtitle">Listado de boutiques y organizaciones alojadas en la infraestructura.</p>
+      </div>
+
+      <div class="filters-bar">
+        <label class="filter-checkbox-label">
+          <input
+            type="checkbox"
+            [(ngModel)]="filtroSoloActivas"
+            (change)="cambiarFiltroActivas()"
+          />
+          Mostrar sólo empresas activas
+        </label>
+      </div>
+
+      <!-- Estados de carga y vacío -->
+      <div *ngIf="cargando" class="users-state-box" role="status">
+        <p class="state-title">Cargando empresas…</p>
+        <p class="state-desc">Obteniendo las organizaciones registradas y su estado actual.</p>
+      </div>
+
+      <div *ngIf="!cargando && empresas.length === 0" class="users-state-box" role="status">
+        <p class="state-title">No hay empresas para mostrar</p>
+        <p class="state-desc">Registra la primera empresa contratante utilizando el formulario de la izquierda.</p>
+      </div>
+
+      <!-- Vista móvil / tablet: Tarjetas -->
+      <div class="users-cards-view" *ngIf="!cargando && empresas.length > 0">
+        <article class="user-card" *ngFor="let emp of empresas">
+          <div class="user-card-head">
+            <div class="user-card-identity">
+              <h4 class="user-name">{{ emp.nombre }}</h4>
+              <span class="user-sub font-mono">Código: {{ emp.codigo }}</span>
+            </div>
+            <span class="badge-status" [ngClass]="emp.estado === 'ACTIVA' ? 'status-activo' : (emp.estado === 'SUSPENDIDA' ? 'status-inactivo' : 'status-pendiente')">
+              {{ emp.estado }}
+            </span>
+          </div>
+
+          <div class="user-card-body">
+            <div class="user-info-item">
+              <span class="info-label">Plan</span>
+              <span class="info-val">{{ suscripciones[emp.id]?.plan_nombre || 'Sin plan' }}</span>
+            </div>
+            <div class="user-info-item">
+              <span class="info-label">Sucursales</span>
+              <span class="info-val">{{ sucursalesDe(emp.id).length }}</span>
+            </div>
+            <div class="user-info-item">
+              <span class="info-label">Catálogo v.</span>
+              <span class="info-val">{{ emp.catalogo_version || 1 }}</span>
+            </div>
+            <div class="user-info-item">
+              <span class="info-label">Plazo cambios</span>
+              <span class="info-val">{{ emp.plazo_cambios_dias || 15 }} días</span>
+            </div>
+            <div class="user-info-item">
+              <span class="info-label">Registro</span>
+              <span class="info-val">{{ formatearFecha(emp.creada_en) }}</span>
+            </div>
+          </div>
+
+          <div class="user-card-actions">
+            <button type="button" class="btn-action" (click)="verDetalle(emp, $event)">
+              Ver detalle
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <!-- Vista escritorio: Tabla -->
+      <div class="table-container desktop-table-view" *ngIf="!cargando && empresas.length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Código</th>
+              <th>Estado</th>
+              <th>Plan</th>
+              <th>Sucursales</th>
+              <th>Catálogo</th>
+              <th>Plazo devolución</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let emp of empresas">
+              <td>
+                <div class="user-name">{{ emp.nombre }}</div>
+                <div class="user-sub">{{ formatearFecha(emp.creada_en) }}</div>
+              </td>
+              <td>
+                <span class="code-badge">{{ emp.codigo }}</span>
+              </td>
+              <td>
+                <span class="badge-status" [ngClass]="emp.estado === 'ACTIVA' ? 'status-activo' : (emp.estado === 'SUSPENDIDA' ? 'status-inactivo' : 'status-pendiente')">
+                  {{ emp.estado }}
+                </span>
+              </td>
+              <td>{{ suscripciones[emp.id]?.plan_nombre || 'Sin plan' }}</td>
+              <td>{{ sucursalesDe(emp.id).length }}</td>
+              <td>
+                <span class="metric-val">v{{ emp.catalogo_version || 1 }}</span>
+              </td>
+              <td>
+                <span class="metric-val">{{ emp.plazo_cambios_dias || 15 }} días</span>
+              </td>
+              <td>
+                <button type="button" class="btn-action" (click)="verDetalle(emp, $event)">
+                  Ver detalle
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalle Empresa -->
+<div class="dialog-backdrop" *ngIf="empresaSeleccionada" (click)="cerrarDetalle()" (keydown)="alManejarTabDetalle($event)">
+  <section
+    #modalDetalleBox
+    class="dialog-card"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="detalle-empresa-title"
+    (click)="$event.stopPropagation()"
+  >
+    <p class="dialog-kicker">Organización</p>
+    <h3 id="detalle-empresa-title">{{ empresaSeleccionada.nombre }}</h3>
+    <p class="dialog-desc">Plan y sucursales de esta tienda. El administrador empresarial gestiona su catálogo, personal e inventario al iniciar sesión.</p>
+    <div *ngIf="mensajeError" class="alert-box alert-danger" role="alert">{{ mensajeError }}</div>
+    <div *ngIf="mensajeExito" class="alert-box alert-success" role="status">{{ mensajeExito }}</div>
+
+    <div class="detalle-grid">
+      <div class="detalle-row">
+        <span class="detalle-label">Identificador único</span>
+        <span class="detalle-val font-mono">{{ empresaSeleccionada.id }}</span>
+      </div>
+      <div class="detalle-row">
+        <span class="detalle-label">Código de acceso público</span>
+        <span class="detalle-val font-mono">{{ empresaSeleccionada.codigo }}</span>
+      </div>
+      <div class="detalle-row">
+        <span class="detalle-label">Estado actual</span>
+        <span class="detalle-val">
+          <span class="badge-status" [ngClass]="empresaSeleccionada.estado === 'ACTIVA' ? 'status-activo' : (empresaSeleccionada.estado === 'SUSPENDIDA' ? 'status-inactivo' : 'status-pendiente')">
+            {{ empresaSeleccionada.estado }}
+          </span>
+        </span>
+      </div>
+      <div class="detalle-row">
+        <span class="detalle-label">Plan vigente o último asignado</span>
+        <span class="detalle-val">{{ suscripciones[empresaSeleccionada.id]?.plan_nombre || 'Sin plan' }}</span>
+      </div>
+      <div class="detalle-row" *ngIf="suscripciones[empresaSeleccionada.id] as suscripcion">
+        <span class="detalle-label">Vigencia</span>
+        <span class="detalle-val">Hasta {{ formatearFecha(suscripcion.vence_en) }} · {{ suscripcion.estado_efectivo }}</span>
+      </div>
+      <div class="detalle-row">
+        <span class="detalle-label">Versión de catálogo</span>
+        <span class="detalle-val">Versión {{ empresaSeleccionada.catalogo_version || 1 }}</span>
+      </div>
+      <div class="detalle-row">
+        <span class="detalle-label">Plazo de cambios/devolución</span>
+        <span class="detalle-val">{{ empresaSeleccionada.plazo_cambios_dias || 15 }} días calendario</span>
+      </div>
+      <div class="detalle-row">
+        <span class="detalle-label">Fecha de alta</span>
+        <span class="detalle-val">{{ formatearFecha(empresaSeleccionada.creada_en) }}</span>
+      </div>
+      <div class="detalle-row" *ngIf="empresaSeleccionada.actualizada_en">
+        <span class="detalle-label">Última actualización</span>
+        <span class="detalle-val">{{ formatearFecha(empresaSeleccionada.actualizada_en) }}</span>
+      </div>
+    </div>
+
+    <section class="platform-branches" aria-label="Sucursales de la tienda">
+      <h4>Sucursales ({{ sucursalesDe(empresaSeleccionada.id).length }})</h4>
+      <ul *ngIf="sucursalesDe(empresaSeleccionada.id).length; else sinSucursales">
+        <li *ngFor="let sucursal of sucursalesDe(empresaSeleccionada.id)">
+          <strong>{{ sucursal.nombre }}</strong><span>{{ sucursal.ciudad_nombre || sucursal.direccion }} · {{ sucursal.activa ? 'Activa' : 'Inactiva' }}</span>
+        </li>
+      </ul>
+      <ng-template #sinSucursales><p>Esta tienda aún no tiene sucursales. Su administrador podrá registrarlas después de activar el plan.</p></ng-template>
+    </section>
+
+    <section class="platform-plan-form" aria-label="Asignar o renovar plan">
+      <h4>Asignar o renovar plan</h4>
+      <label for="planEdicion">Plan</label>
+      <select id="planEdicion" [(ngModel)]="planIdEdicion" (ngModelChange)="confirmandoPlan=false">
+        <option *ngFor="let plan of planes" [value]="plan.id">{{ plan.nombre }} · hasta {{ plan.max_sucursales_activas }} sucursales</option>
+      </select>
+      <label for="vigenciaEdicion">Vigente hasta</label>
+      <input id="vigenciaEdicion" type="date" [(ngModel)]="fechaVencimiento" (ngModelChange)="confirmandoPlan=false">
+      <label for="motivoEdicion">Motivo de la asignación</label>
+      <input id="motivoEdicion" type="text" [(ngModel)]="motivoPlan" (ngModelChange)="confirmandoPlan=false" maxlength="255">
+      <button type="button" class="btn-primary" [disabled]="asignandoPlan || !planIdEdicion" (click)="confirmandoPlan=true">
+        Revisar asignación
+      </button>
+      <div *ngIf="confirmandoPlan" class="plan-confirmacion" role="group" aria-label="Confirmar asignación de plan">
+        <p>Se asignará {{ planSeleccionadoNombre() }} a {{ empresaSeleccionada.nombre }} hasta el {{ fechaVencimiento }}. Esto cambiará las capacidades y el límite de sucursales de la tienda.</p>
+        <button type="button" class="btn-primary" [disabled]="asignandoPlan" (click)="asignarPlanSeleccionado()">{{ asignandoPlan ? 'Asignando…' : 'Confirmar asignación' }}</button>
+        <button type="button" class="dialog-secondary" [disabled]="asignandoPlan" (click)="confirmandoPlan=false">Cancelar</button>
+      </div>
+      <p>La tienda y su administrador se crean primero; una asignación de plan vigente habilita la operación. El administrador registra las sucursales desde su sesión.</p>
+    </section>
+
+    <div class="dialog-actions">
+      <button type="button" class="dialog-secondary" (click)="cerrarDetalle()">Cerrar</button>
+    </div>
+  </section>
+</div>

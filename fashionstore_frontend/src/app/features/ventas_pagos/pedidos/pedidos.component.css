@@ -1,0 +1,7 @@
+.status{display:inline-flex;padding:.35rem .65rem;border-radius:var(--radius-pill);font-size:.72rem;font-weight:800;text-transform:capitalize}
+.status-success{background:var(--success-bg);color:var(--success)}
+.status-danger{background:var(--danger-bg);color:var(--danger)}
+.status-warning{background:var(--warning-bg);color:var(--warning)}
+.status-neutral{background:var(--primary-light);color:var(--ink)}
+
+.codigo-recojo{font-size:.82rem;color:var(--brass-strong)}

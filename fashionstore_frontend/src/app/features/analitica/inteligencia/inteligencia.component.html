@@ -1,0 +1,748 @@
+<section class="cycle-page">
+  <!-- Encabezado editorial -->
+  <header class="ia-hero">
+    <p class="ia-kicker">Asistente analítico</p>
+    <h1 class="ia-title">Inteligencia del negocio</h1>
+    <p class="ia-subtitle">Consultas en lenguaje natural, modelos de demanda, segmentación de catálogo y decisiones de inventario sobre datos comerciales reales.</p>
+  </header>
+
+  <!-- Pestañas principales de navegación accesibles -->
+  <div class="tab-switcher" role="tablist" aria-label="Secciones de inteligencia">
+    <button
+      type="button"
+      role="tab"
+      id="tab-reportes"
+      aria-controls="panel-reportes"
+      [attr.aria-selected]="activeTab === 'reportes'"
+      [class.active]="activeTab === 'reportes'"
+      (click)="activeTab = 'reportes'"
+    >
+      Reportes analíticos
+    </button>
+    <button
+      type="button"
+      role="tab"
+      id="tab-decisiones"
+      aria-controls="panel-decisiones"
+      [attr.aria-selected]="activeTab === 'decisiones'"
+      [class.active]="activeTab === 'decisiones'"
+      (click)="activeTab = 'decisiones'"
+    >
+      Decisiones de inventario
+    </button>
+  </div>
+
+  <!-- PESTAÑA 1: REPORTES Y MODELOS ANALÍTICOS -->
+  <div
+    *ngIf="activeTab === 'reportes'"
+    id="panel-reportes"
+    class="tab-content"
+    role="tabpanel"
+    aria-labelledby="tab-reportes"
+  >
+    <!-- Selector secundario de submódulo analítico -->
+    <div class="subtab-switcher" role="group" aria-label="Módulos analíticos de IA y aprendizaje automático">
+      <button
+        type="button"
+        class="subtab-btn"
+        [class.active]="subTab === 'reportes'"
+        (click)="subTab = 'reportes'"
+      >
+        Reportes interpretados
+      </button>
+      <button
+        type="button"
+        class="subtab-btn"
+        [class.active]="subTab === 'pronostico'"
+        (click)="subTab = 'pronostico'"
+      >
+        Pronóstico de demanda
+      </button>
+      <button
+        type="button"
+        class="subtab-btn"
+        [class.active]="subTab === 'segmentacion'"
+        (click)="subTab = 'segmentacion'"
+      >
+        Segmentación de prendas
+      </button>
+    </div>
+
+    <!-- SUB-VISTA A: REPORTES INTERPRETADOS (CU24 Y RETROCOMPATIBILIDAD) -->
+    <div *ngIf="subTab === 'reportes'" class="subtab-view">
+      <!-- Accesos directos a los 4 reportes interpretados autorizados (CU24) -->
+      <div class="tipos-reporte-grid" aria-label="Reportes tipados estándar preconfigurados">
+        <button
+          *ngFor="let t of tiposPermitidos"
+          type="button"
+          class="tipo-card-btn"
+          (click)="ejecutarReporteTipado(t.id)"
+          [disabled]="generando"
+        >
+          <span class="tipo-card-label">{{ t.label }}</span>
+          <span class="tipo-card-desc">{{ t.desc }}</span>
+        </button>
+      </div>
+
+      <!-- Entrada de consulta en lenguaje natural -->
+      <div class="ia-input-card">
+        <div class="ia-input-group">
+          <label for="consultaInput" class="sr-only">Consulta de inteligencia de negocio</label>
+          <input
+            id="consultaInput"
+            type="text"
+            [(ngModel)]="consulta"
+            placeholder="Escribe tu consulta o pide un reporte tipado (ej. ventas por sucursal o prendas más vendidas)"
+            aria-label="Consulta de analítica en lenguaje natural"
+            (keydown.enter)="generarReporte()"
+            [disabled]="generando"
+          />
+          <button
+            type="button"
+            class="cycle-primary btn-consultar"
+            (click)="generarReporte()"
+            [disabled]="generando || !consulta.trim()"
+          >
+            {{ generando ? 'Interpretando…' : 'Consultar datos' }}
+          </button>
+        </div>
+        <p class="ia-hint">
+          Consultas tipadas permitidas: ventas por sucursal, ranking de productos, evolución semanal o ingresos por categoría.
+        </p>
+      </div>
+
+      <!-- Secuencia visual de carga -->
+      <div *ngIf="generando" class="ia-loading-card" role="status">
+        <div class="ia-loading-pulse" aria-hidden="true"></div>
+        <div class="ia-loading-text-wrap">
+          <p class="ia-loading-step">{{ pasosCarga[pasoCargaActual] }}…</p>
+          <p class="ia-loading-note">Consultando datos autorizados en backend sin modificar el estado operativo.</p>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div *ngIf="errorReporte" class="cycle-alert danger" role="alert">
+        {{ errorReporte }}
+      </div>
+
+      <!-- RESULTADO CU24: REPORTE TIPADO INTERPRETADO -->
+      <div *ngIf="!generando && reporteTipado" class="ia-report-sheet">
+        <div class="report-sheet-header">
+          <div class="report-meta-tags">
+            <span class="report-type-badge">{{ tituloReporte }}</span>
+            <span class="report-engine-tag" [class.gemini-tag]="esProveedorGemini">
+              {{ nombreProveedor }}
+            </span>
+            <span class="report-origin-badge">Origen: {{ reporteTipado.origen }}</span>
+          </div>
+          <div class="header-actions">
+            <button type="button" class="cycle-secondary small" (click)="exportarCsv()">
+              Exportar CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Narrativa ejecutiva protagonista -->
+        <div class="report-narrativa-card">
+          <span class="narrativa-lead-label">Resumen ejecutivo del reporte:</span>
+          <blockquote class="narrativa-quote">
+            {{ reporteTipado.narrativa }}
+          </blockquote>
+        </div>
+
+        <!-- Tabla de datos del snapshot -->
+        <div class="table-wrap ia-table-wrap">
+          <table class="cycle-table">
+            <thead>
+              <tr>
+                <th *ngFor="let col of reporteTipado.columnas">{{ formatearEncabezadoColumna(col) }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let fila of reporteTipado.filas">
+                <td *ngFor="let col of reporteTipado.columnas">
+                  <span *ngIf="esColumnaMonetaria(col)" class="strong num">
+                    Bs {{ formatearMonto(fila[col]) }}
+                  </span>
+                  <span *ngIf="!esColumnaMonetaria(col)">
+                    {{ fila[col] }}
+                  </span>
+                </td>
+              </tr>
+              <tr *ngIf="reporteTipado.filas.length === 0">
+                <td [attr.colspan]="reporteTipado.columnas.length || 1" class="empty">
+                  No se registraron transacciones para este tipo de reporte en el periodo consultado.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Totales del snapshot -->
+        <div *ngIf="reporteTipado.totales && (reporteTipado.totales['total_ingresos_bob'] || reporteTipado.totales['total_ventas'])" class="report-totals-bar">
+          <span class="totals-title">Totales consolidados:</span>
+          <div class="totals-chips">
+            <span *ngIf="reporteTipado.totales['total_ventas'] !== undefined">
+              Ventas: <strong>{{ reporteTipado.totales['total_ventas'] }}</strong>
+            </span>
+            <span *ngIf="reporteTipado.totales['total_unidades'] !== undefined">
+              Unidades: <strong>{{ reporteTipado.totales['total_unidades'] }}</strong>
+            </span>
+            <span *ngIf="reporteTipado.totales['total_ingresos_bob'] !== undefined">
+              Total facturado: <strong>Bs {{ formatearMonto(reporteTipado.totales['total_ingresos_bob']) }}</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULTADO LEGADO: COMPATIBILIDAD RETROACTIVA CICLO 3 -->
+      <div *ngIf="!generando && reporte && !reporteTipado" class="ia-report-sheet">
+        <div class="report-sheet-header">
+          <div class="report-meta-tags">
+            <span class="report-type-badge">{{ tituloReporte }}</span>
+            <span class="report-engine-tag">{{ nombreProveedor }}</span>
+          </div>
+        </div>
+
+        <div class="report-narrativa-card">
+          <span class="narrativa-lead-label">Síntesis del negocio:</span>
+          <blockquote class="narrativa-quote">{{ reporte.narrativa }}</blockquote>
+        </div>
+
+        <!-- Ventas por sucursal -->
+        <div *ngIf="reporte.funcion_usada === 'ventasPorSucursal'" class="report-data-block">
+          <h3>Facturación comparativa por sucursal</h3>
+          <app-horizontal-bars [items]="ventasPorSucursalBarsVM" colorTema="ink" ariaLabel="Ventas por sucursal"></app-horizontal-bars>
+        </div>
+
+        <!-- Inventario por sucursal -->
+        <div *ngIf="reporte.funcion_usada === 'inventarioPorSucursal'" class="report-data-block">
+          <h3>Inventario por sucursal</h3>
+          <div class="table-wrap">
+            <table class="cycle-table">
+              <thead>
+                <tr><th>Sucursal</th><th>Variantes</th><th>Disponible</th><th>Reservado</th><th>En tránsito</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of inventarioPorSucursalVM">
+                  <td class="strong">{{ row.sucursal }}</td>
+                  <td>{{ row.variantes }}</td>
+                  <td class="num strong text-success">{{ row.disponible }} un.</td>
+                  <td class="num">{{ row.reservado }} un.</td>
+                  <td class="num">{{ row.en_transito }} un.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Temporadas -->
+        <div *ngIf="reporte.funcion_usada === 'ventasPorTemporada'" class="report-data-block">
+          <h3>Temporadas y colecciones del catálogo</h3>
+          <p class="scope-note">El catálogo no suministra magnitudes comparables</p>
+          <ul class="tag-list">
+            <li *ngFor="let t of temporadasVM" class="tag-item">{{ t }}</li>
+          </ul>
+        </div>
+
+        <!-- Stock crítico -->
+        <div *ngIf="reporte.funcion_usada === 'stockCritico'" class="report-data-block">
+          <h3>Stock crítico</h3>
+          <app-horizontal-bars [items]="stockCriticoBarsVM" colorTema="danger" ariaLabel="Stock crítico"></app-horizontal-bars>
+        </div>
+
+        <!-- Top vendidos -->
+        <div *ngIf="reporte.funcion_usada === 'topVendidos'" class="report-data-block">
+          <h3>Prendas más vendidas</h3>
+          <app-horizontal-bars [items]="topVendidosBarsVM" colorTema="brass" ariaLabel="Top vendidos"></app-horizontal-bars>
+        </div>
+
+        <!-- Efectividad de reservas -->
+        <div *ngIf="reporte.funcion_usada === 'efectividadReservas'" class="report-data-block">
+          <h3>Efectividad de reservas</h3>
+          <app-radial-progress
+            [valor]="reservasReporteVM.conversionPct"
+            [numerador]="reservasReporteVM.completadas"
+            [denominador]="reservasReporteVM.total"
+            etiquetaLeyenda="Tasa de concreción de reservas"
+          ></app-radial-progress>
+        </div>
+
+        <!-- Rotación -->
+        <div *ngIf="reporte.funcion_usada === 'rotacionPorTemporada'" class="report-data-block">
+          <h3>Rotación de inventario</h3>
+          <p class="scope-note">Ventana de análisis: {{ rotacionFilasVM.ventanaDias }} días</p>
+          <div class="table-wrap">
+            <table class="cycle-table">
+              <thead><tr><th>Prenda</th><th>Stock</th><th>Ventas</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let r of rotacionFilasVM.filas">
+                  <td>{{ r.etiquetaLegible }}</td>
+                  <td>{{ r.stock }} un.</td>
+                  <td>{{ r.ventas }} un.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Fallback para funciones o estructuras no mapeadas directamente -->
+        <div *ngIf="esFuncionDesconocida" class="viz-block viz-fallback">
+          <h2 class="viz-title">Resultado de consulta en formato detallado</h2>
+          <p class="viz-subtitle">Este reporte contiene una estructura especializada que puede examinarse en el detalle de datos a continuación.</p>
+        </div>
+
+        <!-- Reporte vacío -->
+        <div *ngIf="reporteVacio" class="viz-block" role="status">
+          <p class="scope-note">No existen registros que coincidan con este reporte en el periodo consultado.</p>
+        </div>
+
+        <!-- Detalle técnico colapsable seguro -->
+        <details *ngIf="reporte.datos" class="ia-datos-colapsable">
+          <summary>Ver detalle de datos estructurados</summary>
+          <pre>{{ reporte.datos | json }}</pre>
+        </details>
+      </div>
+    </div>
+
+    <!-- SUB-VISTA B: PRONÓSTICO DE DEMANDA (CU10) -->
+    <div *ngIf="subTab === 'pronostico'" class="subtab-view">
+      <div class="ml-toolbar">
+        <div class="toolbar-filtros">
+          <label class="filter-field" for="pronosticoSemanasInput">
+            <span class="filter-label">Semanas a proyectar</span>
+            <input
+              id="pronosticoSemanasInput"
+              type="number"
+              min="1"
+              max="12"
+              [(ngModel)]="pronosticoSemanas"
+              class="input-number"
+              aria-label="Semanas a proyectar"
+            />
+          </label>
+          <label class="filter-field" for="pronosticoOrigenSelect">
+            <span class="filter-label">Origen de datos</span>
+            <select id="pronosticoOrigenSelect" [(ngModel)]="pronosticoOrigen" aria-label="Origen de datos del pronóstico">
+              <option value="AUTO">Automático (real si hay >=3 semanas)</option>
+              <option value="REAL">Datos reales exclusivamente</option>
+              <option value="SINTETICO_REPRODUCIBLE">Sintético reproducible (evaluación)</option>
+            </select>
+          </label>
+          <label class="filter-field" for="pronosticoSemillaInput">
+            <span class="filter-label">Semilla</span>
+            <input
+              id="pronosticoSemillaInput"
+              type="number"
+              [(ngModel)]="pronosticoSemilla"
+              class="input-number"
+              aria-label="Semilla pseudoaleatoria"
+            />
+          </label>
+        </div>
+        <div class="toolbar-acciones">
+          <button
+            type="button"
+            class="cycle-primary"
+            (click)="consultarPronostico()"
+            [disabled]="consultandoPronostico"
+          >
+            {{ consultandoPronostico ? 'Consultando…' : 'Consultar pronóstico' }}
+          </button>
+          <button
+            type="button"
+            class="cycle-secondary"
+            (click)="entrenarPronostico()"
+            [disabled]="consultandoPronostico"
+          >
+            Reentrenar modelo
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="consultandoPronostico" class="ia-loading-card" role="status">
+        <div class="ia-loading-pulse" aria-hidden="true"></div>
+        <div class="ia-loading-text-wrap">
+          <p class="ia-loading-step">Ejecutando modelo supervisado de demanda…</p>
+          <p class="ia-loading-note">Calculando regresión lineal, baseline MAE y métricas de error.</p>
+        </div>
+      </div>
+
+      <div *ngIf="errorPronostico" class="cycle-alert danger" role="alert">
+        {{ errorPronostico }}
+      </div>
+
+      <div *ngIf="!consultandoPronostico && pronostico" class="ml-result-sheet">
+        <div class="ml-meta-header">
+          <div class="ml-badges">
+            <span class="ml-status-badge" [class]="'badge-' + (pronostico.metricas.estado || '').toLowerCase()">
+              Estado: {{ pronostico.metricas.estado }}
+            </span>
+            <span class="ml-origin-badge">
+              Origen: {{ pronostico.origen_datos }}
+            </span>
+            <span class="ml-model-badge">
+              Modelo: v{{ pronostico.modelo_version }}
+            </span>
+          </div>
+          <span class="ml-samples-tag">
+            {{ pronostico.metricas.train_size || 0 }} semanas evaluadas
+          </span>
+        </div>
+
+        <div *ngIf="pronostico.metricas.estado === 'DATOS_INSUFICIENTES'" class="cycle-alert warning">
+          <strong>Datos históricos limitados:</strong> {{ pronostico.metricas.razon || 'El negocio cuenta con menos semanas de venta de las recomendadas (mínimo 3).' }}
+        </div>
+
+        <!-- Tarjetas de métricas del modelo -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <span class="metric-kicker">Error medio absoluto</span>
+            <span class="metric-val">{{ pronostico.metricas.mae | number:'1.2-4' }}</span>
+            <span class="metric-sub">MAE en unidades</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-kicker">Raíz de error cuadrático</span>
+            <span class="metric-val">{{ pronostico.metricas.rmse | number:'1.2-4' }}</span>
+            <span class="metric-sub">RMSE de predicción</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-kicker">Coeficiente R²</span>
+            <span class="metric-val">{{ pronostico.metricas.r2 | number:'1.2-4' }}</span>
+            <span class="metric-sub">Bondad de ajuste</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-kicker">Baseline MAE</span>
+            <span class="metric-val">{{ pronostico.metricas.baseline_mae | number:'1.2-4' }}</span>
+            <span class="metric-sub">Media histórica simple</span>
+          </div>
+          <div class="metric-card highlight">
+            <span class="metric-kicker">Mejora sobre baseline</span>
+            <span class="metric-val text-success">
+              {{ (pronostico.metricas.mejora_vs_baseline_pct ?? 0) > 0 ? '+' : '' }}{{ pronostico.metricas.mejora_vs_baseline_pct | number:'1.1-2' }}%
+            </span>
+            <span class="metric-sub">Rendimiento relativo</span>
+          </div>
+        </div>
+
+        <!-- Proyecciones semanales -->
+        <div class="table-wrap ia-table-wrap">
+          <h3 class="table-section-title">Proyección de ventas por semana</h3>
+          <table class="cycle-table">
+            <thead>
+              <tr>
+                <th>Semana</th>
+                <th>Prenda</th>
+                <th class="num">Unidades estimadas</th>
+                <th class="num">Nivel de confianza</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of pronostico.predicciones">
+                <td class="strong">+{{ p.semana }} sem</td>
+                <td>{{ p.producto_nombre }}</td>
+                <td class="num strong">{{ p.unidades_estimadas }} un.</td>
+                <td class="num">{{ ((p.confianza || 0) * 100) | number:'1.0-1' }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUB-VISTA C: SEGMENTACIÓN DE PRODUCTOS (CU11) -->
+    <div *ngIf="subTab === 'segmentacion'" class="subtab-view">
+      <div class="ml-toolbar">
+        <div class="toolbar-filtros">
+          <label class="filter-field" for="segmentacionGruposInput">
+            <span class="filter-label">Grupos (k)</span>
+            <input
+              id="segmentacionGruposInput"
+              type="number"
+              min="2"
+              max="8"
+              [(ngModel)]="segmentacionGrupos"
+              class="input-number"
+              aria-label="Cantidad de grupos k-means"
+            />
+          </label>
+          <label class="filter-field" for="segmentacionPeriodoInput">
+            <span class="filter-label">Días de historial</span>
+            <input
+              id="segmentacionPeriodoInput"
+              type="number"
+              min="14"
+              max="365"
+              [(ngModel)]="segmentacionPeriodo"
+              class="input-number"
+              aria-label="Periodo de historial en días"
+            />
+          </label>
+          <label class="filter-field" for="segmentacionOrigenSelect">
+            <span class="filter-label">Origen</span>
+            <select id="segmentacionOrigenSelect" [(ngModel)]="segmentacionOrigen" aria-label="Origen de datos de segmentación">
+              <option value="AUTO">Automático</option>
+              <option value="REAL">Datos reales</option>
+              <option value="SINTETICO_REPRODUCIBLE">Sintético reproducible</option>
+            </select>
+          </label>
+          <label class="filter-field" for="segmentacionSemillaInput">
+            <span class="filter-label">Semilla</span>
+            <input
+              id="segmentacionSemillaInput"
+              type="number"
+              [(ngModel)]="segmentacionSemilla"
+              class="input-number"
+              aria-label="Semilla pseudoaleatoria"
+            />
+          </label>
+        </div>
+        <div class="toolbar-acciones">
+          <button
+            type="button"
+            class="cycle-primary"
+            (click)="consultarSegmentacion()"
+            [disabled]="consultandoSegmentacion"
+          >
+            {{ consultandoSegmentacion ? 'Analizando…' : 'Consultar grupos' }}
+          </button>
+          <button
+            type="button"
+            class="cycle-secondary"
+            (click)="entrenarSegmentacion()"
+            [disabled]="consultandoSegmentacion"
+          >
+            Reentrenar clústeres
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="consultandoSegmentacion" class="ia-loading-card" role="status">
+        <div class="ia-loading-pulse" aria-hidden="true"></div>
+        <div class="ia-loading-text-wrap">
+          <p class="ia-loading-step">Agrupando prendas con K-Means no supervisado…</p>
+          <p class="ia-loading-note">Calculando inercia, Silhouette Score y perfiles de rotación vs margen.</p>
+        </div>
+      </div>
+
+      <div *ngIf="errorSegmentacion" class="cycle-alert danger" role="alert">
+        {{ errorSegmentacion }}
+      </div>
+
+      <div *ngIf="!consultandoSegmentacion && segmentacion" class="ml-result-sheet">
+        <div class="ml-meta-header">
+          <div class="ml-badges">
+            <span class="ml-status-badge badge-optimizado">
+              Modelo: K-Means ({{ segmentacion.metricas.num_clusters }} grupos)
+            </span>
+            <span class="ml-origin-badge">
+              Origen: {{ segmentacion.origen_datos }}
+            </span>
+            <span class="ml-model-badge">
+              Calidad de partición: {{ (segmentacion.metricas.silhouette_score ?? 0) > 0.4 ? 'ALTA' : 'MODERADA' }}
+            </span>
+          </div>
+          <span class="ml-samples-tag">
+            {{ segmentacion.metricas.num_productos }} prendas analizadas
+          </span>
+        </div>
+
+        <!-- Métricas del clustering -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <span class="metric-kicker">Inercia intra-clúster</span>
+            <span class="metric-val">{{ segmentacion.metricas.inercia | number:'1.1-1' }}</span>
+            <span class="metric-sub">Suma de distancias cuadradas</span>
+          </div>
+          <div class="metric-card highlight">
+            <span class="metric-kicker">Silhouette Score</span>
+            <span class="metric-val" [class.text-success]="(segmentacion.metricas.silhouette_score ?? 0) > 0.4">
+              {{ (segmentacion.metricas.silhouette_score ?? 0) | number:'1.3-3' }}
+            </span>
+            <span class="metric-sub">Separabilidad de clústeres (-1 a +1)</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-kicker">Clústeres formados</span>
+            <span class="metric-val">{{ segmentacion.metricas.num_clusters }}</span>
+            <span class="metric-sub">Segmentos comerciales</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-kicker">Total prendas</span>
+            <span class="metric-val">{{ segmentacion.metricas.num_productos }}</span>
+            <span class="metric-sub">Universo analizado</span>
+          </div>
+        </div>
+
+        <!-- Tarjetas de perfiles de grupos -->
+        <div class="clusters-grid">
+          <article *ngFor="let g of segmentacion.grupos" class="cluster-card">
+            <header class="cluster-card-header">
+              <span class="cluster-id-badge">Grupo #{{ g.grupo_id + 1 }}</span>
+              <h4 class="cluster-label">{{ g.nombre_grupo }}</h4>
+            </header>
+
+            <p class="cluster-desc">{{ g.descripcion }}</p>
+
+            <div class="cluster-stats">
+              <div class="cstat-item">
+                <span class="cstat-label">Prendas en grupo: </span>
+                <strong class="cstat-val">{{ g.cantidad_productos }}</strong>
+              </div>
+              <div class="cstat-item" *ngIf="g.centroide['unidades'] !== undefined">
+                <span class="cstat-label">Unidades centroide</span>
+                <strong class="cstat-val">{{ g.centroide['unidades'] | number:'1.1-1' }} un.</strong>
+              </div>
+              <div class="cstat-item" *ngIf="g.centroide['ingresos'] !== undefined">
+                <span class="cstat-label">Ingresos centroide</span>
+                <strong class="cstat-val">Bs {{ g.centroide['ingresos'] | number:'1.2-2' }}</strong>
+              </div>
+              <div class="cstat-item" *ngIf="g.centroide['rotacion'] !== undefined">
+                <span class="cstat-label">Rotación centroide</span>
+                <strong class="cstat-val">{{ g.centroide['rotacion'] | number:'1.2-2' }}x</strong>
+              </div>
+            </div>
+
+            <!-- Muestra de productos -->
+            <div *ngIf="g.productos_muestra && g.productos_muestra.length > 0" class="cluster-samples">
+              <span class="samples-title">Prendas representativas:</span>
+              <ul class="samples-list">
+                <li *ngFor="let p of g.productos_muestra">
+                  {{ p['nombre'] }}
+                </li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PESTAÑA 2: DECISIONES DE INVENTARIO (CU25) -->
+  <div
+    *ngIf="activeTab === 'decisiones'"
+    id="panel-decisiones"
+    class="tab-content"
+    role="tabpanel"
+    aria-labelledby="tab-decisiones"
+  >
+    <!-- Parámetros de análisis -->
+    <div class="decision-params-card">
+      <div class="decision-params-form">
+        <label class="param-field" for="diasVentanaInput">
+          <span class="param-label">Ventana de análisis (días)</span>
+          <input
+            id="diasVentanaInput"
+            type="number"
+            [(ngModel)]="diasVentana"
+            min="7"
+            max="365"
+            aria-label="Ventana de análisis en días"
+          />
+        </label>
+        <label class="param-field" for="umbralRotacionInput">
+          <span class="param-label">Umbral de baja rotación</span>
+          <input
+            id="umbralRotacionInput"
+            type="number"
+            [(ngModel)]="umbralRotacion"
+            min="0"
+            max="100"
+            aria-label="Umbral de rotación"
+          />
+        </label>
+        <button
+          type="button"
+          class="cycle-primary btn-analizar"
+          (click)="consultarDecisiones()"
+          [disabled]="consultando"
+        >
+          {{ consultando ? 'Analizando…' : 'Analizar inventario' }}
+        </button>
+      </div>
+      <p class="param-hint">
+        El motor analiza el ritmo de venta vs stock para proponer sugerencias operativas (promoción, liquidación, traslado o reposición).
+      </p>
+    </div>
+
+    <!-- Estado de carga en decisiones -->
+    <div *ngIf="consultando" class="ia-loading-card" role="status">
+      <div class="ia-loading-pulse" aria-hidden="true"></div>
+      <div class="ia-loading-text-wrap">
+        <p class="ia-loading-step">Analizando niveles de stock y ventas…</p>
+        <p class="ia-loading-note">Evaluando umbrales de rotación por SKU sin realizar cambios automáticos.</p>
+      </div>
+    </div>
+
+    <!-- Error en decisiones -->
+    <div *ngIf="errorDecision" class="cycle-alert danger" role="alert">
+      {{ errorDecision }}
+    </div>
+
+    <!-- Resultados de decisiones -->
+    <div *ngIf="!consultando && decisiones" class="decisiones-container">
+      <div class="decisiones-meta-bar">
+        <span class="meta-provider">Motor: {{ decisiones.proveedor }}</span>
+        <span class="meta-count" *ngIf="decisiones.items">{{ decisiones.items.length }} sugerencias analíticas</span>
+      </div>
+
+      <div *ngIf="decisiones.items.length === 0" class="ia-empty-state" role="status">
+        <p class="empty-title">No se detectaron decisiones críticas pendientes</p>
+        <p class="empty-desc">Los niveles de existencias se encuentran equilibrados según los umbrales de la ventana de análisis.</p>
+      </div>
+
+      <div class="decisiones-grid" *ngIf="decisiones.items.length > 0">
+        <article *ngFor="let d of decisionesVM" class="decision-card">
+          <div class="decision-card-top">
+            <span class="decision-accion-icon" aria-hidden="true">{{ accionIcono(d.accion) }}</span>
+            <span class="status" [class]="clase(d.accion)">{{ etiqueta(d.accion) }}</span>
+          </div>
+
+          <p class="decision-sku">
+            <span class="sku-label">SKU:</span>
+            <strong>{{ d.sku }}</strong>
+          </p>
+
+          <p class="decision-detail">{{ d.detalle }}</p>
+
+          <!-- Comparativa visual entre stock y ventas -->
+          <div class="decision-visual-ratio" aria-label="Proporción entre stock actual y ventas del periodo">
+            <div class="ratio-bar-row">
+              <span class="ratio-label">Stock ({{ d.stock_total }})</span>
+              <div class="ratio-track" aria-hidden="true">
+                <svg viewBox="0 0 100 6" preserveAspectRatio="none" class="ratio-svg">
+                  <rect x="0" y="0" width="100" height="6" rx="3" class="ratio-track-bg" />
+                  <rect x="0" y="0" [attr.width]="d.stockPct" height="6" rx="3" class="ratio-fill-rect ratio-stock" />
+                </svg>
+              </div>
+            </div>
+            <div class="ratio-bar-row">
+              <span class="ratio-label">Ventas ({{ d.ventas_periodo }})</span>
+              <div class="ratio-track" aria-hidden="true">
+                <svg viewBox="0 0 100 6" preserveAspectRatio="none" class="ratio-svg">
+                  <rect x="0" y="0" width="100" height="6" rx="3" class="ratio-track-bg" />
+                  <rect x="0" y="0" [attr.width]="d.ventasPct" height="6" rx="3" class="ratio-fill-rect ratio-sales" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Datos exactos -->
+          <dl class="decision-facts">
+            <div class="fact-col">
+              <dt>Stock total</dt>
+              <dd>{{ d.stock_total }} un.</dd>
+            </div>
+            <div class="fact-col">
+              <dt>Ventas periodo</dt>
+              <dd>{{ d.ventas_periodo }} un.</dd>
+            </div>
+            <div class="fact-col" *ngIf="d.reposicion_sugerida">
+              <dt>Sugerencia</dt>
+              <dd class="text-success strong">+{{ d.reposicion_sugerida }} un.</dd>
+            </div>
+          </dl>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>

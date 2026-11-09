@@ -1,0 +1,436 @@
+{
+  "tipo": "validacion-documental",
+  "fecha": "2026-10-24",
+  "resultado": "correcto",
+  "cantidad_comprobaciones": 105,
+  "enlaces_locales_verificados": 52,
+  "aplicacion_ejecutada": false,
+  "migraciones_ejecutadas": false,
+  "checks": [
+    {
+      "comprobacion": "Todos los archivos JSON se pueden analizar",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Dos esquemas válidos Draft 2020-12",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Catálogo actual exactamente CU01–CU26, sin duplicados",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU01 autor vacío y fecha 24/10/2026",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU01 secciones de ficha completas",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU02 autor vacío y fecha 24/10/2026",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU02 secciones de ficha completas",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU03 autor vacío y fecha 24/10/2026",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU03 secciones de ficha completas",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU04 autor vacío y fecha 24/10/2026",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU04 secciones de ficha completas",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU13 autor vacío y fecha 24/10/2026",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU13 secciones de ficha completas",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU15 autor vacío y fecha 24/10/2026",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU15 secciones de ficha completas",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU16 autor vacío y fecha 24/10/2026",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU16 secciones de ficha completas",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU18 autor vacío y fecha 24/10/2026",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "CU18 secciones de ficha completas",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "37 equivalencias únicas; 26 prioritarios y 11 conservados",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Once fichas conservadas fuera del catálogo",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Ocho prioritarios correctamente seleccionados",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local flujo-trabajo.md → primera-presentacion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local backend.md → compartido.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local backend.md → paquetes-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local backend.md → integracion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local backend.md → compartido.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local backend.md → primera-presentacion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local equivalencias-cu.md → funciones-conservadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local paquetes-cu.md → equivalencias-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local paquetes-cu.md → casos-de-uso.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local paquetes-cu.md → trazabilidad-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local paquetes-cu.md → funciones-conservadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local trazabilidad-funciones-conservadas.md → funciones-conservadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local trazabilidad-funciones-conservadas.md → equivalencias-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local compartido.md → casos-de-uso.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local compartido.md → primera-presentacion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local compartido.md → reglas-aprobadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local compartido.md → primera-presentacion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local compartido.md → equivalencias-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local primera-presentacion.md → equivalencias-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local trazabilidad-cu.md → paquetes-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local trazabilidad-cu.md → equivalencias-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local casos-de-uso.md → equivalencias-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local casos-de-uso.md → funciones-conservadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local casos-de-uso.md → reglas-aprobadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local casos-de-uso.md → trazabilidad-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local casos-de-uso.md → interfaz.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → trazabilidad-funciones-conservadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → primera-presentacion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → equivalencias-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → equivalencias-cu.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → casos-de-uso.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → funciones-conservadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → reglas-aprobadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → trazabilidad-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → paquetes-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → integracion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → backend.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → compartido.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → interfaz.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → operacion.schema.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → resultado.schema.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → payloads.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → flujo-trabajo.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → plan-migracion-db.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → guia-revision-manual.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → PROMPT-AGENTE-E1.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → CAMBIOS-0.2.0.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → CAMBIOS-0.2.0.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local README.md → version.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local reglas-aprobadas.md → casos-de-uso.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local reglas-aprobadas.md → integracion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enlace local reglas-aprobadas.md → interfaz.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Referencias LB de fichas corresponden a funciones conservadas",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "SHA256 interfaz.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "SHA256 operacion.schema.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "SHA256 resultado.schema.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "SHA256 compartido.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "SHA256 integracion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "SHA256 payloads.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "SHA256 equivalencias-cu.json",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Ejemplo real de reserva del archivo payloads válido",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Resultado aceptado y conflicto temporal válidos",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Comandos inválidos rechazados: cantidad, empresa, UUID, tipo y detalle",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Enum de resultados coincide con interfaz",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Código TIEMPO_INCOHERENTE alineado a CONFLICTO",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en flujo-trabajo.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en backend.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en integracion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en equivalencias-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en CAMBIOS-0.2.0.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en payloads.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en paquetes-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en trazabilidad-funciones-conservadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en compartido.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en primera-presentacion.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en funciones-conservadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en trazabilidad-cu.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en casos-de-uso.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en PROMPT-AGENTE-E1.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en README.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en reglas-aprobadas.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en guia-revision-manual.md",
+      "resultado": "correcto"
+    },
+    {
+      "comprobacion": "Sin exclusión móvil obsoleta en plan-migracion-db.md",
+      "resultado": "correcto"
+    }
+  ],
+  "limites": [
+    "No valida el código de backend/Angular/Flutter.",
+    "No certifica rutas OpenAPI existentes.",
+    "Los esquemas son estructurales; autorización, plazos, stock y combinaciones semánticas se prueban en implementación."
+  ]
+}

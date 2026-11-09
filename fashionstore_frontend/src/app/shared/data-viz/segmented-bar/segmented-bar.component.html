@@ -1,0 +1,39 @@
+<div class="seg-container" role="region" [attr.aria-label]="computedAriaLabel">
+  <div *ngIf="total <= 0" class="seg-empty">
+    <p>{{ etiquetaVacio }}</p>
+  </div>
+
+  <div *ngIf="total > 0" class="seg-content">
+    <!-- Barra proporcional continua en SVG nativo sin estilos inline -->
+    <div class="seg-track" role="img" [attr.aria-label]="computedAriaLabel">
+      <svg viewBox="0 0 100 10" preserveAspectRatio="none" class="seg-svg" aria-hidden="true">
+        <rect x="0" y="0" width="100" height="10" rx="5" class="seg-track-bg" />
+        <g class="seg-segments-group">
+          <rect
+            *ngFor="let s of segmentosCalculados"
+            [attr.x]="s.x"
+            y="0"
+            [attr.width]="s.porcentaje"
+            height="10"
+            class="seg-rect"
+            [ngClass]="s.colorClase"
+          >
+            <title>{{ s.etiqueta }}: {{ s.valor }} ({{ s.porcentaje.toFixed(1) }}%)</title>
+          </rect>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Leyenda accesible con valores exactos -->
+    <ul class="seg-legend" role="list">
+      <li *ngFor="let s of segmentos" class="seg-legend-item" role="listitem">
+        <span class="seg-bullet" [ngClass]="s.colorClase" aria-hidden="true"></span>
+        <span class="seg-label">{{ s.etiqueta }}</span>
+        <strong class="seg-val">
+          {{ s.valorFormateado ?? s.valor }}
+        </strong>
+        <span class="seg-pct">({{ porcentajeSegmento(s).toFixed(1) }}%)</span>
+      </li>
+    </ul>
+  </div>
+</div>

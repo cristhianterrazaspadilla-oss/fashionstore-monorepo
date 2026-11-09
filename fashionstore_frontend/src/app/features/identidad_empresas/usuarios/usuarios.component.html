@@ -1,0 +1,418 @@
+<div class="module-container">
+  <div class="module-header">
+    <div>
+      <div class="badge-tag">Seguridad y acceso</div>
+      <h2>Gestión de usuarios y roles</h2>
+      <p>Administra el acceso del equipo y asigna sus responsabilidades.</p>
+    </div>
+  </div>
+
+  <div *ngIf="mensajeError" class="alert-box alert-danger" role="alert">
+    {{ mensajeError }}
+  </div>
+
+  <div *ngIf="mensajeExito" class="alert-box alert-success" role="status">
+    {{ mensajeExito }}
+  </div>
+
+  <div class="module-grid">
+    <!-- PANEL FORMULARIO CREAR -->
+    <div class="card-panel">
+      <div class="card-panel-header">
+        <span class="panel-kicker">Alta de cuenta</span>
+        <h3>Registrar nuevo usuario</h3>
+        <p class="panel-subtitle">Define las credenciales de acceso y el rol operativo de la persona.</p>
+      </div>
+
+      <form (ngSubmit)="crearUsuario()">
+        <div class="form-group">
+          <label for="rolId">Rol Asignado * (Rol Único)</label>
+          <select id="rolId" name="rolId" [(ngModel)]="nuevoUsuario.rol_id" required>
+            <option value="">Seleccione un rol...</option>
+            <option *ngFor="let r of roles" [value]="r.id">{{ r.nombre }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="nombres">Nombres *</label>
+          <input
+            type="text"
+            id="nombres"
+            name="nombres"
+            [(ngModel)]="nuevoUsuario.nombres"
+            placeholder="Ej. Roberto"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="apellidos">Apellidos *</label>
+          <input
+            type="text"
+            id="apellidos"
+            name="apellidos"
+            [(ngModel)]="nuevoUsuario.apellidos"
+            placeholder="Ej. Gómez"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="correo">Correo Electrónico *</label>
+          <input
+            type="email"
+            id="correo"
+            name="correo"
+            [(ngModel)]="nuevoUsuario.correo_electronico"
+            placeholder="roberto@fashionstore.com"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="clave">Contraseña *</label>
+          <input
+            type="password"
+            id="clave"
+            name="clave"
+            [(ngModel)]="nuevoUsuario.contrasenia"
+            placeholder="••••••••"
+            required
+          />
+
+          <!-- Indicador en tiempo real de qué falta mientras escribe -->
+          <div *ngIf="claveUsuarioActual.length > 0" class="password-checklist" aria-live="polite">
+            <div class="checklist-header" [class.valid-all]="contraseniaValidaUsuario">
+              <span *ngIf="!contraseniaValidaUsuario">Falta: <strong>{{ obtenerRequisitosFaltantesUsuario().join(', ') }}</strong></span>
+              <span *ngIf="contraseniaValidaUsuario" class="checklist-ok">✓ Contraseña válida y segura</span>
+            </div>
+            <div class="checklist-grid">
+              <span class="rule-chip" [class.chip-ok]="tieneLongitudMinimaUsuario">
+                <span class="chip-icon">{{ tieneLongitudMinimaUsuario ? '✓' : '•' }}</span> Mín. 6 caracteres
+              </span>
+              <span class="rule-chip" [class.chip-ok]="tieneMinusculaUsuario">
+                <span class="chip-icon">{{ tieneMinusculaUsuario ? '✓' : '•' }}</span> Minúscula
+              </span>
+              <span class="rule-chip" [class.chip-ok]="tieneMayusculaUsuario">
+                <span class="chip-icon">{{ tieneMayusculaUsuario ? '✓' : '•' }}</span> Mayúscula
+              </span>
+              <span class="rule-chip" [class.chip-ok]="tieneNumeroUsuario">
+                <span class="chip-icon">{{ tieneNumeroUsuario ? '✓' : '•' }}</span> Número
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="telefono">Teléfono</label>
+          <input
+            type="tel"
+            id="telefono"
+            name="telefono"
+            [(ngModel)]="nuevoUsuario.telefono"
+            placeholder="+591 70011223"
+          />
+        </div>
+
+        <div class="form-group" *ngIf="rolRequiereSucursal()">
+          <label for="sucursal">Sucursal Asignada *</label>
+          <select id="sucursal" name="sucursal" [(ngModel)]="nuevoUsuario.sucursal_id" required>
+            <option [ngValue]="null">Seleccione sucursal...</option>
+            <option *ngFor="let s of sucursales" [value]="s.id">{{ s.nombre }} — {{ s.ciudad_nombre || '' }}</option>
+          </select>
+          <small class="field-help">Necesaria para encargados y personal de caja.</small>
+        </div>
+
+        <div class="form-group" *ngIf="rolRequiereSucursal()">
+          <label for="cargo">Cargo</label>
+          <input type="text" id="cargo" name="cargo" [(ngModel)]="nuevoUsuario.cargo" placeholder="Ej. Encargado de Sucursal" />
+        </div>
+
+        <button type="submit" class="btn-primary" [disabled]="guardando">
+          <span *ngIf="!guardando">Registrar Usuario</span>
+          <span *ngIf="guardando">Guardando usuario...</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- PANEL LISTADO Y FILTROS -->
+    <div class="card-panel">
+      <div class="card-panel-header">
+        <div class="panel-title-row">
+          <div>
+            <span class="panel-kicker">Equipo registrado</span>
+            <h3>Usuarios registrados</h3>
+          </div>
+          <span class="users-count-badge" *ngIf="!cargando">{{ usuarios.length }} {{ usuarios.length === 1 ? 'usuario' : 'usuarios' }}</span>
+        </div>
+        <p class="panel-subtitle">Consulta el listado general, filtra por rol o estado y actualiza permisos.</p>
+      </div>
+
+      <div class="filters-bar">
+        <div class="filter-item">
+          <label for="filtroRol">Filtrar por Rol</label>
+          <select id="filtroRol" [(ngModel)]="filtroRolId" (change)="cargarUsuarios()">
+            <option value="">Todos los roles</option>
+            <option *ngFor="let r of roles" [value]="r.id">{{ r.nombre }}</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label for="filtroEstado">Filtrar por Estado</label>
+          <select id="filtroEstado" [(ngModel)]="filtroEstado" (change)="cargarUsuarios()">
+            <option value="">Todos los estados</option>
+            <option value="ACTIVO">ACTIVO</option>
+            <option value="INACTIVO">INACTIVO</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Estados de carga y vacío comunes -->
+      <div *ngIf="cargando" class="users-state-box" role="status">
+        <p class="state-title">Cargando lista de usuarios…</p>
+        <p class="state-desc">Obteniendo la información del equipo y sus roles asignados.</p>
+      </div>
+
+      <div *ngIf="!cargando && usuarios.length === 0" class="users-state-box" role="status">
+        <p class="state-title">No se encontraron usuarios registrados</p>
+        <p class="state-desc">Prueba cambiando los filtros seleccionados o registra un nuevo usuario en el formulario.</p>
+      </div>
+
+      <!-- Vista móvil / tablet: Tarjetas de usuario -->
+      <div class="users-cards-view" *ngIf="!cargando && usuarios.length > 0">
+        <article class="user-card" *ngFor="let u of usuarios">
+          <div class="user-card-head">
+            <div class="user-card-identity">
+              <h4 class="user-name">{{ u.nombre_completo }}</h4>
+              <span class="user-sub">{{ u.telefono || 'Sin teléfono' }}</span>
+            </div>
+            <span class="badge-status" [ngClass]="u.estado === 'ACTIVO' ? 'status-activo' : 'status-inactivo'">
+              {{ u.estado }}
+            </span>
+          </div>
+
+          <div class="user-card-body">
+            <div class="user-info-item">
+              <span class="info-label">Correo</span>
+              <span class="info-val info-email">{{ u.correo_electronico }}</span>
+            </div>
+            <div class="user-info-item">
+              <span class="info-label">Rol único</span>
+              <span class="info-val">
+                <span class="badge-rol">{{ u.rol_nombre }}</span>
+              </span>
+            </div>
+            <div class="user-info-item">
+              <span class="info-label">Sucursal</span>
+              <span class="info-val">
+                <span *ngIf="u.sucursal_nombre">{{ u.sucursal_nombre }}</span>
+                <span *ngIf="!u.sucursal_nombre" class="sin-sucursal">—</span>
+                <span *ngIf="u.cargo" class="cargo-sub"> · {{ u.cargo }}</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="user-card-actions">
+            <button type="button" class="btn-action" (click)="editarUsuario(u, $event)">
+              Editar
+            </button>
+            <button type="button" class="btn-action" (click)="cambiarRol(u, $event)">
+              Cambiar rol
+            </button>
+            <button type="button" class="btn-action btn-action-state" (click)="alternarEstado(u, $event)">
+              {{ u.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <!-- Vista escritorio: Tabla tradicional -->
+      <div class="table-container desktop-table-view" *ngIf="!cargando && usuarios.length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Correo</th>
+              <th>Rol Único</th>
+              <th>Sucursal</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let u of usuarios">
+              <td>
+                <div class="user-name">{{ u.nombre_completo }}</div>
+                <div class="user-sub">{{ u.telefono || 'Sin teléfono' }}</div>
+              </td>
+              <td><span class="info-email">{{ u.correo_electronico }}</span></td>
+              <td>
+                <span class="badge-rol">{{ u.rol_nombre }}</span>
+              </td>
+              <td>
+                <span *ngIf="u.sucursal_nombre">{{ u.sucursal_nombre }}</span>
+                <span *ngIf="!u.sucursal_nombre" class="sin-sucursal">—</span>
+                <div *ngIf="u.cargo" class="cargo-sub">{{ u.cargo }}</div>
+              </td>
+              <td>
+                <span class="badge-status" [ngClass]="u.estado === 'ACTIVO' ? 'status-activo' : 'status-inactivo'">
+                  {{ u.estado }}
+                </span>
+              </td>
+              <td>
+                <div class="actions-group">
+                  <button type="button" class="btn-action" (click)="editarUsuario(u, $event)">Editar</button>
+                  <button type="button" class="btn-action" (click)="cambiarRol(u, $event)">Cambiar rol</button>
+                  <button type="button" class="btn-action" (click)="alternarEstado(u, $event)">
+                    {{ u.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Edición de Usuario -->
+<div class="dialog-backdrop" *ngIf="usuarioEditando" (click)="cerrarEdicion()" (keydown)="alManejarTabEdicion($event)">
+  <section
+    #modalEdicionBox
+    class="dialog-card dialog-card-wide"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="edit-dialog-title"
+    (click)="$event.stopPropagation()"
+  >
+    <p class="dialog-kicker">Actualizar cuenta</p>
+    <h3 id="edit-dialog-title">Editar usuario</h3>
+    <p class="dialog-desc">Modifica los datos personales, el rol operativo o la asignación de sucursal.</p>
+
+    <form (ngSubmit)="guardarEdicion()">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="editNombres">Nombres *</label>
+          <input
+            type="text"
+            id="editNombres"
+            name="editNombres"
+            [(ngModel)]="datosEdicion.nombres"
+            placeholder="Ej. Roberto"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="editApellidos">Apellidos *</label>
+          <input
+            type="text"
+            id="editApellidos"
+            name="editApellidos"
+            [(ngModel)]="datosEdicion.apellidos"
+            placeholder="Ej. Gómez"
+            required
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="editCorreo">Correo electrónico *</label>
+        <input
+          type="email"
+          id="editCorreo"
+          name="editCorreo"
+          [(ngModel)]="datosEdicion.correo_electronico"
+          placeholder="roberto@fashionstore.com"
+          required
+        />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="editTelefono">Teléfono</label>
+          <input
+            type="tel"
+            id="editTelefono"
+            name="editTelefono"
+            [(ngModel)]="datosEdicion.telefono"
+            placeholder="+591 70011223"
+          />
+        </div>
+        <div class="form-group">
+          <label for="editRol">Rol asignado * (Rol único)</label>
+          <select id="editRol" name="editRol" [(ngModel)]="datosEdicion.rol_id" required>
+            <option *ngFor="let r of roles" [value]="r.id">{{ r.nombre }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" *ngIf="rolEdicionRequiereSucursal()">
+        <label for="editSucursal">Sucursal asignada *</label>
+        <select id="editSucursal" name="editSucursal" [(ngModel)]="datosEdicion.sucursal_id" required>
+          <option [ngValue]="null">Seleccione sucursal...</option>
+          <option *ngFor="let s of sucursales" [value]="s.id">{{ s.nombre }} — {{ s.ciudad_nombre || '' }}</option>
+        </select>
+        <small class="field-help">Obligatoria para encargados y personal de caja.</small>
+      </div>
+
+      <div class="form-group" *ngIf="rolEdicionRequiereSucursal()">
+        <label for="editCargo">Cargo</label>
+        <input
+          type="text"
+          id="editCargo"
+          name="editCargo"
+          [(ngModel)]="datosEdicion.cargo"
+          placeholder="Ej. Encargado de Sucursal"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="editEstado">Estado de acceso</label>
+        <select id="editEstado" name="editEstado" [(ngModel)]="datosEdicion.estado">
+          <option value="ACTIVO">ACTIVO</option>
+          <option value="INACTIVO">INACTIVO</option>
+        </select>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="dialog-secondary" (click)="cerrarEdicion()">Cancelar</button>
+        <button type="submit" class="dialog-primary" [disabled]="guardando">
+          {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<!-- Modal Cambio de Rol -->
+<div class="dialog-backdrop" *ngIf="usuarioCambioRol" (click)="cerrarCambioRol()" (keydown)="alManejarTabRol($event)">
+  <section #modalRolBox class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="role-dialog-title" (click)="$event.stopPropagation()">
+    <p class="dialog-kicker">Permisos de acceso</p>
+    <h3 id="role-dialog-title">Cambiar rol de {{ usuarioCambioRol.nombre_completo }}</h3>
+    <p class="dialog-desc">Selecciona el nivel de acceso y responsabilidades que tendrá esta persona.</p>
+    <div class="dialog-field">
+      <label for="nuevoRol">Nuevo rol</label>
+      <select id="nuevoRol" [(ngModel)]="nuevoRolId">
+        <option *ngFor="let r of roles" [value]="r.id">{{ r.nombre }}</option>
+      </select>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="dialog-secondary" (click)="cerrarCambioRol()">Cancelar</button>
+      <button type="button" class="dialog-primary" [disabled]="guardando || !nuevoRolId" (click)="confirmarCambioRol()">{{ guardando ? 'Guardando…' : 'Guardar cambio' }}</button>
+    </div>
+  </section>
+</div>
+
+<!-- Modal Alternar Estado -->
+<div class="dialog-backdrop" *ngIf="usuarioCambioEstado" (click)="cerrarCambioEstado()" (keydown)="alManejarTabEstado($event)">
+  <section #modalEstadoBox class="dialog-card" role="alertdialog" aria-modal="true" aria-labelledby="state-dialog-title" (click)="$event.stopPropagation()">
+    <p class="dialog-kicker">Confirmar acción</p>
+    <h3 id="state-dialog-title">{{ usuarioCambioEstado.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }} usuario</h3>
+    <p class="dialog-desc">{{ usuarioCambioEstado.nombre_completo }} {{ usuarioCambioEstado.estado === 'ACTIVO' ? 'perderá el acceso hasta que vuelvas a activarlo.' : 'recuperará el acceso a la plataforma.' }}</p>
+    <div class="dialog-actions">
+      <button type="button" class="dialog-secondary" (click)="cerrarCambioEstado()">Cancelar</button>
+      <button type="button" class="dialog-primary" [class.danger]="usuarioCambioEstado.estado === 'ACTIVO'" [disabled]="guardando" (click)="confirmarCambioEstado()">{{ guardando ? 'Guardando…' : 'Confirmar' }}</button>
+    </div>
+  </section>
+</div>

@@ -1,0 +1,23 @@
+{
+  "revision": "0.3.2",
+  "version_protocolo": "0.4.0",
+  "fecha": "2026-11-01",
+  "tipo": "validacion documental automatica de CU03, CU04, CU16 y CU18",
+  "repositorios": ["backend", "frontend-web", "app-movil"],
+  "archivos_compartidos_verificados": 64,
+  "comprobaciones": [
+    "JSON valido en los tres repositorios",
+    "JSON Schema Draft 2020-12 valido con jsonschema 4.26.0",
+    "4 ejemplos de operaciones y 8 resultados validos",
+    "ejemplo CU04 de solicitud y respuesta de referencia valido",
+    "fecha CU04 sin zona rechazada por esquema de referencia",
+    "reserva con version_esquema=2 rechazada",
+    "SHA-256 de cada archivo compartido igual en los tres repositorios",
+    "git diff --check sin errores en los tres repositorios"
+  ],
+  "contratos_listos_para_implementacion": ["CU03", "CU04", "CU16", "CU18"],
+  "pruebas_funcionales_ejecutadas": false,
+  "migraciones_ejecutadas": false,
+  "openapi_exportado_del_codigo_actualizado": false,
+  "nota": "validacion-documental.json permanece como informe historico de 0.3.1; este informe certifica coherencia documental, no codigo implementado"
+}

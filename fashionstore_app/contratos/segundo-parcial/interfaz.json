@@ -1,0 +1,564 @@
+{
+  "nombre": "fashionstore-segundo-parcial",
+  "version": "0.4.0",
+  "revision_documental": "0.3.2",
+  "estado": "especificacion-v3-con-A-PAGO-01-confirmado-por-companero",
+  "base": "/api/v1",
+  "formato": {
+    "fecha_hora": "ISO 8601 con zona horaria",
+    "importe": "cadena decimal con dos posiciones, nunca float",
+    "moneda_comercial": "BOB",
+    "moneda_stripe_test": "USD",
+    "identificador": "UUID",
+    "autorizacion": "sesion autenticada; empresa y propietario validados en servidor"
+  },
+  "cu04_referencia_horaria": {
+    "ruta": "POST /sincronizacion/referencias-horarias",
+    "solicitud": ["dispositivo_id", "hora_local_en"],
+    "header": "Idempotency-Key",
+    "respuesta": ["referencia_horaria_id", "empresa_id", "usuario_id", "dispositivo_id", "hora_central_en", "valida_hasta", "tolerancia_segundos", "politica_version"],
+    "zona_presentacion": "America/La_Paz",
+    "referencia_id_obligatoria_en_operacion_nueva": true,
+    "version_esquema_reserva": 1
+  },
+  "operacion": {
+    "obligatorios": [
+      "version_esquema",
+      "operacion_id",
+      "tipo",
+      "creada_local_en",
+      "empresa_id",
+      "usuario_id",
+      "dispositivo_id",
+      "secuencia_local",
+      "datos"
+    ],
+    "version_esquema": [
+      1,
+      2,
+      3
+    ],
+    "tipos": {
+      "SOLICITAR_RESERVA": {
+        "datos_obligatorios": [
+          "sucursal_id",
+          "visita_en",
+          "lineas"
+        ],
+        "linea": [
+          "variante_id",
+          "cantidad"
+        ],
+        "regla": "24 h desde creacion local; 72 h solo con adelanto online confirmado antes del vencimiento"
+      },
+      "SOLICITAR_COMPRA": {
+        "datos_obligatorios": [
+          "sucursal_id",
+          "lineas"
+        ],
+        "linea": [
+          "variante_id",
+          "cantidad",
+          "precio_visto_bob"
+        ],
+        "regla": "v1/v2 conservan semántica; v3 permite consentimiento específico y método preparado para cobro conectado condicionado al reconectar, antes de asignación final; no cumplible cobrado genera CU27 íntegro.",
+        "v3_autorizacion_cobro_campos": [
+          "consentimiento_id",
+          "aceptado_local_en",
+          "huella_compra",
+          "base_bob",
+          "descuento_bob",
+          "envio_bob",
+          "total_bob",
+          "moneda_cobro",
+          "importe_cobro",
+          "tasa_id",
+          "tasa_bob_por_usd",
+          "condiciones_version",
+          "vigente_hasta",
+          "preparacion_pago_id",
+          "permite_cobro_al_reconectar"
+        ]
+      },
+      "REGISTRAR_VENTA_CAJA": {
+        "datos_obligatorios": [
+          "turno_id",
+          "habilitacion_id",
+          "version_precios",
+          "vendida_local_en",
+          "lineas",
+          "total_bob",
+          "efectivo_recibido_bob",
+          "entregada_local_en"
+        ],
+        "datos_opcionales": [
+          "cambio_entregado_bob",
+          "cliente_id"
+        ],
+        "linea": [
+          "variante_id",
+          "cantidad",
+          "precio_autorizado_bob"
+        ],
+        "regla": "Caja PWA o Flutter para personal autorizado; efectivo y entrega dentro de turno y cupo previos. Mismo contrato de negocio, persistencia local diferente."
+      }
+    }
+  },
+  "resultado": {
+    "obligatorios": [
+      "operacion_id",
+      "estado",
+      "codigo",
+      "recibida_en",
+      "detalle"
+    ],
+    "opcionales": [
+      "aceptada_en",
+      "vence_en",
+      "recurso_id",
+      "revision",
+      "venta_id",
+      "total_bob",
+      "total_usd",
+      "tasa_bob_por_usd",
+      "faltantes",
+      "pedido_id",
+      "pago_id",
+      "reembolso_id",
+      "estado_pago",
+      "estado_cumplimiento"
+    ],
+    "estados": [
+      "ACEPTADA",
+      "RECHAZADA",
+      "REQUIERE_ACEPTACION_PRECIO",
+      "PENDIENTE_PAGO",
+      "REGISTRADA_CENTRAL",
+      "CONCILIACION_REQUERIDA",
+      "CONFLICTO",
+      "PAGADO_PENDIENTE_ASIGNACION",
+      "CONFIRMADO",
+      "REEMBOLSO_PENDIENTE",
+      "REEMBOLSADO",
+      "PENDIENTE_INTERVENCION",
+      "REQUIERE_NUEVA_ACEPTACION",
+      "REQUIERE_ACCION_CLIENTE",
+      "CANCELACION_EN_CONCILIACION",
+      "CANCELADA"
+    ],
+    "codigos": [
+      "OK",
+      "SIN_STOCK",
+      "PRECIO_CAMBIADO",
+      "SOLICITUD_VENCIDA",
+      "TIEMPO_INCOHERENTE",
+      "PLAN_NO_HABILITADO",
+      "CUPO_INSUFICIENTE",
+      "TASA_NO_VIGENTE",
+      "OPERACION_MODIFICADA",
+      "PAGO_EN_VERIFICACION",
+      "COBRO_CONFIRMADO",
+      "PEDIDO_NO_CUMPLIBLE",
+      "REEMBOLSO_EN_PROCESO",
+      "REEMBOLSO_COMPLETADO",
+      "METODO_NO_PREPARADO",
+      "AUTORIZACION_INSUFICIENTE",
+      "OFERTA_CAMBIADA",
+      "ACCION_PROVEEDOR_REQUERIDA",
+      "CANCELACION_EN_CURSO",
+      "SOLICITUD_CANCELADA"
+    ],
+    "reglas_reserva": {
+      "TIEMPO_INCOHERENTE": "CONFLICTO",
+      "SIN_STOCK": "RECHAZADA",
+      "SOLICITUD_VENCIDA": "RECHAZADA",
+      "PLAN_NO_HABILITADO": "RECHAZADA",
+      "OK": "ACEPTADA"
+    },
+    "reglas_compra_v3": {
+      "METODO_NO_PREPARADO": "PENDIENTE_INTERVENCION",
+      "AUTORIZACION_INSUFICIENTE": "PENDIENTE_INTERVENCION",
+      "OFERTA_CAMBIADA": "REQUIERE_NUEVA_ACEPTACION",
+      "ACCION_PROVEEDOR_REQUERIDA": "REQUIERE_ACCION_CLIENTE",
+      "CANCELACION_EN_CURSO": "CANCELACION_EN_CONCILIACION",
+      "SOLICITUD_CANCELADA": "CANCELADA"
+    }
+  },
+  "rutas_nuevas_propuestas": [
+    {
+      "metodo": "POST",
+      "ruta": "/empresas",
+      "cu": "CU01",
+      "detalle": "casos/CU01.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/empresas/{empresa_id}",
+      "cu": "CU01",
+      "detalle": "casos/CU01.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/empresas/{empresa_id}/suscripciones",
+      "cu": "CU02",
+      "detalle": "casos/CU02.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/empresas/mi-plan",
+      "cu": "CU02",
+      "detalle": "casos/CU02.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/catalogo/descarga",
+      "cu": "CU03",
+      "detalle": "casos/CU03.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/sincronizacion/referencias-horarias",
+      "cu": "CU04",
+      "detalle": "casos/CU04.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/sincronizacion/operaciones",
+      "cu": "CU04",
+      "detalle": "casos/CU04.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/sincronizacion/operaciones/{operacion_id}",
+      "cu": "CU04",
+      "detalle": "casos/CU04.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/sincronizacion/operaciones",
+      "cu": "CU05",
+      "detalle": "casos/CU05.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/compras/{pedido_id}",
+      "cu": "CU05",
+      "detalle": "casos/CU05.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/compras/{pedido_id}/aceptar-oferta",
+      "cu": "CU05",
+      "detalle": "casos/CU05.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cajas/turnos",
+      "cu": "CU06",
+      "detalle": "casos/CU06.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/cajas/turnos/{turno_id}",
+      "cu": "CU06",
+      "detalle": "casos/CU06.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/sincronizacion/operaciones",
+      "cu": "CU07",
+      "detalle": "casos/CU07.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cajas/turnos/{turno_id}/cerrar",
+      "cu": "CU07",
+      "detalle": "casos/CU07.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cajas/turnos/{turno_id}/recuperar",
+      "cu": "CU07",
+      "detalle": "casos/CU07.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cambios",
+      "cu": "CU08",
+      "detalle": "casos/CU08.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/cambios/{cambio_id}",
+      "cu": "CU08",
+      "detalle": "casos/CU08.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cambios/{cambio_id}/aceptar-oferta",
+      "cu": "CU08",
+      "detalle": "casos/CU08.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cambios/{cambio_id}/resolver-espera",
+      "cu": "CU08",
+      "detalle": "casos/CU08.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cambios/{cambio_id}/confirmar",
+      "cu": "CU08",
+      "detalle": "casos/CU08.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/cambios/{cambio_id}/entregas",
+      "cu": "CU08",
+      "detalle": "casos/CU08.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/saldos/mio",
+      "cu": "CU09",
+      "detalle": "casos/CU09.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/ventas/{venta_id}/aplicar-saldo",
+      "cu": "CU09",
+      "detalle": "casos/CU09.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/compras/{pedido_id}/aplicar-saldo",
+      "cu": "CU09",
+      "detalle": "casos/CU09.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/analitica/pronosticos",
+      "cu": "CU10",
+      "detalle": "casos/CU10.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/analitica/entrenamientos/supervisado",
+      "cu": "CU10",
+      "detalle": "casos/CU10.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/analitica/grupos-productos",
+      "cu": "CU11",
+      "detalle": "casos/CU11.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/analitica/entrenamientos/no-supervisado",
+      "cu": "CU11",
+      "detalle": "casos/CU11.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/plataforma/tasas-cambio",
+      "cu": "CU12",
+      "detalle": "casos/CU12.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/plataforma/tasas-cambio/vigente",
+      "cu": "CU12",
+      "detalle": "casos/CU12.md"
+    },
+    {
+      "metodo": "PATCH",
+      "ruta": "/usuarios/{usuario_id}",
+      "cu": "CU14",
+      "detalle": "casos/CU14.md"
+    },
+    {
+      "metodo": "PATCH",
+      "ruta": "/ciudades/{ciudad_id}",
+      "cu": "CU15",
+      "detalle": "casos/CU15.md"
+    },
+    {
+      "metodo": "PATCH",
+      "ruta": "/sucursales/{sucursal_id}",
+      "cu": "CU15",
+      "detalle": "casos/CU15.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/devoluciones/solicitudes",
+      "cu": "CU20",
+      "detalle": "casos/CU20.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/devoluciones/{devolucion_id}/inspecciones",
+      "cu": "CU20",
+      "detalle": "casos/CU20.md"
+    },
+    {
+      "metodo": "PATCH",
+      "ruta": "/carritos/mio/lineas/{linea_id}",
+      "cu": "CU21",
+      "detalle": "casos/CU21.md"
+    },
+    {
+      "metodo": "DELETE",
+      "ruta": "/carritos/mio/lineas/{linea_id}",
+      "cu": "CU21",
+      "detalle": "casos/CU21.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/pagos/stripe/estado/{recurso_id}",
+      "cu": "CU22",
+      "detalle": "casos/CU22.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/analitica/dashboard",
+      "cu": "CU23",
+      "detalle": "casos/CU23.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/reportes/interpretar",
+      "cu": "CU24",
+      "detalle": "casos/CU24.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/reportes/consultar",
+      "cu": "CU24",
+      "detalle": "casos/CU24.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/reportes/exportar",
+      "cu": "CU24",
+      "detalle": "casos/CU24.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/analitica/ventas-sucursal",
+      "cu": "CU25",
+      "detalle": "casos/CU25.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/reembolsos",
+      "cu": "CU27",
+      "detalle": "casos/CU27.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/reembolsos/{reembolso_id}",
+      "cu": "CU27",
+      "detalle": "casos/CU27.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/reembolsos/{reembolso_id}/autorizar",
+      "cu": "CU27",
+      "detalle": "casos/CU27.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/reembolsos/{reembolso_id}/ejecutar",
+      "cu": "CU27",
+      "detalle": "casos/CU27.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/reembolsos/{reembolso_id}/conciliar",
+      "cu": "CU27",
+      "detalle": "casos/CU27.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/sincronizacion/operaciones/{operacion_id}/cancelar",
+      "cu": "CU05",
+      "detalle": "casos/CU05.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/pagos/stripe/metodos/preparar",
+      "cu": "CU22",
+      "detalle": "casos/CU22.md"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/pagos/stripe/metodos/{preparacion_pago_id}",
+      "cu": "CU22",
+      "detalle": "casos/CU22.md"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/pagos/stripe/ordenes/{orden_pago_id}/continuar-accion",
+      "cu": "CU22",
+      "detalle": "casos/CU22.md"
+    }
+  ],
+  "rutas_existentes_a_extender": [
+    "GET /carritos/mio",
+    "GET /catalogo/filtros-opciones",
+    "GET /catalogo/productos",
+    "GET /ciudades",
+    "GET /inventario/existencias",
+    "GET /inventario/kardex",
+    "GET /pagos/stripe/estado/{venta_id}",
+    "GET /reservas",
+    "GET /reservas/{reserva_id}",
+    "GET /sucursales",
+    "GET /usuarios",
+    "GET /variantes/{variante_id}/disponibilidad",
+    "GET /ventas/{venta_id}",
+    "PATCH /reservas/{reserva_id}/cancelar",
+    "POST /carritos/mio/checkout",
+    "POST /carritos/mio/lineas",
+    "POST /ciudades",
+    "POST /clientes",
+    "POST /devoluciones",
+    "POST /mermas",
+    "POST /pagos/stripe/intenciones",
+    "POST /pagos/stripe/webhook",
+    "POST /reservas",
+    "POST /reservas/expiracion/ejecutar",
+    "POST /sesion",
+    "POST /sucursales",
+    "POST /usuarios",
+    "POST /ventas/presenciales"
+  ],
+  "http": {
+    "200": "resultado consultable o rechazo comercial durable",
+    "400": "solicitud mal formada",
+    "401": "autenticacion requerida",
+    "403": "actor o empresa sin permiso",
+    "404": "recurso ausente o no visible en el ámbito autorizado; reconciliar/reintentar mismo UUID sin inferir que un envío anterior no pudo ejecutarse",
+    "409": "operacion_id reutilizado con contenido distinto o revision obsoleta",
+    "422": "validacion de campos",
+    "503": "dependencia externa no disponible; conservar operacion y consultar resultado"
+  },
+  "alcance_documental": {
+    "catalogo_cu": 27,
+    "primera_presentacion": [
+      "CU01",
+      "CU02",
+      "CU03",
+      "CU04",
+      "CU13",
+      "CU15",
+      "CU16",
+      "CU18"
+    ],
+    "equivalencias": "equivalencias-cu.json",
+    "nota": "27 CU especificados; CU27 separado; A-PAGO-01 confirmado por compañero, confirmación académica posterior; rutas nuevas propuestas, no implementadas."
+  },
+  "compatibilidad": "Cambio incompatible de mensajes: protocolo 0.4.0; v3 solo SOLICITAR_COMPRA y negociación de capacidad/estados. v1 reservas/caja y compras v1/v2 conservan comportamiento; reenvíos antiguos no cobran automáticamente.",
+  "nota_clasificacion_rutas": "Rutas existentes cotejadas estáticamente contra routers montados en app/api/v1/api.py; las nuevas siguen propuestas. Un endpoint heredado requiere adaptar DTO y semántica cuando su ficha vigente lo indique."
+}

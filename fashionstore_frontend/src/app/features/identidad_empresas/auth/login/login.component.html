@@ -1,0 +1,148 @@
+<div class="auth-split">
+  <div class="auth-editorial" aria-hidden="true">
+    <div class="tape" aria-hidden="true"><span *ngFor="let i of [0,1,2,3,4,5,6,7,8,9,10,11]">{{i*10}}</span></div>
+    <div class="ed-img">
+      <img src="https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?w=900&auto=format&fit=crop&q=60" alt="" />
+      <div class="ed-overlay">
+        <p class="eyebrow">Atelier · Santa Cruz</p>
+        <h2>Probá antes.<br>Reservá sin pagar.</h2>
+        <p>Stock real por sucursal · Traslados 72h · Delivery por anillos.</p>
+        <div class="ed-dots"><span></span><span class="on"></span><span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-form-side">
+    <!-- PASO 1: FORMULARIO DE CREDENCIALES -->
+    <div class="auth-card" *ngIf="!pasoSeleccionEmpresa">
+      <div class="auth-header">
+        <p class="eyebrow">Bienvenido de vuelta</p>
+        <h2>Iniciar sesión</h2>
+        <p>Ingresá y gestioná reservas, probador IA y compras.</p>
+      </div>
+
+      <div *ngIf="mensajeNotificacion" class="alert-box alert-warning" role="status">
+        {{ mensajeNotificacion }}
+      </div>
+      <div *ngIf="mensajeError" class="alert-box alert-danger" role="alert">
+        {{ mensajeError }}
+      </div>
+      <div *ngIf="mensajeExito" class="alert-box alert-success" role="status">
+        {{ mensajeExito }}
+      </div>
+
+      <form (ngSubmit)="iniciarSesion()">
+        <div class="form-group">
+          <label for="correo">Correo electrónico *</label>
+          <input
+            type="email"
+            id="correo"
+            name="correo"
+            [(ngModel)]="credenciales.correo_electronico"
+            placeholder="tu@correo.com"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="clave">Contraseña *</label>
+          <input
+            type="password"
+            id="clave"
+            name="clave"
+            [(ngModel)]="credenciales.contrasenia"
+            placeholder="••••••••"
+            required
+          />
+        </div>
+
+        <!-- Campo opcional de empresa -->
+        <div class="tenant-toggle-row">
+          <button
+            type="button"
+            class="btn-text-link"
+            (click)="alternarCampoEmpresa()"
+          >
+            {{ mostrarCampoEmpresa ? '− Ocultar código de empresa' : '+ Ingresar con código de empresa específico' }}
+          </button>
+        </div>
+
+        <div class="form-group" *ngIf="mostrarCampoEmpresa">
+          <label for="empresaCodigo">Código de empresa (opcional)</label>
+          <input
+            type="text"
+            id="empresaCodigo"
+            name="empresaCodigo"
+            [(ngModel)]="credenciales.empresa_codigo"
+            placeholder="ej. fashionstore o boutique-central"
+          />
+          <small class="field-help">Si perteneces a una boutique específica, ingresa su identificador.</small>
+        </div>
+
+        <button type="submit" class="btn-primary" [disabled]="cargando">
+          <span *ngIf="!cargando">Ingresar a la plataforma</span>
+          <span *ngIf="cargando">Verificando…</span>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        <span>¿No tenés cuenta?</span>
+        <a [routerLink]="['/auth/registro']" [queryParams]="credenciales.empresa_codigo ? { empresa: credenciales.empresa_codigo } : {}" class="link-action">Crear cuenta →</a>
+        <a routerLink="/" class="link-muted">← Volver al catálogo sin iniciar sesión</a>
+      </div>
+    </div>
+
+    <!-- PASO 2: SELECCIÓN MULTI-EMPRESA -->
+    <div class="auth-card" *ngIf="pasoSeleccionEmpresa">
+      <div class="auth-header">
+        <p class="eyebrow">Aislamiento de organización</p>
+        <h2>Selecciona tu empresa</h2>
+        <p>Tu cuenta tiene acceso a múltiples organizaciones. Elige el entorno al que deseas ingresar:</p>
+      </div>
+
+      <div *ngIf="mensajeError" class="alert-box alert-danger" role="alert">
+        {{ mensajeError }}
+      </div>
+
+      <div class="companies-selection-list" role="radiogroup" aria-label="Empresas disponibles">
+        <label
+          *ngFor="let emp of empresasDisponibles"
+          class="company-select-card"
+          [class.selected]="empresaSeleccionadaCodigo === emp.codigo"
+        >
+          <input
+            type="radio"
+            name="empresaSelect"
+            [value]="emp.codigo"
+            [(ngModel)]="empresaSeleccionadaCodigo"
+            class="company-radio"
+          />
+          <div class="company-select-content">
+            <span class="company-select-name">{{ emp.nombre }}</span>
+            <span class="company-select-code font-mono">Código: {{ emp.codigo }}</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="selection-actions">
+        <button
+          type="button"
+          class="btn-primary"
+          [disabled]="cargando || !empresaSeleccionadaCodigo"
+          (click)="confirmarSeleccionEmpresa()"
+        >
+          <span *ngIf="!cargando">Continuar a {{ empresaSeleccionadaCodigo }}</span>
+          <span *ngIf="cargando">Accediendo…</span>
+        </button>
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="cancelarSeleccionEmpresa()"
+          [disabled]="cargando"
+        >
+          Volver
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

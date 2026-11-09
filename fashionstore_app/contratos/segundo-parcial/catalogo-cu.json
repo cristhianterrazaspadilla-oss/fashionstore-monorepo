@@ -1,0 +1,678 @@
+{
+  "version": "0.3.1",
+  "cantidad": 27,
+  "primera_presentacion": [
+    "CU01",
+    "CU02",
+    "CU03",
+    "CU04",
+    "CU13",
+    "CU15",
+    "CU16",
+    "CU18"
+  ],
+  "casos": [
+    {
+      "codigo": "CU01",
+      "nombre": "Registrar empresa contratante",
+      "paquete": "identidad_empresas",
+      "actores": "Administrador de plataforma",
+      "canales": "B/W online",
+      "precondiciones": "Sesión de plataforma; código público libre; datos del administrador inicial válidos.",
+      "entrada": "razon_social, nombre_comercial, empresa_codigo, administrador{nombre,correo,credencial_inicial}; Idempotency-Key.",
+      "flujo": [
+        "Validar ámbito de plataforma y normalizar código público y correo.",
+        "Crear empresa y administrador empresarial en una sola transacción. No asignar al administrador empresarial permisos de plataforma.",
+        "Dejar suscripción pendiente hasta su asignación administrativa; devolver empresa y acceso público propuesto /tienda/{empresa_codigo}."
+      ],
+      "salida": "empresa_id, empresa_codigo, administrador_id, estado, suscripcion_pendiente. Nunca devolver hash de contraseña.",
+      "alternativas": [
+        "Código duplicado: 409; datos inválidos: 422; sin permiso: 403. Fallo intermedio revierte empresa y usuario.",
+        "La empresa heredada se migra conservando identificadores y datos; no se vuelve a registrar como una nueva empresa vacía."
+      ],
+      "aceptacion": [
+        "Alta duplicada con misma clave no duplica empresa/administrador.",
+        "A no lee ni modifica datos privados de B."
+      ]
+    },
+    {
+      "codigo": "CU02",
+      "nombre": "Administrar suscripción de empresa",
+      "paquete": "identidad_empresas",
+      "actores": "Administrador de plataforma administra; administrador de empresa consulta su plan",
+      "canales": "B/W online; M consulta capacidades",
+      "precondiciones": "Empresa existente; plan configurado; fechas explícitas; permiso según operación.",
+      "entrada": "empresa_id, plan_id, inicio_en, vence_en, motivo, revision; Idempotency-Key para asignar/cambiar.",
+      "flujo": [
+        "Consultar plan, límites y capacidad efectiva. Asignar o renovar conservando historial.",
+        "Aplicar Básico 2 / Profesional 10 sucursales activas, configurables; offline en ambos; IA generativa y ML del equipo en Profesional.",
+        "Aplicar gracia de 72 h. Tras gracia bloquear nuevas ventas, reservas y turnos; permitir consultas, posventa válida y conciliación de compromisos anteriores.",
+        "Al reducir plan comprobar límite y compromisos; no desactivar automáticamente sucursales ni borrar datos."
+      ],
+      "salida": "suscripcion_id, revision, plan, inicio_en, vence_en, gracia_hasta, estado_efectivo, capacidades, sucursales_activas, limite.",
+      "alternativas": [
+        "Fechas incoherentes: 422. Reducción incompatible: 409 con causa.",
+        "Empresa heredada: si se confirman tres sucursales activas, asignar Profesional administrativamente con fechas capturadas; no inventar datos."
+      ],
+      "aceptacion": [
+        "Básico rechaza tercera activa incluso con peticiones concurrentes.",
+        "Gracia/vencimiento no impiden registrar venta offline efectuada válidamente antes."
+      ]
+    },
+    {
+      "codigo": "CU03",
+      "nombre": "Descargar catálogo para consulta offline",
+      "paquete": "catalogo",
+      "actores": "Visitante o cliente; personal autorizado para ámbito operativo",
+      "canales": "B/W/M: descarga online, lectura local offline",
+      "precondiciones": "Empresa identificada; almacenamiento disponible. Descarga pública sin datos privados.",
+      "entrada": "empresa_codigo, sucursales autorizadas/públicas según ámbito, version_conocida opcional.",
+      "flujo": [
+        "Resolver contexto empresarial y obtener instantánea consistente versionada.",
+        "Incluir productos, variantes, tallas, colores compuestos, precios, promociones aplicables y disponibilidad conocida por sucursal.",
+        "Guardar en área temporal y sustituir copia activa solo al completar persistencia; IndexedDB en W y SQLite en M.",
+        "Conservar versión/fecha/ámbito y habilitar consulta sin red tras reinicio."
+      ],
+      "salida": "empresa_id, version, generado_en, sucursales, productos, variantes, colores y componentes, promociones; sin información privada.",
+      "alternativas": [
+        "Interrupción: conservar última copia válida. Espacio insuficiente: informar sin declarar éxito.",
+        "Cambio de empresa no mezcla instantáneas; copia inválida no se usa como actual."
+      ],
+      "aceptacion": [
+        "Descarga/reinicio sin conexión permite consultar CU16.",
+        "Ningún dato de clientes, costos privados o usuarios se filtra en copia pública."
+      ]
+    },
+    {
+      "codigo": "CU04",
+      "nombre": "Registrar reserva offline",
+      "paquete": "reservas_traslados",
+      "actores": "Cliente",
+      "canales": "B/W/M",
+      "precondiciones": "Identidad previa, ventana privada local de 8 h vigente, empresa y sucursal conocidas; referencia horaria central utilizable, obtenida conectado por `POST /sincronizacion/referencias-horarias` propuesto y vinculada a actor/dispositivo.",
+      "entrada": "Operación SOLICITAR_RESERVA v1: UUID, empresa/actor/dispositivo, secuencia, creada_local_en, datos{sucursal_id,visita_en,lineas[{variante_id,cantidad}]}.",
+      "flujo": [
+        "Guardar solicitud y líneas atómicamente con UUID estable y hora original; no apartar stock central ni cobrar.",
+        "Mostrar PENDIENTE_ENVIO y conservar tras reinicio.",
+        "Al reconectar reautenticar si corresponde y enviar el mismo comando con `referencia_horaria_id` si se emitió. Su ausencia en v1 no permite inventar confianza: el servidor busca referencia propia vinculada o registra conflicto.",
+        "Backend valida pertenencia, plan, tiempo y stock bajo bloqueo; acepta reserva y resultado en la misma transacción.",
+        "Notificar resultado y conservarlo localmente; plazo de 24 h desde creación local original."
+      ],
+      "salida": "Resultado durable con operacion_id, estado, codigo, revision y recurso_id/vence_en al aceptar.",
+      "alternativas": [
+        "Sin stock o vencida: rechazo durable sin apartado. Reloj incoherente: CONFLICTO/TIEMPO_INCOHERENTE.",
+        "Timeout tras aceptación: consultar/repetir mismo UUID; no recrear solicitud ni reiniciar plazo."
+      ],
+      "aceptacion": [
+        "Dos envíos producen una reserva y un apartado.",
+        "Vencida localmente no obtiene 24 h nuevas al sincronizar."
+      ]
+    },
+    {
+      "codigo": "CU05",
+      "nombre": "Sincronizar solicitud de compra digital",
+      "paquete": "ventas_pagos",
+      "actores": "Cliente",
+      "canales": "B/W/M; preparación offline, pasarela online; intento posterior conectado condicionado",
+      "precondiciones": "Cliente y empresa identificados; catálogo local. Para intento posterior de cobro, consentimiento específico vigente y método previamente preparado online con el proveedor. Cobro electrónico solo conectado y con sesión empresarial válida.",
+      "entrada": "`SOLICITAR_COMPRA` v3: líneas/precios vistos, sucursal, modalidad, dirección si aplica y `autorizacion_cobro?` con consentimiento ligado a huella de compra, importe BOB/USD, tasa, condiciones, vigencia y `preparacion_pago_id` opaco. Ausencia de autorización completa permite conservar solicitud pero impide cobro automático. v1/v2 conservan semántica anterior.",
+      "flujo": [
+        "Guardar pedido local pendiente, con total estimado; no marcar pagado sin evidencia de cobro.",
+        "Al reconectar validar identidad, empresa, plan, oferta/precios y tasa. Esta validación de seguridad/importes se mantiene; no exigir confirmación final de existencias antes del pago.",
+        "Comparar huella, importe, moneda, tasa, conversión, condiciones y vigencia con oferta central. Diferencia: `REQUIERE_NUEVA_ACEPTACION`; falta de método/consentimiento suficiente: `PENDIENTE_INTERVENCION`. Con equivalencia exacta y sesión válida, crear pedido y orden de pago idempotentes y continuar CU22 conectado sin exigir siempre inicio manual nuevo.",
+        "CU22 confirma el cobro por proveedor/webhook/reconciliación; autenticación adicional da `REQUIERE_ACCION_CLIENTE` y notificación. Tras confirmación, intentar compromiso completo y atómico de stock libre. No registrar salida física como venta antes de pago; entrega/despacho crea salida posterior.",
+        "Con stock: confirmar compromiso y preparar entrega. Sin stock: NO_CUMPLIBLE y CU27 íntegro del dinero, con restauración separada del saldo usado. No generar stock negativo ni sustituciones sin consentimiento."
+      ],
+      "salida": "pedido_id, estado_pedido, estado_pago, estado_cumplimiento, oferta_revision, total_bob; reembolso_id cuando corresponda.",
+      "alternativas": [
+        "A-PAGO-01 confirmado por compañero: cobro conectado antes de asignación final; confirmación académica posterior registrada sin alterar esta regla.",
+        "Compra de cliente sin red queda registrada, pero no declara cobro Stripe offline. Efectivo físico corresponde CU07/CU19 y conserva cupos exclusivos.",
+        "Pago incierto: EN_VERIFICACION, sin repetir cobro. Cancelación antes de iniciar cargo lo impide; carrera: CANCELACION_EN_CONCILIACION y, si hay captura tardía, CU27."
+      ],
+      "aceptacion": [
+        "Pedido cobrado sin stock conserva pago y genera un único reembolso íntegro.",
+        "Fallo o reintento no repite cobro, asignación, reembolso ni notificación."
+      ]
+    },
+    {
+      "codigo": "CU06",
+      "nombre": "Habilitar turno y cupos de caja offline",
+      "paquete": "caja_offline",
+      "actores": "Cajero o administrador empresarial autorizado",
+      "canales": "B/W/M; habilitación online",
+      "precondiciones": "Caja/dispositivo registrado, usuario autorizado, sucursal propia y plan operativo.",
+      "entrada": "caja_id, dispositivo_id, sucursal_id, cupos[{variante_id,cantidad}], revision; Idempotency-Key.",
+      "flujo": [
+        "Validar permisos, plan y ausencia de turno incompatible del dispositivo.",
+        "Asignar cupos exclusivos bajo bloqueo del inventario; separarlos de disponibilidad central y de otras cajas.",
+        "Congelar versión de precios/promociones y reglas de descuentos por cantidad aplicables.",
+        "Emitir habilitación verificable con empresa, actor, dispositivo, inicio, fin a 8 h y cupos. Persistir localmente antes de declarar caja lista."
+      ],
+      "salida": "turno_id, habilitacion_id, inicio_en, vence_en, version_precios, cupos y snapshot comercial autorizado.",
+      "alternativas": [
+        "Cupo insuficiente: rechazar sin asignación parcial implícita.",
+        "Vencimiento no libera cupos automáticamente. No emitir segunda habilitación hasta resolver turno anterior."
+      ],
+      "aceptacion": [
+        "Dos cajas concurrentes no reciben la misma unidad.",
+        "Flutter y PWA aplican mismo negocio y conservan habilitación al reiniciar."
+      ]
+    },
+    {
+      "codigo": "CU07",
+      "nombre": "Registrar y sincronizar venta de contado offline",
+      "paquete": "caja_offline",
+      "actores": "Cajero o administrador empresarial autorizado",
+      "canales": "B/W/M; efectivo y entrega sin red",
+      "precondiciones": "Turno autorizado dentro de 8 h; cupo local suficiente; snapshot íntegro; prendas físicas disponibles.",
+      "entrada": "REGISTRAR_VENTA_CAJA v1: turno/habilitación, versión, líneas, total, efectivo, cambio, fechas de cobro y entrega; cliente opcional dentro de ámbito.",
+      "flujo": [
+        "Calcular total con snapshot autorizado y comprobar cupo local transaccionalmente.",
+        "Recibir efectivo; persistir venta, líneas, UUID, consumo de cupo y comprobante local durable. Registrar hecho de entrega.",
+        "Mostrar COBRADA/ENTREGADA con registro central pendiente, sin presentarla como Stripe.",
+        "Sincronizar contra autorización original; backend registra efectivo, venta y Kardex una vez. No descontar otra vez stock ya comprometido como cupo.",
+        "Cerrar turno tras conciliar operaciones y devolver solo cupo no consumido."
+      ],
+      "salida": "Comprobante local no fiscal, resultado central REGISTRADA_CENTRAL o CONCILIACION_REQUERIDA, detalle de cupo y cierre.",
+      "alternativas": [
+        "Sin cupo o fuera de turno: impedir nueva venta. Fallo antes de persistir/entregar: devolver efectivo y registrar incidencia.",
+        "Venta válida anterior se registra aunque después venza plan/usuario. Corrupción o caja perdida: conteo físico y cierre supervisado; no borrar cobro/entrega."
+      ],
+      "aceptacion": [
+        "Reinicio no pierde venta/efectivo/cupo; reenvío no duplica Kardex.",
+        "Caja perdida no libera stock por simple timeout."
+      ]
+    },
+    {
+      "codigo": "CU08",
+      "nombre": "Cambiar prenda y liquidar diferencia",
+      "paquete": "posventa",
+      "actores": "Cliente; encargado de sucursal o administrador autorizado",
+      "canales": "B/W gestión; W/M cliente consulta, acepta, paga y recibe avisos online",
+      "precondiciones": "Venta propia entregada y comprobante. Cambio voluntario: solicitud dentro de 15 días desde entrega, prenda sin uso e inspección, con recepción en sucursal de origen. Defecto/incumplimiento tardío: registro y evaluación autorizada, sin resolución automática.",
+      "entrada": "venta_id, unidades_originales[{detalle_venta_id,cantidad}], reemplazos deseados, sucursal_id, modalidad_reemplazo, direccion, motivo_codigo:TALLA|COLOR|DEFECTO_FABRICACION|PRODUCTO_INCORRECTO|OTRO, motivo_descripcion obligatoria si OTRO, revision; condición física y responsabilidad se registran en inspección.",
+      "flujo": [
+        "Recibir prenda en custodia; registrar motivo, condición física inspeccionada y responsabilidad de tienda por separado. Bloquear unidades elegibles para evitar devolución/cambio/reembolso simultáneos. Emitir comprobante; la recepción no repone stock vendible.",
+        "Reconocer neto original por unidad con descuentos prorrateados; excluir envío. Cotizar reemplazo y aceptar diferencia.",
+        "Sin reemplazo: emitir nota de cambio pendiente hasta 7 días calendario desde aceptación de la nota. Buscar stock en sucursal propia o tramitar traslado LB09, sin prometer disponibilidad futura.",
+        "Al disponer de stock reservar reemplazo, notificar por push y bandeja y presentar oferta vigente. El cliente dispone de 48 h desde asignación central para aceptar/pagar; reintentos no extienden plazo.",
+        "Diferencia a tienda: pago online CU22 o caja CU19 antes de entregar. Diferencia a cliente: saldo CU09 o reembolso explícito CU27 según elección; jamás ambos por el mismo importe.",
+        "Entregar/reexpedir solo con liquidación resuelta. Registrar inventario, comprobante final, vinculación a venta y fechas físicas."
+      ],
+      "salida": "cambio_id, nota_codigo, estado, vence_espera_en, oferta_revision, valor_reconocido_bob, diferencia_bob, pago/reembolso/saldo, entrega_id y comprobantes.",
+      "alternativas": [
+        "Vencen 7 días sin sustituto o cliente no acepta: ofrecer elección de otra prenda, saldo o reembolso elegible por `POST /cambios/{cambio_id}/resolver-espera` propuesto; no retener indefinidamente ni imponer saldo.",
+        "Una nota solicitada a tiempo conserva elegibilidad aunque el trámite termine después del día 15.",
+        "Fallo atribuible a tienda: envío del reemplazo a cargo de tienda; cambio voluntario: cliente paga tarifa informada y aceptada. Traslado interno siempre a cargo de empresa.",
+        "Cotización vencida exige nueva aceptación; pago incierto no permite entregar ni liberar compromiso ciegamente. Los plazos de 7 días y 48 horas y el pagador de envío son políticas configurables aceptadas del equipo.",
+        "Defecto/incumplimiento alegado después de 15 días: registrar y derivar a evaluación autorizada, sin rechazo por plazo ni reembolso automáticos."
+      ],
+      "aceptacion": [
+        "Nota sin stock sobrevive reinicio, avisa y se resuelve trazablemente.",
+        "Misma unidad no obtiene simultáneamente reemplazo, saldo y reembolso."
+      ]
+    },
+    {
+      "codigo": "CU09",
+      "nombre": "Aplicar saldo personal a una compra",
+      "paquete": "posventa",
+      "actores": "Cliente; cajero/administrador autorizado en venta presencial",
+      "canales": "B/W/M online",
+      "precondiciones": "Saldo del cliente en misma empresa, compra/pago asociado y autorización válida.",
+      "entrada": "venta_id o pedido_id, importe_bob, revision; Idempotency-Key. Lectura propia GET /saldos/mio.",
+      "flujo": [
+        "Consultar libro de saldo disponible, retenido y consumido.",
+        "Reservar importe bajo bloqueo y vincularlo a una compra; no transferir ni permitir efectivo.",
+        "Confirmar débito al liquidar; si pago mixto queda incierto, conservar retención hasta conciliación.",
+        "Al cancelar o no poder cumplir, restaurar exactamente saldo usado y reembolsar únicamente componente monetario vía CU27."
+      ],
+      "salida": "saldo_disponible_bob, saldo_retenido_bob, movimiento_id, restante_por_pagar_bob.",
+      "alternativas": [
+        "Importe supera saldo: rechazar sin débito parcial implícito.",
+        "Dos compras concurrentes no consumen mismo saldo. Offline no habilita gasto de saldo."
+      ],
+      "aceptacion": [
+        "Saldo sin vencimiento y no transferible; aislamiento por empresa.",
+        "Reembolso mixto no convierte saldo en dinero."
+      ]
+    },
+    {
+      "codigo": "CU10",
+      "nombre": "Consultar pronóstico de unidades vendidas",
+      "paquete": "analitica",
+      "actores": "Administrador de empresa autorizado",
+      "canales": "B/W online; Profesional",
+      "precondiciones": "Empresa Profesional, dataset y modelo evaluado; no confundir modelo local con Gemini.",
+      "entrada": "sucursal_id/producto_id opcionales propios, semana_objetivo; periodo_entrenamiento y version_modelo al entrenar.",
+      "flujo": [
+        "Generar datos sintéticos reproducibles con semilla; identificar explícitamente origen sintético.",
+        "Preparar variables rezagadas, calendario y agregados por producto/sucursal; separar entrenamiento/validación temporal sin fuga del futuro.",
+        "Entrenar regresor supervisado para unidades de próxima semana; comparar con baseline y evaluar MAE/RMSE. Versionar artefacto y pipeline.",
+        "Inferir con modelo de empresa y presentar predicción no negativa, semana, versión, métricas y limitaciones."
+      ],
+      "salida": "predicciones[{producto_id,sucursal_id,semana,unidades_estimadas}], modelo_version, dataset_version, metricas, origen_datos, entrenado_en.",
+      "alternativas": [
+        "Datos insuficientes: estado DATOS_INSUFICIENTES, no ceros inventados.",
+        "Modelo de otra empresa o no compatible: rechazar; validar accesos a artefactos."
+      ],
+      "aceptacion": [
+        "Semilla y dataset versionados reproducen evaluación.",
+        "Básico no accede y métricas sintéticas no se presentan como precisión real comercial."
+      ]
+    },
+    {
+      "codigo": "CU11",
+      "nombre": "Consultar grupos de productos",
+      "paquete": "analitica",
+      "actores": "Administrador de empresa autorizado",
+      "canales": "B/W online; Profesional",
+      "precondiciones": "Datos preparados y modelo no supervisado de empresa/versionado.",
+      "entrada": "periodo_inicio, periodo_fin, sucursal_id opcional, version_modelo; parámetros de entrenamiento validados.",
+      "flujo": [
+        "Preparar ventas por producto: frecuencia, unidades, ingresos netos y rotación; estandarizar variables.",
+        "Entrenar agrupador no supervisado reproducible y evaluar silhouette cuando esté definido y tamaños de grupo.",
+        "Guardar transformador, algoritmo, k elegido con justificación, semilla y dataset.",
+        "Mostrar productos agrupados, características y explicación; no asignar significado comercial causal sin evidencia."
+      ],
+      "salida": "grupos[{grupo_id,productos,centroide,descripcion}], modelo_version, metricas, periodo, origen_datos.",
+      "alternativas": [
+        "Muestra insuficiente o un único grupo no permite silhouette: informar no disponible.",
+        "No mezclar empresas al entrenar o inferir."
+      ],
+      "aceptacion": [
+        "Identidades del mismo modelo se conservan al consultar; entre versiones no prometer igual numeración.",
+        "Resultado contiene trazabilidad y no es una respuesta generativa sin entrenamiento."
+      ]
+    },
+    {
+      "codigo": "CU12",
+      "nombre": "Configurar tasa de conversión BOB/USD",
+      "paquete": "organizacion",
+      "actores": "Administrador de plataforma",
+      "canales": "B/W online; W/M consumen conversión",
+      "precondiciones": "Permiso global; intervalo y decimal positivo.",
+      "entrada": "tasa_bob_por_usd, vigente_desde, vigente_hasta opcional, motivo; Idempotency-Key.",
+      "flujo": [
+        "Crear tasa versionada sin solapamiento vigente.",
+        "Calcular USD = BOB / tasa con Decimal, redondeo HALF_UP a centavos, sin float.",
+        "Congelar tasa_id, BOB, USD y centavos en orden de pago al aceptar cotización.",
+        "Pagos/reembolsos históricos utilizan importes y tasa congelados, no tasa actual."
+      ],
+      "salida": "tasa_id, version, vigencia, autor; cotización con ambos importes y tasa.",
+      "alternativas": [
+        "Tasa ausente/vencida impide nuevo cobro Stripe, sin afectar efectivo BOB.",
+        "Webhook tardío se reconcilia con tasa original."
+      ],
+      "aceptacion": [
+        "Cambio de tasa no altera cobro ya emitido.",
+        "Reembolsos parciales nunca exceden centavos capturados restantes."
+      ]
+    },
+    {
+      "codigo": "CU13",
+      "nombre": "Registrarse e iniciar sesión por empresa",
+      "paquete": "identidad_empresas",
+      "actores": "Cliente; personal empresarial; administrador de plataforma en acceso separado",
+      "canales": "B/W/M online; consulta privada local limitada",
+      "precondiciones": "Empresa pública resuelta para registro/login empresarial; credenciales válidas.",
+      "entrada": "empresa_codigo, correo, contraseña; datos de registro público sin rol privilegiado.",
+      "flujo": [
+        "Resolver /tienda/{empresa_codigo} como navegación propuesta; propagar contexto al registro/login.",
+        "Normalizar correo único por empresa; cuentas de plataforma separadas. Registro público solo cliente.",
+        "Emitir sesión con sub/empresa/ámbito/rol validados y capacidades. No confiar en empresa_id enviado como permiso.",
+        "JWT actual de 24 h no sustituye ventana de privacidad local de 8 h desde login online. Logout/cambio de empresa oculta datos privados y conserva colas aisladas."
+      ],
+      "salida": "token de sesión según integración actual, perfil propio, empresa, capacidades, ultimo_login_online_en y privada_hasta.",
+      "alternativas": [
+        "Login incorrecto o pertenencia ajena: rechazo genérico; no filtrar existencia de cuenta.",
+        "Offline no acredita nuevo login central. Sin token válido no sincronizar; solicitar reautenticación."
+      ],
+      "aceptacion": [
+        "Dos empresas pueden tener mismo correo normalizado sin mezclar cuentas.",
+        "Vencimiento 8 h oculta datos sin borrar pendientes."
+      ]
+    },
+    {
+      "codigo": "CU14",
+      "nombre": "Gestionar usuarios y roles de la empresa",
+      "paquete": "identidad_empresas",
+      "actores": "Administrador empresarial autorizado; plataforma solo ámbito propio autorizado",
+      "canales": "B/W online",
+      "precondiciones": "Sesión y recurso dentro de empresa; permisos administrativos.",
+      "entrada": "usuario_id opcional, nombre, correo, rol_id, sucursal_id, activo, revision; operación crear/editar/desactivar.",
+      "flujo": [
+        "Listar solo usuarios empresariales propios.",
+        "Validar rol empresarial y sucursal de empresa; impedir elevar a plataforma por cuerpo de solicitud.",
+        "Guardar cambios e historial; impedir desactivar último administrador activo sin reemplazo.",
+        "Revocación se aplica a nuevas autorizaciones online; conciliar hechos offline efectuados antes de revocación."
+      ],
+      "salida": "usuario_id, rol, sucursal, activo, revision; sin secretos.",
+      "alternativas": [
+        "Correo duplicado en empresa o revision obsoleta: 409. Rol/plataforma ajeno: 403.",
+        "Cambiar rol no transfiere información privada local entre usuarios."
+      ],
+      "aceptacion": [
+        "Usuario de A no administra B aun con ID válido.",
+        "Rol revocado no borra efectivo/entrega válidos anteriores."
+      ]
+    },
+    {
+      "codigo": "CU15",
+      "nombre": "Gestionar ciudades, sucursales y tarifas",
+      "paquete": "organizacion",
+      "actores": "Plataforma administra ciudades; administrador empresarial administra sucursales/tarifas propias",
+      "canales": "B/W online; M consulta sucursales",
+      "precondiciones": "Permiso por ámbito; plan vigente para activar recursos nuevos.",
+      "entrada": "ciudad_id global; sucursal{nombre,ciudad_id,anillos,tarifa_base,incremento_anillo,activa}; revision.",
+      "flujo": [
+        "Plataforma gestiona referencia global de ciudades; empresa solo consulta/selecciona.",
+        "Crear o modificar sucursal/tarifas propias con importes no negativos y anillos válidos.",
+        "Comprobar límite activo de plan bajo transacción al activar.",
+        "Desactivar solo sin reservas/pedidos/cupos/traslados pendientes bloqueantes; conservar historia."
+      ],
+      "salida": "sucursal_id, empresa_id, ciudad, parametros_entrega, activa, revision.",
+      "alternativas": [
+        "Empresa no modifica ciudades globales.",
+        "Desactivación con compromisos devuelve 409 con causas resumidas propias."
+      ],
+      "aceptacion": [
+        "Límite activo resiste peticiones simultáneas.",
+        "Tarifa se congela en pedido aceptado, no altera entregas anteriores."
+      ]
+    },
+    {
+      "codigo": "CU16",
+      "nombre": "Consultar catálogo de prendas",
+      "paquete": "catalogo",
+      "actores": "Visitante, cliente o personal autorizado",
+      "canales": "B/W/M online/offline",
+      "precondiciones": "Empresa identificada; para offline copia de CU03 disponible.",
+      "entrada": "texto, categoría, talla, color_id, componentes_color, modo_color=EXACTO/TODOS_COMPONENTES, sucursal, precio_min/max, pagina.",
+      "flujo": [
+        "Consultar origen central o copia local sin mezclar datos de empresas.",
+        "Filtrar variantes por talla/color; blanco y negro representa una variante compuesta, no dos unidades de inventario.",
+        "Mostrar precio base, descuento aplicable, indicador de promoción y condiciones de cantidad; recalcular con cantidades reales en compra.",
+        "Mostrar fuente, fecha y existencia conocida al usar copia local."
+      ],
+      "salida": "items paginados, variantes y disponibilidad conocida, precios/promociones, colores compuestos; total/paginación según fuente.",
+      "alternativas": [
+        "Sin copia local informar indisponibilidad, no lista vacía presentada como catálogo actualizado.",
+        "No exponer costos, empleados o stock comprometido privado en descarga pública."
+      ],
+      "aceptacion": [
+        "Filtro de color compuesto coincide en W/M y online/offline.",
+        "Promoción identifica umbral y no promete precio incondicional para una unidad."
+      ]
+    },
+    {
+      "codigo": "CU17",
+      "nombre": "Consultar Kardex, existencias y valorización",
+      "paquete": "inventario",
+      "actores": "Administrador empresarial o encargado autorizado por sucursal",
+      "canales": "B/W online",
+      "precondiciones": "Usuario con permiso de inventario; recursos propios.",
+      "entrada": "sucursal_id, variante_id, desde, hasta, tipo_movimiento, pagina.",
+      "flujo": [
+        "Consultar movimientos trazables por documento origen y empresa.",
+        "Distinguir existencia física, reservado, cupo offline y libre; evitar doble descuento al sincronizar caja.",
+        "Presentar cantidades y valorización con costo del movimiento y saldo.",
+        "Filtrar resultados y exportar solo si integración actual lo contempla, sin introducir formato obligatorio no acordado."
+      ],
+      "salida": "movimientos, saldos_cantidad, libre/reservado/cupo, costo y valoración, referencias.",
+      "alternativas": [
+        "No recalcular costo histórico con precio comercial.",
+        "No asumir que devolución recibida es vendible: inspección decide reposición o cuarentena/merma."
+      ],
+      "aceptacion": [
+        "Venta/transferencia/devolución generan movimientos únicos con origen.",
+        "Asignar cupo disminuye libre; sincronizar su venta no descuenta físico dos veces."
+      ]
+    },
+    {
+      "codigo": "CU18",
+      "nombre": "Gestionar reservas de prendas",
+      "paquete": "reservas_traslados",
+      "actores": "Cliente; personal consulta/prepara según funciones existentes",
+      "canales": "B/W/M online",
+      "precondiciones": "Sesión, empresa, plan y unidades válidas; operación permitida por estado.",
+      "entrada": "Crear: sucursal, visita, líneas. Consultar/cancelar: reserva_id, revision; Idempotency-Key en mutaciones.",
+      "flujo": [
+        "Crear online con bloqueo central y apartado atómico; devolver vencimiento creación central +24 h.",
+        "Listar solo reservas propias autorizadas; incluir aceptadas desde CU04 con su origen local.",
+        "Confirmar adelanto online oportuno para extender hasta origen +72 h, nunca 72 h adicionales; visita no gobierna vencimiento.",
+        "Cancelar si estado permite, liberando solo compromiso aún vigente una vez. Preparación/traslado conserva LB09/LB10."
+      ],
+      "salida": "reserva_id, código, estado, origen_plazo_en, visita_en, vence_en, adelantos y líneas.",
+      "alternativas": [
+        "Stock insuficiente no crea aceptación parcial implícita.",
+        "Adelanto tardío no reactiva reserva vencida; pago incierto exige conciliación antes de expirar compromisos asociados."
+      ],
+      "aceptacion": [
+        "Cancelación repetida no aumenta stock.",
+        "Carrera adelanto/expiración tiene una decisión consistente bajo bloqueo."
+      ]
+    },
+    {
+      "codigo": "CU19",
+      "nombre": "Registrar venta presencial y pago en caja",
+      "paquete": "ventas_pagos",
+      "actores": "Cajero o administrador empresarial autorizado",
+      "canales": "B/W online; contado offline se resuelve CU07 en W/M",
+      "precondiciones": "Usuario y sucursal propios, conexión, plan operativo y stock libre.",
+      "entrada": "cliente_id opcional, sucursal, líneas, descuentos calculables, medio efectivo/saldo/Stripe, efectivo_recibido_bob, revision.",
+      "flujo": [
+        "Cotizar desde servidor con promociones/cantidades, mostrar y aceptar total.",
+        "Bloquear inventario y generar venta y sus líneas. Efectivo se registra con vuelto; saldo se liquida por CU09; Stripe por CU22.",
+        "Confirmar entrega física cuando cobro/liquidación estén resueltos; registrar Kardex una vez.",
+        "Emitir comprobante operativo vinculado a venta, pago, descuentos y entrega."
+      ],
+      "salida": "venta_id, numero, totales, medios, estados de pago y entrega, comprobante.",
+      "alternativas": [
+        "Sin stock libre o saldo insuficiente: no confirmar venta.",
+        "Fallo tras recibir efectivo se concilia; no ocultar el hecho financiero con rollback lógico sin devolución documentada."
+      ],
+      "aceptacion": [
+        "Monto recibido - cambio = importe efectivo debido.",
+        "Pago mixto no duplica ingresos ni entrega antes de liquidación."
+      ]
+    },
+    {
+      "codigo": "CU20",
+      "nombre": "Registrar devolución y merma",
+      "paquete": "posventa",
+      "actores": "Encargado o administrador empresarial autorizado; cliente solicita devolución",
+      "canales": "B/W online; W/M cliente consulta estado",
+      "precondiciones": "Venta/unidades originales identificadas para devolución y motivo declarado; inventario propio para merma. La inspección ocurre después de recepción física, no al crear solicitud.",
+      "entrada": "tipo DEVOLUCION/MERMA, venta_id y líneas originales cuando corresponda, cantidades, motivo_codigo:TALLA|COLOR|DEFECTO_FABRICACION|PRODUCTO_INCORRECTO|OTRO, motivo_descripcion obligatoria si OTRO, evidencia, revision. Condición física inspeccionada, responsabilidad de tienda y resolución financiera son campos separados.",
+      "flujo": [
+        "El cliente puede crear una solicitud por `POST /devoluciones/solicitudes` propuesto, sin declarar recepción. Validar cantidades entregadas menos unidades ya cambiadas/devueltas/comprometidas; personal autorizado registra recepción e inspección. Conservar `POST /devoluciones` heredado para su flujo físico con adaptador/versionado.",
+        "Devolución voluntaria se solicita dentro de 15 días desde entrega con comprobante, prenda sin uso e inspección, según política configurable del equipo. Defecto/incumplimiento tardío se registra para evaluación autorizada sin rechazo o reembolso automáticos por plazo.",
+        "Recepción deja prenda en custodia no vendible. Solo inspección APTA_VENDIBLE y decisión autorizada registran reposición única; dañada/no apta va a cuarentena/merma con movimiento y costo. Motivo no determina condición física.",
+        "Separar destino financiero: cambio CU08, saldo acordado o reembolso CU27. Emitir comprobante aunque dinero siga pendiente.",
+        "Merma sin venta reduce existencia disponible y registra motivo/aprobador; no genera reembolso."
+      ],
+      "salida": "devolucion_id/merma_id, recepción, inspección, movimientos, importe_elegible y estado financiero enlazado.",
+      "alternativas": [
+        "Voluntaria fuera de política requiere excepción autorizada y auditada; defecto/incumplimiento tardío exige evaluación autorizada, sin rechazo automático por plazo. No aplicar porcentaje improvisado.",
+        "Devolver prenda no demuestra devolución de dinero; estados separados."
+      ],
+      "aceptacion": [
+        "Misma unidad no se devuelve dos veces ni suma merma y reposición simultánea.",
+        "Parcialidad se refiere a unidades/importes elegibles, no retención automática del 50 %."
+      ]
+    },
+    {
+      "codigo": "CU21",
+      "nombre": "Gestionar carrito y confirmar compra digital",
+      "paquete": "ventas_pagos",
+      "actores": "Cliente",
+      "canales": "B/W/M; carrito y solicitud local; método preparado y cobro exclusivamente conectados",
+      "precondiciones": "Empresa identificada; para confirmar compra cuenta autenticada y política comercial informada.",
+      "entrada": "líneas[{variante_id,cantidad}], sucursal propuesta, modalidad RECOJO/DELIVERY, direccion, saldo_solicitado opcional.",
+      "flujo": [
+        "Mantener carrito por empresa/usuario sin comprometer stock; permitir edición/eliminación de líneas.",
+        "Mostrar descuentos, envío y total. Para compra v3, permitir consentimiento explícito específico sobre compra, importe, moneda, tasa, condiciones y vigencia, con método preparado online.",
+        "Crear pedido durable con estado de pago separado de cumplimiento; no exigir apartado final previo a CU22 bajo A-PAGO-01.",
+        "Tras pago confirmado intentar asignación central; completo o reembolso de pedido no cumplible. Sin entregas parciales por defecto."
+      ],
+      "salida": "pedido_id, oferta, estado_pago, estado_cumplimiento, entrega propuesta, vínculo con CU05 si origen offline.",
+      "alternativas": [
+        "Sin conexión guardar compra y consentimiento específico local, si existe, sin declarar pago; solo referencia opaca de método preparado online. No guardar PAN/CVC, PaymentMethod, client_secret ni credenciales. Al reconectar exigir sesión válida y ámbito empresarial.",
+        "Cambio de importe, moneda, conversión, tasa o condiciones exige nueva aceptación. Si coinciden y hay método preparado y consentimiento vigente, CU05/CU22 pueden intentar cobro conectado sin inicio manual nuevo; de lo contrario queda pendiente de intervención."
+      ],
+      "aceptacion": [
+        "Pedido cobrado sin stock se deriva CU27 íntegro sin perder solicitud.",
+        "No mezclar carritos ni direcciones entre empresas."
+      ]
+    },
+    {
+      "codigo": "CU22",
+      "nombre": "Procesar pago digital con Stripe Test",
+      "paquete": "ventas_pagos",
+      "actores": "Cliente; personal autorizado inicia cobro relacionado",
+      "canales": "B/W/M online",
+      "precondiciones": "Pedido/cambio/adelanto propio, oferta aceptada, moneda/tasa congeladas y conexión. Para v3: método preparado online, consentimiento específico vigente, sesión y empresa autorizadas al reconectar.",
+      "entrada": "contexto PEDIDO/CAMBIO/RESERVA, recurso_id, oferta_revision, clave estable de orden de pago; no confiar en monto enviado por cliente.",
+      "flujo": [
+        "Backend calcula deuda, valida identidad/empresa/plan aplicable y crea orden idempotente y PaymentIntent Test. Para pedido no exige stock final previo al cobro.",
+        "Flujo interactivo: cliente confirma con SDK. Flujo v3: método preparado previamente online mediante SetupIntent confirmado y vinculado a Customer/PaymentMethod de cliente/tenant en servidor; backend crea/confirma PaymentIntent conectado para uso posterior (`off_session` cuando corresponda) solo si la autorización exacta sigue válida. Preparación exitosa no garantiza cobro. No persistir secretos de tarjeta ni client_secret localmente.",
+        "Webhook de firma válida y/o consulta autenticada a Stripe confirma resultado; retorno de interfaz no acredita pago.",
+        "Deduplicar eventos, conciliar orden y ejecutar continuación de negocio: asignar pedido, liquidar cambio o adelanto oportuno.",
+        "Si stock falla después de cobrar crear CU27 una vez. Resultado incierto se consulta/reconcilia sin repetir cobro."
+      ],
+      "salida": "orden_pago_id, estado, importe_bob, importe_usd, tasa_id, referencia_proveedor; client_secret solo al consumidor autorizado y nunca logs.",
+      "alternativas": [
+        "Método/consentimiento insuficientes: PENDIENTE_INTERVENCION; cambio de oferta/importe/moneda/tasa/condiciones: REQUIERE_NUEVA_ACEPTACION; autenticación adicional: REQUIERE_ACCION_CLIENTE y notificación para retomar la misma intención. Rechazo definitivo conserva intento fallido.",
+        "Cobro tardío tras cancelación/vencimiento crea reembolso; no resucita entrega/stock por sí solo.",
+        "Cancelar antes de iniciar cargo impide cobro. Carrera cancelación/cargo se concilia sin duplicar cargo o reembolso; reconexiones, reinicios y reintentos conservan IDs y claves estables."
+      ],
+      "aceptacion": [
+        "Webhook repetido/desordenado no repite venta ni pago.",
+        "BOB/USD y centavos originales permanecen en reembolsos."
+      ]
+    },
+    {
+      "codigo": "CU23",
+      "nombre": "Consultar dashboard e indicadores",
+      "paquete": "analitica",
+      "actores": "Administrador empresarial autorizado",
+      "canales": "B/W online",
+      "precondiciones": "Usuario autorizado; empresa y periodo propios.",
+      "entrada": "desde, hasta, sucursales permitidas, fecha_base CENTRAL/LOCAL, zona_horaria.",
+      "flujo": [
+        "Validar filtros y calcular indicadores con hechos centrales confirmados.",
+        "Separar ventas brutas, descuentos, devoluciones/cambios, reembolsos y neto comercial. Separar dinero capturado de pedidos aún no cumplidos.",
+        "Mostrar series/tablas con periodo y actualización; acceso a paneles ML/generativo solo Profesional."
+      ],
+      "salida": "indicadores, series, filtros_efectivos, calculado_en, definiciones_metricas.",
+      "alternativas": [
+        "Sin datos mostrar ausencia de datos, no ventas inventadas.",
+        "Básico conserva reportes convencionales sin ML/generativo."
+      ],
+      "aceptacion": [
+        "Saldo emitido/usado no suma ingreso nuevo.",
+        "Pedido no cumplido reembolsado no queda como venta neta entregada."
+      ]
+    },
+    {
+      "codigo": "CU24",
+      "nombre": "Solicitar reporte generativo por voz o texto",
+      "paquete": "analitica",
+      "actores": "Administrador empresarial autorizado",
+      "canales": "B/W online; Profesional",
+      "precondiciones": "Permiso/reportes Profesional; datos centrales reales; entrada de texto o voz transcrita.",
+      "entrada": "texto, tipo_reporte opcional, filtros propuestos; exportar por consulta_id y formato XLSX/CSV/PDF.",
+      "flujo": [
+        "Transcribir voz si se utiliza; enviar a Gemini solo contexto/esquema permitido sin claves ni datos innecesarios.",
+        "Interpretar a uno de cuatro tipos: ventas por sucursal/periodo, ranking de productos, evolución semanal, ingresos por categoría.",
+        "Backend valida tipo, filtros, permisos y empresa; ejecuta consultas tipadas parametrizadas, nunca SQL libre producido por IA.",
+        "Persistir resultado/snapshot autorizado con consulta_id y mostrar tabla/gráfico; narrativa opcional sin inventar cifras.",
+        "Exportar el mismo snapshot en XLSX, CSV o PDF con empresa, título, filtros, fecha y totales."
+      ],
+      "salida": "consulta_id, tipo, filtros_efectivos, columnas, filas, totales, grafico_sugerido, generado_en, origen=DATOS_REALES.",
+      "alternativas": [
+        "Ambigua: pedir precisión sin ejecutar consulta arbitraria. No soportada: informar opciones.",
+        "Gemini caído: informar y conservar entrada; no sustituir por datos estáticos. Escape de fórmulas al exportar CSV/Excel."
+      ],
+      "aceptacion": [
+        "Cuatro reportes con filtros variables y datos reales, exportados coinciden con pantalla.",
+        "Prompt que solicita datos de otra empresa o DROP se rechaza."
+      ]
+    },
+    {
+      "codigo": "CU25",
+      "nombre": "Consultar ventas de la sucursal",
+      "paquete": "analitica",
+      "actores": "Encargado de sucursal o administrador empresarial autorizado",
+      "canales": "B/W online",
+      "precondiciones": "Ámbito de empresa/sucursales autorizado.",
+      "entrada": "sucursal_id, desde, hasta, fecha_base CENTRAL/LOCAL, estado_pago/cumplimiento, pagina.",
+      "flujo": [
+        "Consultar ventas centrales propias, incluidas las sincronizadas desde caja.",
+        "Mostrar por defecto fecha central y también fecha física local; filtro explícito por cualquiera.",
+        "Separar pedidos pagados sin cumplir, ventas entregadas, devoluciones, saldo y reembolsos.",
+        "Permitir consultar detalle autorizado conservando dueño de HistorialComprasDTO en ventas_pagos."
+      ],
+      "salida": "ventas paginadas, totales desglosados, fechas, referencias y filtros efectivos.",
+      "alternativas": [
+        "Encargado no amplía sucursal modificando parámetros.",
+        "Venta local no sincronizada solo aparece en dispositivo autorizado y no se inventa en informe central."
+      ],
+      "aceptacion": [
+        "Sincronizar una venta antigua no altera su fecha física.",
+        "Una venta no aparece duplicada por reintento."
+      ]
+    },
+    {
+      "codigo": "CU26",
+      "nombre": "Expirar reservas automáticamente",
+      "paquete": "reservas_traslados",
+      "actores": "Sin actor humano iniciador para la tarea; la ejecución manual heredada exige ENCARGADO o ADMINISTRADOR",
+      "canales": "B tarea programada; clientes consultan",
+      "precondiciones": "Reserva aceptada centralmente, plazo cumplido y compromiso pendiente liberable.",
+      "entrada": "Hora del servidor y lote interno acotado; ejecución repetible por estado/recurso. `POST /reservas/expiracion/ejecutar` es la ruta administrativa manual heredada, no la API de un cliente offline.",
+      "flujo": [
+        "Seleccionar reservas vencidas con bloqueo y releer estado/adelanto/pago incierto.",
+        "Aplicar origen central o local original y duración 24/72 h; ignorar fecha de visita como origen.",
+        "Marcar vencida y liberar solo reservado restante una vez; registrar movimiento/auditoría y evento.",
+        "Ejecutar por lotes y permitir reintento tras caída."
+      ],
+      "salida": "conteo procesadas/omitidas/incidencias y reservas vencidas con movimientos trazables.",
+      "alternativas": [
+        "Reserva local no enviada no existe como apartado central: CU04 la rechaza al llegar tarde.",
+        "No liberar cupos de caja ni compromisos de pedido digital desde esta tarea."
+      ],
+      "aceptacion": [
+        "Dos workers no duplican liberación.",
+        "Carrera cancelación/pago/expiración preserva invariantes."
+      ]
+    },
+    {
+      "codigo": "CU27",
+      "nombre": "Gestionar reembolsos",
+      "paquete": "posventa",
+      "actores": "Cliente solicita/consulta; encargado o administrador autoriza; proceso automático por incumplimiento",
+      "canales": "B/W gestión online; W/M cliente consulta/solicita y recibe avisos",
+      "precondiciones": "Pago confirmado y obligación elegible; misma empresa; monto aún no devuelto ni convertido a saldo/reemplazo.",
+      "entrada": "origen PEDIDO_NO_CUMPLIBLE/DEVOLUCION/CAMBIO, recurso_id, unidades solicitadas cuando proceda, motivo, revision; Idempotency-Key. El servidor deriva pago_id, componentes capturados e importe elegible de la operación original; no acepta un monto arbitrario del cliente.",
+      "flujo": [
+        "Crear obligación financiera única por causa/unidades y reservar importe reembolsable bajo bloqueo. Motivo declarado, condición física inspeccionada, responsabilidad de tienda y resolución financiera son hechos distintos. No confundir solicitud con ejecución.",
+        "Incumplimiento total de pedido no entregado: devolver íntegramente todos los importes cobrados, incluido envío no prestado; restaurar saldo usado a su libro.",
+        "Devolución voluntaria elegible: 100 % del neto de las unidades aceptadas, sin retención fija del 50 %; envío original ya prestado no se devuelve salvo fallo de tienda.",
+        "Stripe: devolver por cargo/medio original en USD/centavos originales y conciliar webhook/consulta. Efectivo: registrar egreso y recepción/comprobante con personal autorizado.",
+        "Emitir comprobantes y avisar por bandeja/push. Política configurable aceptada del equipo: objetivo interno de iniciar reembolso dentro de 48 h tras aprobación; no prometer plazo bancario.",
+        "Si queda incierto o falla, conservar obligación y escalar para conciliación. No crear un segundo desembolso por timeout."
+      ],
+      "salida": "reembolso_id, estado SOLICITADO/AUTORIZADO/EN_PROCESO/EN_VERIFICACION/COMPLETADO/FALLIDO/RECHAZADO, importes BOB/USD, referencia, motivo, comprobantes.",
+      "alternativas": [
+        "No hay pago capturado: cancelar intención/retención y documentar, no inventar un reembolso.",
+        "Pago mixto: dinero al medio original y saldo restaurado; suma de reembolsos ejecutados+reservados no supera componente pagado.",
+        "Fallo de proveedor no salda deuda. Reclamo tardío por defecto/incumplimiento se evalúa autorizadamente antes de crear obligación; no hay rechazo por plazo ni reembolso automático."
+      ],
+      "aceptacion": [
+        "Dos solicitudes concurrentes no reembolsan dos veces.",
+        "Reembolso no repone stock por sí mismo: devolución física CU20 controla inventario."
+      ]
+    }
+  ]
+}

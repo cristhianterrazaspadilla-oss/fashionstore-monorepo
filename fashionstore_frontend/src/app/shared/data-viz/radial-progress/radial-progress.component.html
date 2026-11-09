@@ -1,0 +1,53 @@
+<div class="radial-container" [attr.data-color]="colorVariante">
+  <div class="radial-svg-wrap">
+    <svg
+      viewBox="0 0 100 100"
+      class="radial-svg"
+      role="img"
+      [attr.aria-label]="computedAriaLabel"
+    >
+      <title>{{ computedAriaLabel }}</title>
+      <!-- Círculo base de soporte -->
+      <circle
+        cx="50"
+        cy="50"
+        [attr.r]="radio"
+        class="radial-track"
+      />
+      <!-- Círculo de progreso métrico -->
+      <circle
+        cx="50"
+        cy="50"
+        [attr.r]="radio"
+        class="radial-fill"
+        [attr.stroke-dasharray]="circunferencia"
+        [attr.stroke-dashoffset]="strokeDashoffset"
+        transform="rotate(-90 50 50)"
+      />
+      <!-- Texto central del indicador -->
+      <text
+        x="50"
+        y="49"
+        class="radial-text-valor"
+        text-anchor="middle"
+        dominant-baseline="central"
+      >
+        {{ textoPrincipal }}
+      </text>
+      <text
+        x="50"
+        y="65"
+        class="radial-text-etiqueta"
+        text-anchor="middle"
+        dominant-baseline="central"
+      >
+        efectiva
+      </text>
+    </svg>
+  </div>
+
+  <div class="radial-meta">
+    <span class="radial-leyenda-titulo">{{ etiquetaLeyenda }}</span>
+    <span class="radial-leyenda-sub">{{ textoSubtitulo }}</span>
+  </div>
+</div>

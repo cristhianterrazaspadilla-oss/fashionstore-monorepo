@@ -1,0 +1,38 @@
+# Auditoría independiente de la entrega E2
+
+**Corte:** 04/11/2026. **Ramas:** `feature/sp2-e2-integral` en backend, frontend-web y app-movil. **Dictamen:** la implementación **no está completa ni lista para commits de entrega**. El checkpoint 17 es el reporte del implementador y queda como antecedente; este documento prevalece para aceptación técnica.
+
+## Evidencia que sí pasó
+
+- Backend: `tests_segundo_parcial_bloque_b` contra PostgreSQL local `fashionstore_test` en Alembic 0013: **170 passed, 6 warnings** (145.93 s). Las cuatro suites nuevas E2: **48 passed, 2 warnings**. No se tocó `fashionstore_db` durante estas pruebas.
+- Angular/PWA: `npm.cmd run build` y `npm.cmd test -- --watch=false --progress=false`: build correcto y **221/221** en ChromeHeadless.
+- Flutter: `flutter analyze --no-pub` sin problemas y `flutter test --no-pub --reporter expanded`: **205 passed**.
+- OpenAPI exportado y `app.openapi()` contienen **151 rutas**, con el mismo conjunto de paths. `git diff --check` terminó sin errores de whitespace en los tres repositorios.
+- La base principal local `fashionstore_db` sigue en Alembic 0013 y ya contiene tablas E2 como `pedidos_compra`, `ordenes_pago`, `obligaciones_reembolso`, `movimientos_saldo` y `modelos_ml` creadas por 0009. La ausencia de una nueva revisión Alembic no demuestra por sí sola falta de esquema; aún hace falta cotejar columnas, constraints y modelos definitivos.
+
+Estos resultados demuestran que el código arranca y que las aserciones existentes pasan. **No prueban los flujos contractuales ausentes**; varias pruebas afirman como correcto el comportamiento incompleto descrito abajo.
+
+## Bloqueos que impiden cerrar E2
+
+| Prioridad | CU | Evidencia en código | Consecuencia y corrección requerida |
+|---|---|---|---|
+| **P0** | CU05, CU21, CU22, CU27 | `sincronizacion_service.py` lee `simular_3ds` enviado por el cliente y, tras verificar sólo booleano/UUID/importe BOB, crea `PedidoCompra` con `estado_pago="PAGADO"` y compromete stock o crea reembolso. No llama a Stripe, no crea/consulta orden ni verifica captura/webhook en ese trayecto. `test_cu05_solicitar_compra_v3_con_stock_exito` sólo comprueba estados del pedido. | Una solicitud puede declararse pagada y generar obligación de reembolso **sin dinero capturado**. Integrar CU05 con orden CU22, método preparado del mismo cliente/empresa, consentimiento/huella/tasa/moneda/condiciones/vigencia, evidencia de captura y continuación durable; sólo entonces asignar stock y avisar éxito. Probar explícitamente que antes de webhook no existe `PAGADO`, ni asignación ni reembolso monetario. |
+| **P0** | CU05 | `OperacionDTO.version_esquema` es `Literal[1]` y PWA envía `version_esquema: 1` para `SOLICITAR_COMPRA`; Flutter reutiliza la operación v1. El esquema contractual `operacion.schema.json` distingue compras v1/v2/v3. | Un cliente v3 auténtico recibiría 422 y una compra v1 puede tomar el flujo nuevo. Implementar discriminación/versionado v1/v2/v3 con compatibilidad; pruebas de aceptación v3 y no conversión automática de operaciones antiguas. |
+| **P0** | CU19 | `venta_presencial_service.py` tiene `pass` en las ramas `SALDO` y `STRIPE_TEST`, y después descuenta stock y crea `Venta` con estado `PAGADA`. También usa `precio_unitario_bob` y `descuento_bob` enviados por el cliente al calcular el total. | Se puede entregar y descontar stock sin liquidación, o cobrar menos mediante precio/descuento arbitrarios. Calcular oferta en servidor; integrar CU09/CU22 y esperar liquidación verificable antes de entrega/Kardex. Probar rechazo de precio adulterado y medios no liquidados. |
+| **P0** | CU10, CU11 | `ml_service.py` fija métricas `mae=1.15`, `rmse=1.82`, `r2=0.89`, `silhouette_score=0.74` e `inercia=128.5`; reparte productos por índice módulo `k` y guarda URI/hash de artefactos que no escribe. | No hay regresor entrenado, K-Means, evaluación ni artefacto reproducible. Implementar pipeline real con dataset sintético versionado y etiquetado como tal, partición temporal/baseline para CU10, escalado/clustering/evaluación para CU11 y artefactos persistidos. Las métricas deben calcularse desde el dataset. |
+| **P1** | CU05, CU08, CU09, CU20, CU21, CU22, CU27 móviles | `PosventaScreen` sólo aparece en su propio archivo: no está enlazada desde `main.dart` ni `CuentaScreen`. Los métodos nuevos de `PagoService` y `encolarCompraOffline` no son llamados desde checkout/pago móvil. | Las pruebas de servicio/widget aislado pasan, pero el cliente no puede entrar al flujo E2 ni comprar offline desde la app. Conectar navegación y acciones reales, y probar recorrido desde una pantalla accesible tras reinicio. |
+| **P1** | CU10, CU11, CU23, CU24, CU25 web | El código `frontend-web/src/app/features/analitica` no tuvo cambios E2; dashboard e inteligencia siguen consumiendo servicios previos. No hay UI que invoque entrenamiento/consulta de modelos E2 ni exponga sus versiones. | No atribuir esos canales a E2 por vistas heredadas. Conectar rutas y DTO nuevos, filtros/fechas, métricas y exportación exigidas, con pruebas de interacción y responsive. |
+| **P1** | CU24 | `IAAnaliticaService.generarReporteInterpretado` clasifica con palabras clave; `self.proveedor` sólo se usa para escribir el nombre en auditoría, sin invocar Gemini. | El reporte tipado puede usar consultas seguras, pero no cumple interpretación generativa real cuando Gemini está configurado. Integrar proveedor real para interpretar a uno de cuatro tipos y validar salida; estado tipado si no está disponible. No registrar `GEMINI` como proveedor usado si no hubo llamada. |
+| **P1** | CU05 y avisos posventa | El procesamiento nuevo de compra y posventa no emite evento de resultado a un flujo de bandeja/push; el repo sólo conserva outbox usado por otros CU E1. | Falta el aviso push prometido tras compra exitosa y los estados recuperables. Implementar outbox de negocio, bandeja propia, registro/baja de dispositivo y entrega push idempotente; caída de push no revierte pago/pedido. Prueba real de FCM/Web Push queda aparte si faltan credenciales/dispositivo. |
+| **P2** | CU20, CU08 | Servicios usan `venta.entregada_en or venta.confirmada_en or venta.creada_en` como origen de 15 días y sólo `DEFECTO_FABRICACION` evita rechazo tardío. | El contrato cuenta desde entrega y manda evaluar también incumplimiento tardío, sin rechazo automático por ausencia de fecha de entrega. Ajustar elegibilidad/estado de evaluación y probar cada motivo. |
+
+## Por qué las suites no detectaron los bloqueos
+
+La prueba CU05 construye un método preparado directamente en PostgreSQL, envía `version_esquema: 1` y sólo afirma `PedidoCompra.estado_pago == "PAGADO"`; no comprueba `OrdenPago`, `Pago`, PaymentIntent ni webhook. Las pruebas CU19 cubren efectivo, pero no prueban saldo/Stripe ni precio adulterado. Las pruebas CU10/CU11 aceptan métricas y etiquetas aunque sean constantes; Flutter prueba servicios/pantallas aisladas sin verificar navegación. Por eso **596 pruebas aprobadas no equivalen a 13 CU terminados**.
+
+## Siguiente revisión
+
+1. Corregir primero **CU05/CU22/CU21/CU27 y CU19**: protegen dinero, inventario y avisos. Añadir pruebas de contraejemplo que fallen con el código actual.
+2. Conectar PWA y Flutter al protocolo v3 y a los flujos reales. Mantener pruebas de regresión del Stripe previo y de caja E1.
+3. Implementar ML/IA real y sus interfaces Angular; revisar CU20/CU08 y documentación de canales.
+4. Repetir suite completa y pruebas externas/manuales pertinentes. Revisar diff por grupo antes de cualquier commit; no marcar E2 aceptada ni afirmar cierre integral por el checkpoint 17.

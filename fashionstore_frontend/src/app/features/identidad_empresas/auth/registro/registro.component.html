@@ -1,0 +1,125 @@
+<div class="auth-split">
+  <div class="auth-editorial" aria-hidden="true">
+    <div class="tape"><span *ngFor="let i of [0,1,2,3,4,5,6,7,8,9,10,11]">{{i*10}}</span></div>
+    <div class="ed-img">
+      <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=900&auto=format&fit=crop&q=60" alt="" />
+      <div class="ed-overlay">
+        <p class="eyebrow">Membresía FashionStore</p>
+        <h2>Tu perchero<br>te espera.</h2>
+        <p>Probador virtual IA · Reservas 24–72h · Historial de compras.</p>
+        <div class="ed-dots"><span class="on"></span><span></span><span></span></div>
+      </div>
+    </div>
+    <div class="ed-quote">
+      <p>Registro directo como <b>CLIENTE</b> — sin roles manuales.</p>
+    </div>
+  </div>
+
+  <div class="auth-form-side">
+    <div class="auth-card">
+      <div class="auth-header">
+        <p class="eyebrow">Tu cuenta FashionStore</p>
+        <h2>Crear cuenta</h2>
+        <p>Unite para reservar y probar con IA.</p>
+      </div>
+
+      <div *ngIf="mensajeError" class="alert-box alert-danger" role="alert">{{ mensajeError }}</div>
+      <div *ngIf="mensajeExito" class="alert-box alert-success" role="status">{{ mensajeExito }}</div>
+
+      <form (ngSubmit)="registrarCliente()" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="nombres">Nombres *</label>
+            <input id="nombres" name="nombres" [(ngModel)]="datosRegistro.nombres" (input)="limpiarErrorCampo('nombres')" [class.has-error]="erroresCampos['nombres']" placeholder="Carlos" required />
+            <span *ngIf="erroresCampos['nombres']" class="field-error" role="alert">{{ erroresCampos['nombres'] }}</span>
+          </div>
+          <div class="form-group">
+            <label for="apellidos">Apellidos *</label>
+            <input id="apellidos" name="apellidos" [(ngModel)]="datosRegistro.apellidos" (input)="limpiarErrorCampo('apellidos')" [class.has-error]="erroresCampos['apellidos']" placeholder="Santistevan" required />
+            <span *ngIf="erroresCampos['apellidos']" class="field-error" role="alert">{{ erroresCampos['apellidos'] }}</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="regCorreo">Correo *</label>
+          <input type="email" id="regCorreo" name="regCorreo" [(ngModel)]="datosRegistro.correo_electronico" (input)="limpiarErrorCampo('correo')" [class.has-error]="erroresCampos['correo']" placeholder="carlos@correo.com" required />
+          <span *ngIf="erroresCampos['correo']" class="field-error" role="alert">{{ erroresCampos['correo'] }}</span>
+        </div>
+        <div class="form-group">
+          <label for="regClave">Contraseña *</label>
+          <input
+            type="password"
+            id="regClave"
+            name="regClave"
+            [(ngModel)]="datosRegistro.contrasenia"
+            (input)="alEscribirContrasenia()"
+            [class.has-error]="erroresCampos['contrasenia']"
+            placeholder="••••••••"
+            required
+          />
+
+          <!-- Indicador en tiempo real de qué falta mientras escribe -->
+          <div *ngIf="claveActual.length > 0" class="password-checklist" aria-live="polite">
+            <div class="checklist-header" [class.valid-all]="contraseniaValida">
+              <span *ngIf="!contraseniaValida">Falta: <strong>{{ obtenerRequisitosFaltantes().join(', ') }}</strong></span>
+              <span *ngIf="contraseniaValida" class="checklist-ok">✓ Contraseña válida y segura</span>
+            </div>
+            <div class="checklist-grid">
+              <span class="rule-chip" [class.chip-ok]="tieneLongitudMinima">
+                <span class="chip-icon">{{ tieneLongitudMinima ? '✓' : '•' }}</span> Mín. 6 caracteres
+              </span>
+              <span class="rule-chip" [class.chip-ok]="tieneMinuscula">
+                <span class="chip-icon">{{ tieneMinuscula ? '✓' : '•' }}</span> Minúscula
+              </span>
+              <span class="rule-chip" [class.chip-ok]="tieneMayuscula">
+                <span class="chip-icon">{{ tieneMayuscula ? '✓' : '•' }}</span> Mayúscula
+              </span>
+              <span class="rule-chip" [class.chip-ok]="tieneNumero">
+                <span class="chip-icon">{{ tieneNumero ? '✓' : '•' }}</span> Número
+              </span>
+            </div>
+          </div>
+
+          <span *ngIf="erroresCampos['contrasenia']" class="field-error" role="alert">{{ erroresCampos['contrasenia'] }}</span>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="telefono">Teléfono</label>
+            <input type="tel" id="telefono" name="telefono" [(ngModel)]="datosRegistro.telefono" placeholder="+591 70000000" />
+          </div>
+          <div class="form-group">
+            <label for="fechaNac">Nacimiento</label>
+            <input type="date" id="fechaNac" name="fechaNac" [(ngModel)]="datosRegistro.fecha_nacimiento" (input)="limpiarErrorCampo('fecha_nacimiento')" [class.has-error]="erroresCampos['fecha_nacimiento']" />
+            <span *ngIf="erroresCampos['fecha_nacimiento']" class="field-error" role="alert">{{ erroresCampos['fecha_nacimiento'] }}</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="direccion">Dirección de referencia</label>
+          <input id="direccion" name="direccion" [(ngModel)]="datosRegistro.direccion_referencia" placeholder="Av. San Martín 3er Anillo" />
+        </div>
+        <div class="form-group">
+          <label for="regEmpresa">Código de empresa *</label>
+          <input
+            id="regEmpresa"
+            name="regEmpresa"
+            [(ngModel)]="datosRegistro.empresa_codigo"
+            (input)="limpiarErrorCampo('empresa_codigo')"
+            [class.has-error]="erroresCampos['empresa_codigo']"
+            placeholder="ej. boutique_central"
+            required
+          />
+          <span *ngIf="erroresCampos['empresa_codigo']" class="field-error" role="alert">{{ erroresCampos['empresa_codigo'] }}</span>
+          <small class="field-help" style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; display: block;">
+            Ingresa el identificador de la boutique o empresa contratante en la que te registras.
+          </small>
+        </div>
+        <button type="submit" class="btn-primary" [disabled]="cargando"><span *ngIf="!cargando">Crear cuenta de cliente</span><span *ngIf="cargando">Procesando…</span></button>
+      </form>
+
+      <div class="auth-footer">
+        <span>¿Ya tenés cuenta?</span>
+        <a [routerLink]="['/auth/login']" [queryParams]="datosRegistro.empresa_codigo ? { empresa: datosRegistro.empresa_codigo } : {}" class="link-action">Iniciar sesión →</a>
+        <a routerLink="/" class="link-muted">← Explorar catálogo sin registro</a>
+      </div>
+    </div>
+  </div>
+</div>

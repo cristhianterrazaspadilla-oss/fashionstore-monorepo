@@ -1,0 +1,17 @@
+.pedido-card{cursor:pointer;transition:border-color .18s}
+.pedido-card:hover{border-color:var(--brass)}
+.recojo-code{font-size:.82rem;color:var(--brass-strong);margin-top:.5rem}
+.progreso-pedido{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+.progreso-step{display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;border-radius:var(--radius-pill);font-size:.75rem;font-weight:700;background:var(--primary-light);color:var(--text-muted)}
+.progreso-step.activo{background:var(--warning-bg);color:var(--warning)}
+.progreso-step.completado{background:var(--success-bg);color:var(--success)}
+.step-dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.status{display:inline-flex;padding:.35rem .65rem;border-radius:var(--radius-pill);font-size:.72rem;font-weight:800;text-transform:capitalize}
+.status-success{background:var(--success-bg);color:var(--success)}
+.status-danger{background:var(--danger-bg);color:var(--danger)}
+.status-warning{background:var(--warning-bg);color:var(--warning)}
+.status-neutral{background:var(--primary-light);color:var(--ink)}
+
+.btn-explorar{margin-top:1rem;display:inline-flex;text-decoration:none}
+.facts-spacing{margin-top:1rem}
+.detalle-meta{margin-top:.5rem}

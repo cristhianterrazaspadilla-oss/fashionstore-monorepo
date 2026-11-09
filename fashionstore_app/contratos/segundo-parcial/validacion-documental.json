@@ -1,0 +1,4859 @@
+{
+  "revision": "0.3.1",
+  "version_protocolo": "0.4.0",
+  "fecha": "2026-10-31",
+  "tipo": "validacion documental estatica ejecutada",
+  "comprobaciones": 1211,
+  "todas_correctas": true,
+  "archivos_compartidos_verificados": 59,
+  "pruebas_funcionales_ejecutadas": false,
+  "migraciones_ejecutadas": false,
+  "validacion_formal_jsonschema_2020_12_ejecutada": false,
+  "motivo_sin_validador_formal": "jsonschema/AJV no disponibles; no se instalaron dependencias; ejemplos y esquemas verificados estructuralmente.",
+  "checks": [
+    {
+      "verificacion": "revision/protocol",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend branch",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend diff check",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend scope",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend history",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend json api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend json catalogo-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend json ejemplos-contrato.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend json equivalencias-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend json interfaz.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend json operacion.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend json resultado.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend json validacion-documental.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend json version.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link CAMBIOS-0.2.0.md:alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link CAMBIOS-0.2.0.md:alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link CAMBIOS-0.2.1.md:CAMBIOS-0.2.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU01.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU02.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU03.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU04.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU05.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU06.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU07.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU08.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU09.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU10.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU11.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU12.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU13.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU14.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU15.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU16.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU17.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU18.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU19.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU20.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU21.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU22.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU23.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU24.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU25.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU26.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos-de-uso.md:casos/CU27.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link compartido.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link compartido.md:integracion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link compartido.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link compartido.md:funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link compartido.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link decisiones-0.3.1.md:decisiones-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link equivalencias-cu.md:equivalencias-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link equivalencias-cu.md:antecedentes/0.2.1/equivalencias-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link funciones-conservadas.md:antecedentes/0.2.1/funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link integracion.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link integracion.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link payloads.md:ejemplos-contrato.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link payloads.md:estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link PROMPT-AGENTE-E1.md:PROMPT-AUDITORIA-CODEX.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link PROMPT-AGENTE-E1.md:flujo-trabajo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:integracion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:interfaz.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:payloads.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:paquetes-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:trazabilidad-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:matriz-examen.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:flujo-trabajo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:guia-revision-manual.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:PROMPT-AUDITORIA-CODEX.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:backend.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:CAMBIOS-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link README.md:CAMBIOS-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link reglas-aprobadas.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link reglas-aprobadas.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link reglas-aprobadas.md:compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link reglas-aprobadas.md:estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link reglas-aprobadas.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link reglas-aprobadas.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU01.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU02.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU03.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU04.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU05.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU06.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU07.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU08.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU09.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU10.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU11.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU12.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU13.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU14.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU15.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU16.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU17.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU18.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU19.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU20.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU21.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU22.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU23.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU24.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU25.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU26.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:casos/CU27.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-funciones-conservadas.md:funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-funciones-conservadas.md:paquetes-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link trazabilidad-funciones-conservadas.md:matriz-examen.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU01.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU01.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU01.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU01.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU01.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU02.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU02.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU02.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU02.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU02.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU03.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU03.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU03.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU03.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU03.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU04.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU04.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU04.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU04.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU04.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU05.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU05.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU05.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU05.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU05.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU06.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU06.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU06.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU06.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU06.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU07.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU07.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU07.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU07.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU07.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU08.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU08.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU08.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU08.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU08.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU09.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU09.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU09.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU09.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU09.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU10.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU10.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU10.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU10.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU10.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU11.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU11.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU11.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU11.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU11.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU12.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU12.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU12.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU12.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU12.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU13.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU13.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU13.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU13.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU13.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU14.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU14.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU14.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU14.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU14.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU15.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU15.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU15.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU15.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU15.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU16.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU16.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU16.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU16.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU16.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU17.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU17.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU17.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU17.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU17.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU18.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU18.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU18.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU18.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU18.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU19.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU19.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU19.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU19.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU19.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU20.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU20.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU20.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU20.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU20.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU21.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU21.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU21.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU21.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU21.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU22.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU22.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU22.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU22.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU22.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU23.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU23.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU23.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU23.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU23.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU24.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU24.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU24.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU24.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU24.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU25.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU25.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU25.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU25.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU25.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU26.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU26.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU26.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU26.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU26.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU27.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU27.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU27.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU27.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend link casos\\CU27.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha CAMBIOS-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha CAMBIOS-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha PROMPT-AGENTE-E1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha PROMPT-AUDITORIA-CODEX.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU01.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU02.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU03.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU04.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU05.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU06.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU07.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU08.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU09.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU10.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU11.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU12.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU13.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU14.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU15.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU16.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU17.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU18.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU19.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU20.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU21.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU22.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU23.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU24.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU25.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU26.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha casos/CU27.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha catalogo-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha decisiones-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha ejemplos-contrato.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha equivalencias-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha equivalencias-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha flujo-trabajo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha fuentes-y-limites.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha guia-revision-manual.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha integracion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha interfaz.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha matriz-examen.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha operacion.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha paquetes-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha payloads.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha plan-migracion-db.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha primera-presentacion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha reglas-aprobadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha resultado.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha trazabilidad-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_backend sha trazabilidad-funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend branch",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend diff check",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend scope",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend history",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend json api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend json catalogo-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend json ejemplos-contrato.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend json equivalencias-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend json interfaz.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend json operacion.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend json resultado.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend json validacion-documental.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend json version.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link CAMBIOS-0.2.0.md:alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link CAMBIOS-0.2.0.md:alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link CAMBIOS-0.2.1.md:CAMBIOS-0.2.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU01.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU02.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU03.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU04.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU05.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU06.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU07.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU08.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU09.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU10.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU11.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU12.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU13.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU14.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU15.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU16.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU17.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU18.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU19.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU20.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU21.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU22.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU23.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU24.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU25.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU26.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos-de-uso.md:casos/CU27.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link compartido.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link compartido.md:integracion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link compartido.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link compartido.md:funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link compartido.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link decisiones-0.3.1.md:decisiones-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link equivalencias-cu.md:equivalencias-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link equivalencias-cu.md:antecedentes/0.2.1/equivalencias-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link funciones-conservadas.md:antecedentes/0.2.1/funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link integracion.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link integracion.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link payloads.md:ejemplos-contrato.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link payloads.md:estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link PROMPT-AGENTE-E1.md:PROMPT-AUDITORIA-CODEX.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link PROMPT-AGENTE-E1.md:flujo-trabajo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:integracion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:interfaz.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:payloads.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:paquetes-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:trazabilidad-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:matriz-examen.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:flujo-trabajo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:guia-revision-manual.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:PROMPT-AUDITORIA-CODEX.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:angular-pwa.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:CAMBIOS-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link README.md:CAMBIOS-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link reglas-aprobadas.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link reglas-aprobadas.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link reglas-aprobadas.md:compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link reglas-aprobadas.md:estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link reglas-aprobadas.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link reglas-aprobadas.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU01.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU02.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU03.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU04.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU05.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU06.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU07.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU08.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU09.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU10.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU11.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU12.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU13.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU14.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU15.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU16.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU17.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU18.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU19.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU20.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU21.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU22.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU23.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU24.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU25.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU26.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:casos/CU27.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-funciones-conservadas.md:funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-funciones-conservadas.md:paquetes-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link trazabilidad-funciones-conservadas.md:matriz-examen.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU01.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU01.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU01.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU01.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU01.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU02.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU02.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU02.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU02.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU02.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU03.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU03.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU03.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU03.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU03.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU04.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU04.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU04.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU04.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU04.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU05.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU05.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU05.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU05.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU05.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU06.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU06.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU06.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU06.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU06.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU07.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU07.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU07.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU07.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU07.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU08.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU08.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU08.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU08.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU08.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU09.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU09.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU09.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU09.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU09.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU10.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU10.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU10.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU10.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU10.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU11.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU11.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU11.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU11.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU11.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU12.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU12.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU12.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU12.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU12.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU13.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU13.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU13.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU13.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU13.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU14.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU14.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU14.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU14.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU14.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU15.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU15.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU15.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU15.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU15.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU16.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU16.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU16.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU16.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU16.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU17.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU17.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU17.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU17.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU17.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU18.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU18.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU18.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU18.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU18.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU19.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU19.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU19.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU19.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU19.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU20.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU20.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU20.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU20.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU20.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU21.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU21.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU21.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU21.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU21.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU22.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU22.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU22.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU22.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU22.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU23.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU23.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU23.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU23.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU23.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU24.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU24.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU24.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU24.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU24.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU25.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU25.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU25.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU25.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU25.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU26.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU26.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU26.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU26.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU26.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU27.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU27.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU27.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU27.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend link casos\\CU27.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha CAMBIOS-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha CAMBIOS-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha PROMPT-AGENTE-E1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha PROMPT-AUDITORIA-CODEX.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU01.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU02.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU03.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU04.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU05.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU06.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU07.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU08.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU09.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU10.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU11.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU12.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU13.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU14.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU15.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU16.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU17.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU18.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU19.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU20.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU21.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU22.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU23.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU24.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU25.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU26.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha casos/CU27.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha catalogo-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha decisiones-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha ejemplos-contrato.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha equivalencias-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha equivalencias-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha flujo-trabajo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha fuentes-y-limites.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha guia-revision-manual.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha integracion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha interfaz.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha matriz-examen.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha operacion.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha paquetes-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha payloads.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha plan-migracion-db.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha primera-presentacion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha reglas-aprobadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha resultado.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha trazabilidad-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_frontend sha trazabilidad-funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app branch",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app diff check",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app scope",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app history",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app json api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app json catalogo-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app json ejemplos-contrato.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app json equivalencias-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app json interfaz.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app json operacion.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app json resultado.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app json validacion-documental.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app json version.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link CAMBIOS-0.2.0.md:alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link CAMBIOS-0.2.0.md:alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link CAMBIOS-0.2.1.md:CAMBIOS-0.2.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU01.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU02.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU03.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU04.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU05.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU06.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU07.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU08.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU09.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU10.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU11.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU12.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU13.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU14.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU15.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU16.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU17.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU18.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU19.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU20.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU21.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU22.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU23.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU24.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU25.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU26.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos-de-uso.md:casos/CU27.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link compartido.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link compartido.md:integracion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link compartido.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link compartido.md:funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link compartido.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link decisiones-0.3.1.md:decisiones-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link equivalencias-cu.md:equivalencias-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link equivalencias-cu.md:antecedentes/0.2.1/equivalencias-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link funciones-conservadas.md:antecedentes/0.2.1/funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link integracion.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link integracion.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link payloads.md:ejemplos-contrato.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link payloads.md:estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link PROMPT-AGENTE-E1.md:PROMPT-AUDITORIA-CODEX.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link PROMPT-AGENTE-E1.md:flujo-trabajo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:integracion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:interfaz.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:payloads.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:paquetes-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:trazabilidad-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:matriz-examen.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:flujo-trabajo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:guia-revision-manual.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:PROMPT-AUDITORIA-CODEX.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:flutter.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:CAMBIOS-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link README.md:CAMBIOS-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link reglas-aprobadas.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link reglas-aprobadas.md:decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link reglas-aprobadas.md:compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link reglas-aprobadas.md:estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link reglas-aprobadas.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link reglas-aprobadas.md:casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU01.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU02.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU03.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU04.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU05.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU06.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU07.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU08.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU09.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU10.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU11.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU12.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU13.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU14.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU15.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU16.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU17.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU18.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU19.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU20.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU21.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU22.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU23.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU24.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU25.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU26.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:casos/CU27.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-cu.md:api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-funciones-conservadas.md:funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-funciones-conservadas.md:paquetes-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link trazabilidad-funciones-conservadas.md:matriz-examen.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU01.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU01.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU01.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU01.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU01.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU02.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU02.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU02.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU02.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU02.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU03.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU03.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU03.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU03.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU03.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU04.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU04.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU04.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU04.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU04.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU05.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU05.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU05.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU05.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU05.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU06.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU06.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU06.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU06.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU06.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU07.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU07.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU07.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU07.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU07.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU08.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU08.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU08.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU08.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU08.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU09.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU09.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU09.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU09.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU09.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU10.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU10.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU10.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU10.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU10.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU11.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU11.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU11.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU11.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU11.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU12.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU12.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU12.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU12.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU12.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU13.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU13.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU13.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU13.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU13.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU14.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU14.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU14.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU14.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU14.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU15.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU15.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU15.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU15.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU15.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU16.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU16.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU16.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU16.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU16.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU17.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU17.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU17.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU17.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU17.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU18.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU18.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU18.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU18.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU18.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU19.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU19.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU19.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU19.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU19.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU20.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU20.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU20.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU20.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU20.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU21.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU21.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU21.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU21.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU21.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU22.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU22.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU22.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU22.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU22.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU23.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU23.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU23.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU23.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU23.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU24.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU24.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU24.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU24.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU24.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU25.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU25.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU25.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU25.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU25.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU26.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU26.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU26.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU26.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU26.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU27.md:../compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU27.md:../api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU27.md:../modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU27.md:../estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app link casos\\CU27.md:../decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha CAMBIOS-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha CAMBIOS-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha PROMPT-AGENTE-E1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha PROMPT-AUDITORIA-CODEX.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha alineacion-codigo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha api-casos.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos-de-uso.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU01.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU02.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU03.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU04.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU05.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU06.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU07.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU08.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU09.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU10.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU11.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU12.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU13.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU14.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU15.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU16.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU17.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU18.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU19.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU20.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU21.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU22.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU23.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU24.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU25.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU26.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha casos/CU27.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha catalogo-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha compartido.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha decisiones-0.3.0.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha decisiones-0.3.1.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha ejemplos-contrato.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha equivalencias-cu.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha equivalencias-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha estados-y-transiciones.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha flujo-trabajo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha fuentes-y-limites.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha guia-revision-manual.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha integracion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha interfaz.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha matriz-examen.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha modelo-datos-completo.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha operacion.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha paquetes-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha payloads.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha plan-migracion-db.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha primera-presentacion.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha reglas-aprobadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha resultado.schema.json",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha trazabilidad-cu.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "fashionstore_app sha trazabilidad-funciones-conservadas.md",
+      "correcto": true
+    },
+    {
+      "verificacion": "shared count and manifest",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog 27",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU01",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU02",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU03",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU04",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU05",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU06",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU07",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU08",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU09",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU10",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU11",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU12",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU13",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU14",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU15",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU16",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU17",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU18",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU19",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU20",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU21",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU22",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU23",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU24",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU25",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU26",
+      "correcto": true
+    },
+    {
+      "verificacion": "catalog fiche CU27",
+      "correcto": true
+    },
+    {
+      "verificacion": "api and schemas",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU01 route POST /empresas",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU01 route GET /empresas/{empresa_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU02 route POST /empresas/{empresa_id}/suscripciones",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU02 route GET /empresas/mi-plan",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU03 route GET /catalogo/descarga",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU04 route POST /sincronizacion/referencias-horarias",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU04 route POST /sincronizacion/operaciones",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU04 route GET /sincronizacion/operaciones/{operacion_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU05 route POST /sincronizacion/operaciones",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU05 route GET /compras/{pedido_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU05 route POST /compras/{pedido_id}/aceptar-oferta",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU05 route POST /sincronizacion/operaciones/{operacion_id}/cancelar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU06 route POST /cajas/turnos",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU06 route GET /cajas/turnos/{turno_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU07 route POST /sincronizacion/operaciones",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU07 route POST /cajas/turnos/{turno_id}/cerrar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU07 route POST /cajas/turnos/{turno_id}/recuperar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU08 route POST /cambios",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU08 route GET /cambios/{cambio_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU08 route POST /cambios/{cambio_id}/aceptar-oferta",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU08 route POST /cambios/{cambio_id}/resolver-espera",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU08 route POST /cambios/{cambio_id}/confirmar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU08 route POST /cambios/{cambio_id}/entregas",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU09 route GET /saldos/mio",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU09 route POST /ventas/{venta_id}/aplicar-saldo",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU09 route POST /compras/{pedido_id}/aplicar-saldo",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU10 route GET /analitica/pronosticos",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU10 route POST /analitica/entrenamientos/supervisado",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU11 route GET /analitica/grupos-productos",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU11 route POST /analitica/entrenamientos/no-supervisado",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU12 route POST /plataforma/tasas-cambio",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU12 route GET /plataforma/tasas-cambio/vigente",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU13 route POST /clientes",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU13 route POST /sesion",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU14 route GET /usuarios",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU14 route POST /usuarios",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU14 route PATCH /usuarios/{usuario_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU15 route GET /ciudades",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU15 route POST /ciudades",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU15 route PATCH /ciudades/{ciudad_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU15 route GET /sucursales",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU15 route POST /sucursales",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU15 route PATCH /sucursales/{sucursal_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU16 route GET /catalogo/productos",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU16 route GET /catalogo/filtros-opciones",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU16 route GET /variantes/{variante_id}/disponibilidad",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU17 route GET /inventario/kardex",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU17 route GET /inventario/existencias",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU18 route POST /reservas",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU18 route GET /reservas",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU18 route GET /reservas/{reserva_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU18 route PATCH /reservas/{reserva_id}/cancelar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU19 route POST /ventas/presenciales",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU19 route GET /ventas/{venta_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU20 route POST /devoluciones/solicitudes",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU20 route POST /devoluciones",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU20 route POST /devoluciones/{devolucion_id}/inspecciones",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU20 route POST /mermas",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU21 route GET /carritos/mio",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU21 route POST /carritos/mio/lineas",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU21 route PATCH /carritos/mio/lineas/{linea_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU21 route DELETE /carritos/mio/lineas/{linea_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU21 route POST /carritos/mio/checkout",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU22 route POST /pagos/stripe/intenciones",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU22 route GET /pagos/stripe/estado/{recurso_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU22 route POST /pagos/stripe/webhook",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU22 route POST /pagos/stripe/metodos/preparar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU22 route GET /pagos/stripe/metodos/{preparacion_pago_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU22 route POST /pagos/stripe/ordenes/{orden_pago_id}/continuar-accion",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU23 route GET /analitica/dashboard",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU24 route POST /reportes/interpretar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU24 route POST /reportes/consultar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU24 route POST /reportes/exportar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU25 route GET /analitica/ventas-sucursal",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU26 route POST /reservas/expiracion/ejecutar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU27 route POST /reembolsos",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU27 route GET /reembolsos/{reembolso_id}",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU27 route POST /reembolsos/{reembolso_id}/autorizar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU27 route POST /reembolsos/{reembolso_id}/ejecutar",
+      "correcto": true
+    },
+    {
+      "verificacion": "CU27 route POST /reembolsos/{reembolso_id}/conciliar",
+      "correcto": true
+    },
+    {
+      "verificacion": "operation example 00000000-0000-4000-8000-000000000001",
+      "correcto": true
+    },
+    {
+      "verificacion": "operation example 00000000-0000-4000-8000-000000000007",
+      "correcto": true
+    },
+    {
+      "verificacion": "operation example 00000000-0000-4000-8000-000000000008",
+      "correcto": true
+    },
+    {
+      "verificacion": "operation example 00000000-0000-4000-8000-000000000011",
+      "correcto": true
+    },
+    {
+      "verificacion": "v3 fields",
+      "correcto": true
+    },
+    {
+      "verificacion": "v3 digest",
+      "correcto": true
+    },
+    {
+      "verificacion": "result example ACEPTADA/OK",
+      "correcto": true
+    },
+    {
+      "verificacion": "result example CONFLICTO/TIEMPO_INCOHERENTE",
+      "correcto": true
+    },
+    {
+      "verificacion": "result example REEMBOLSO_PENDIENTE/PEDIDO_NO_CUMPLIBLE",
+      "correcto": true
+    },
+    {
+      "verificacion": "result example REEMBOLSADO/REEMBOLSO_COMPLETADO",
+      "correcto": true
+    },
+    {
+      "verificacion": "result example PENDIENTE_INTERVENCION/METODO_NO_PREPARADO",
+      "correcto": true
+    },
+    {
+      "verificacion": "result example REQUIERE_NUEVA_ACEPTACION/OFERTA_CAMBIADA",
+      "correcto": true
+    },
+    {
+      "verificacion": "result example REQUIERE_ACCION_CLIENTE/ACCION_PROVEEDOR_REQUERIDA",
+      "correcto": true
+    },
+    {
+      "verificacion": "result example CANCELACION_EN_CONCILIACION/CANCELACION_EN_CURSO",
+      "correcto": true
+    }
+  ]
+}

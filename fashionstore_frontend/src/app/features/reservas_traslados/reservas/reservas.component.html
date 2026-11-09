@@ -1,0 +1,343 @@
+<section class="cycle-page">
+  <header class="cycle-hero">
+    <div>
+      <p class="cycle-kicker">Atención omnicanal · Reservas y traslados</p>
+      <h1>{{ esCliente ? 'Mis reservas' : 'Reservas de la tienda' }}</h1>
+      <p>{{ esCliente ? 'Separa tus prendas, revisa su traslado y organiza tu visita.' : 'Prepara cada pedido y acompaña al cliente hasta el vestidor.' }}</p>
+    </div>
+    <div class="hero-actions">
+      <button *ngIf="esCliente" type="button" class="cycle-primary" (click)="abrirModal('crear', undefined, $event)">
+        Nueva reserva
+      </button>
+      <button
+        *ngIf="reservasLocales.length > 0 && syncOfflineService.estaEnLinea"
+        type="button"
+        class="cycle-secondary"
+        (click)="sincronizarColaManual()"
+        [disabled]="sincronizando"
+      >
+        {{ sincronizando ? 'Sincronizando…' : 'Sincronizar pendientes' }}
+      </button>
+    </div>
+  </header>
+
+  <div *ngIf="error" class="cycle-alert danger" role="alert">{{ error }}</div>
+  <div *ngIf="exito" class="cycle-alert success" role="status">{{ exito }}</div>
+
+  <!-- Indicador de estado de conexión -->
+  <div class="cycle-status-strip" role="status">
+    <span class="status-indicator" [class.online]="syncOfflineService.estaEnLinea" [class.offline]="!syncOfflineService.estaEnLinea"></span>
+    <span *ngIf="syncOfflineService.estaEnLinea">Conectado al servidor central</span>
+    <span *ngIf="!syncOfflineService.estaEnLinea">Modo fuera de línea — Las nuevas reservas se guardarán localmente</span>
+  </div>
+
+  <!-- SECCIÓN DE RESERVAS EN COLA LOCAL / FUERA DE LÍNEA (reserva offline) -->
+  <section *ngIf="reservasLocales.length > 0" class="offline-queue-section card" aria-label="Reservas pendientes de sincronización">
+    <div class="queue-head">
+      <div>
+        <h2>Reservas registradas fuera de línea</h2>
+        <p class="queue-sub">
+          Solicitudes almacenadas en este dispositivo. Se envían de forma atómica y segura cuando hay conexión.
+        </p>
+      </div>
+      <button
+        type="button"
+        class="cycle-primary sm-btn"
+        (click)="sincronizarColaManual()"
+        [disabled]="sincronizando || !syncOfflineService.estaEnLinea"
+      >
+        {{ sincronizando ? 'Sincronizando…' : 'Sincronizar ahora' }}
+      </button>
+    </div>
+
+    <div class="queue-list">
+      <article *ngFor="let op of reservasLocales" class="queue-item">
+        <div class="queue-item-header">
+          <div>
+            <span class="queue-badge" [attr.data-envio]="op.estado_envio">
+              {{ op.estado_envio === 'PENDIENTE_ENVIO' ? 'Pendiente de envío' : (op.estado_envio === 'ENVIANDO' ? 'Enviando…' : (op.estado_envio === 'SINCRONIZADA' ? 'Sincronizada' : 'Con observaciones')) }}
+            </span>
+            <strong class="queue-store">{{ sucursal(op.datos.sucursal_id) }}</strong>
+          </div>
+          <span class="queue-time">{{ fechaFormateada(op.creada_local_en) }}</span>
+        </div>
+
+        <div class="queue-details">
+          <span>Visita estimada: {{ fechaFormateada(op.datos.visita_en) }}</span>
+          <span>Prendas solicitadas: {{ op.datos.lineas.length }} línea(s)</span>
+        </div>
+
+        <!-- Resultado durable devuelto por el servidor -->
+        <div *ngIf="op.resultado" class="queue-result" [class.accepted]="op.resultado.estado === 'ACEPTADA'" [class.rejected]="op.resultado.estado !== 'ACEPTADA'">
+          <strong>Resultado: {{ op.resultado.estado === 'ACEPTADA' ? 'Aceptada en tienda' : op.resultado.estado }}</strong>
+          <p>{{ op.resultado.detalle }}</p>
+          <small *ngIf="op.resultado.vence_en">Vencimiento confirmado: {{ fechaFormateada(op.resultado.vence_en) }}</small>
+        </div>
+
+        <div *ngIf="op.error_mensaje && !op.resultado" class="queue-error">
+          <small>{{ op.error_mensaje }}</small>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- BARRA DE FILTROS Y BÚSQUEDA -->
+  <div class="cycle-toolbar">
+    <label>
+      <span>Filtrar por estado</span>
+      <select [(ngModel)]="filtroEstado" (change)="cargar()">
+        <option value="">Todos los estados</option>
+        <option *ngFor="let e of estados" [value]="e">{{ etiqueta(e) }}</option>
+      </select>
+    </label>
+
+    <label *ngIf="!esCliente && usuario?.rol === 'ADMINISTRADOR'">
+      <span>Sucursal</span>
+      <select [(ngModel)]="destino" (change)="cargar()">
+        <option value="">Selecciona tienda</option>
+        <option *ngFor="let s of sucursales" [value]="s.id">{{ s.nombre }}</option>
+      </select>
+    </label>
+
+    <button type="button" class="cycle-secondary" (click)="cargar()">Actualizar</button>
+  </div>
+
+  <div *ngIf="cargando" class="cycle-state" role="status">Consultando reservas…</div>
+
+  <div *ngIf="!cargando && !reservas.length && reservasLocales.length === 0" class="cycle-state">
+    <h2>No hay reservas registradas</h2>
+    <p>{{ esCliente ? 'Cuando confirmes una reserva aparecerá aquí.' : 'Prueba otro estado o actualiza la cola.' }}</p>
+  </div>
+
+  <!-- LISTADO DE RESERVAS EN LÍNEA Y ACEPTADAS (gestion de reservas) -->
+  <div class="cycle-list" *ngIf="!cargando && reservas.length > 0">
+    <article class="cycle-card" *ngFor="let r of reservas">
+      <div class="cycle-card-head">
+        <div>
+          <span class="cycle-code">{{ r.codigo }}</span>
+          <h2>{{ sucursal(r.sucursal_destino_id) }}</h2>
+          <!-- Indicador de origen offline aceptado (reserva offline / gestion de reservas) -->
+          <span *ngIf="r.operacion_sincronizacion_id" class="badge-sync-origin">
+            Sincronizada desde fuera de línea
+          </span>
+        </div>
+        <span class="status" [attr.data-status]="r.estado">{{ etiqueta(r.estado) }}</span>
+      </div>
+
+      <!-- Métricas de plazo, vencimiento y revisión (gestion de reservas) -->
+      <dl class="cycle-facts">
+        <div>
+          <dt>Visita prevista</dt>
+          <dd>{{ r.fecha_visita ? fechaFormateada(r.fecha_visita) : 'Por coordinar' }}</dd>
+        </div>
+        <div>
+          <dt>Vencimiento (Bolivia)</dt>
+          <dd>{{ fechaFormateada(r.vence_en) }}</dd>
+        </div>
+        <div>
+          <dt>Origen del plazo</dt>
+          <dd>{{ fechaFormateada(r.origen_plazo_en || r.fecha_creacion) }}</dd>
+        </div>
+        <div>
+          <dt>Revisión</dt>
+          <dd>v{{ r.revision || 1 }}</dd>
+        </div>
+        <div>
+          <dt>Adelanto</dt>
+          <dd>{{ r.adelanto_monto ? ('Bs ' + r.adelanto_monto) : 'Sin adelanto' }}</dd>
+        </div>
+        <div>
+          <dt>Líneas de prendas</dt>
+          <dd>{{ r.detalles.length }}</dd>
+        </div>
+      </dl>
+
+      <!-- Desglose por línea con cantidades y estado de inventario (gestion de reservas) -->
+      <div class="lineas-desglose">
+        <strong class="lineas-tit">Detalle por prenda:</strong>
+        <ul class="line-list-full">
+          <li *ngFor="let d of r.detalles" class="line-item-row">
+            <div class="line-item-main">
+              <strong>{{ variante(d.variante_id) }}</strong>
+              <span class="line-status-pill">{{ etiqueta(d.estado_linea) }}</span>
+            </div>
+            <div class="line-item-quantities">
+              <span>Solicitada: <b>{{ d.cantidad_solicitada }}</b></span>
+              <span *ngIf="d.cantidad_reservada > 0">Reservada: <b>{{ d.cantidad_reservada }}</b></span>
+              <span *ngIf="d.cantidad_pendiente_traslado > 0" class="warn-qty">En traslado: <b>{{ d.cantidad_pendiente_traslado }}</b></span>
+              <span *ngIf="d.cantidad_vendida > 0" class="ok-qty">Vendida: <b>{{ d.cantidad_vendida }}</b></span>
+              <span *ngIf="d.cantidad_liberada > 0" class="muted-qty">Liberada: <b>{{ d.cantidad_liberada }}</b></span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Acciones de reserva -->
+      <div class="cycle-actions">
+        <button
+          *ngIf="puedePreparar && r.estado === 'PENDIENTE'"
+          type="button"
+          class="cycle-primary"
+          [disabled]="!!procesando"
+          (click)="transicionar(r, 'preparar')"
+        >
+          Preparar en vestidor
+        </button>
+
+        <button
+          *ngIf="puedePreparar && r.estado === 'PREPARADA'"
+          type="button"
+          class="cycle-primary"
+          [disabled]="!!procesando"
+          (click)="transicionar(r, 'atender')"
+        >
+          Iniciar atención
+        </button>
+
+        <button
+          *ngIf="esCliente && r.adelanto_monto == null && puedeCancelar(r)"
+          type="button"
+          class="cycle-secondary"
+          (click)="abrirAccion('adelanto', r, $event)"
+        >
+          Registrar adelanto
+        </button>
+
+        <button
+          *ngIf="puedeCancelar(r)"
+          type="button"
+          class="cycle-danger"
+          (click)="abrirAccion('cancelar', r, $event)"
+        >
+          Cancelar reserva
+        </button>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- MODALES ACCESIBLES -->
+<div class="cycle-overlay" *ngIf="modal" (click)="cerrarModal()" (keydown)="alManejarTabModal($event)">
+  <section
+    #modalDialog
+    class="cycle-dialog"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-labelledby]="modal + '-title'"
+    (click)="$event.stopPropagation()"
+  >
+    <button type="button" class="dialog-close" aria-label="Cerrar" (click)="cerrarModal()">×</button>
+
+    <!-- Modal Crear Reserva -->
+    <ng-container *ngIf="modal === 'crear'">
+      <h2 id="crear-title">{{ syncOfflineService.estaEnLinea ? 'Crear una reserva' : 'Registrar reserva fuera de línea' }}</h2>
+      <p>
+        {{ syncOfflineService.estaEnLinea
+          ? 'Elige una tienda y agrega las prendas que deseas reservar. Si no hay stock en destino, puedes solicitar traslado.'
+          : 'Estás en modo fuera de línea. La reserva se guardará de forma atómica en este dispositivo y se enviará al reconectar.' }}
+      </p>
+
+      <div class="cycle-form">
+        <label>
+          <span>Tienda de destino</span>
+          <select [(ngModel)]="destino">
+            <option value="">Selecciona una tienda</option>
+            <option *ngFor="let s of sucursales" [value]="s.id">{{ s.nombre }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Fecha y hora aproximada de visita</span>
+          <input
+            type="datetime-local"
+            [(ngModel)]="fechaVisita"
+            (change)="validarHorarioVisita()"
+            (input)="validarHorarioVisita()"
+          />
+          <span *ngIf="errorHorario" class="field-error" role="alert">{{ errorHorario }}</span>
+          <small class="cycle-hint">Horario de atención: 09:00 a 20:00 (hora de Bolivia). Vence 24 horas después.</small>
+        </label>
+
+        <label class="span-all">
+          <span>Observación (opcional)</span>
+          <textarea [(ngModel)]="observacion" rows="2" placeholder="Indicaciones para el personal de tienda"></textarea>
+        </label>
+      </div>
+
+      <div class="line-builder">
+        <select [(ngModel)]="nuevaVariante">
+          <option value="">Selecciona una variante</option>
+          <option *ngFor="let v of variantes" [value]="v.id">{{ v.sku }} · Bs {{ v.precio }}</option>
+        </select>
+        <input type="number" min="1" [(ngModel)]="nuevaCantidad" aria-label="Cantidad" />
+        <select *ngIf="syncOfflineService.estaEnLinea" [(ngModel)]="nuevoOrigen">
+          <option value="">Sin traslado</option>
+          <option *ngFor="let s of sucursales" [value]="s.id">Origen: {{ s.nombre }}</option>
+        </select>
+        <button type="button" class="cycle-secondary" (click)="agregarLinea()">Agregar prenda</button>
+      </div>
+
+      <ul class="line-list">
+        <li *ngFor="let l of lineas; index as i">
+          <span>
+            {{ variante(l.variante_id) }} · {{ l.cantidad }} ud.
+            <small *ngIf="l.sucursal_origen_id">desde {{ sucursal(l.sucursal_origen_id) }}</small>
+          </span>
+          <button type="button" (click)="quitarLinea(i)">Quitar</button>
+        </li>
+      </ul>
+
+      <div class="dialog-actions">
+        <button type="button" class="cycle-secondary" (click)="cerrarModal()">Volver</button>
+        <button
+          type="button"
+          class="cycle-primary"
+          [disabled]="!destino || !lineas.length || !!procesando || !!errorHorario"
+          (click)="crear()"
+        >
+          <span *ngIf="!procesando">{{ syncOfflineService.estaEnLinea ? 'Confirmar reserva' : 'Guardar fuera de línea' }}</span>
+          <span *ngIf="procesando">{{ syncOfflineService.estaEnLinea ? 'Confirmando…' : 'Guardando…' }}</span>
+        </button>
+      </div>
+    </ng-container>
+
+    <!-- Modal Cancelar Reserva (gestion de reservas) -->
+    <ng-container *ngIf="modal === 'cancelar'">
+      <h2 id="cancelar-title">Cancelar reserva {{ seleccionada?.codigo }}</h2>
+      <p>
+        Las unidades comprometidas se liberarán de forma inmediata y volverán al inventario disponible.
+        Si la reserva tiene un adelanto registrado, no es reembolsable.
+      </p>
+      <div class="dialog-actions">
+        <button type="button" class="cycle-secondary" (click)="cerrarModal()">Conservar reserva</button>
+        <button type="button" class="cycle-danger" [disabled]="!!procesando" (click)="confirmarCancelacion()">
+          {{ procesando ? 'Cancelando…' : 'Confirmar cancelación' }}
+        </button>
+      </div>
+    </ng-container>
+
+    <!-- Modal Registrar Adelanto -->
+    <ng-container *ngIf="modal === 'adelanto'">
+      <h2 id="adelanto-title">Registrar adelanto</h2>
+      <p>
+        El registro de adelanto extiende la vigencia de la reserva hasta 72 horas desde el origen del plazo.
+        El adelanto no es reembolsable si decides cancelar o la reserva vence.
+      </p>
+      <label>
+        <span>Método de pago</span>
+        <select [(ngModel)]="metodo">
+          <option value="EFECTIVO">Efectivo en tienda</option>
+          <option value="TARJETA_CAJA">Tarjeta en caja</option>
+          <option value="QR_CAJA">QR en caja</option>
+          <option value="TRANSFERENCIA">Transferencia bancaria</option>
+        </select>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="cycle-secondary" (click)="cerrarModal()">Volver</button>
+        <button type="button" class="cycle-primary" [disabled]="!!procesando" (click)="registrarAdelanto()">
+          {{ procesando ? 'Registrando…' : 'Confirmar adelanto' }}
+        </button>
+      </div>
+    </ng-container>
+  </section>
+</div>

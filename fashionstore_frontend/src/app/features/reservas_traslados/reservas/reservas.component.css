@@ -1,0 +1,305 @@
+:host {
+  display: block;
+}
+
+.hero-actions {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.cycle-status-strip {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .5rem .85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: .8rem;
+  color: var(--text-body);
+  margin-bottom: 1rem;
+}
+
+.status-indicator {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 9px;
+}
+.status-indicator.online {
+  background: var(--success, #16805d);
+  box-shadow: 0 0 0 2px rgba(22, 128, 93, .2);
+}
+.status-indicator.offline {
+  background: var(--warning, #a15c10);
+  box-shadow: 0 0 0 2px rgba(161, 92, 16, .2);
+}
+
+/* Sección de cola fuera de línea (reserva offline) */
+.offline-queue-section {
+  background: var(--canvas);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-card);
+  padding: 1.1rem;
+  margin-bottom: 1.25rem;
+}
+.queue-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: .85rem;
+  flex-wrap: wrap;
+}
+.queue-head h2 {
+  font-family: 'Fraunces', serif;
+  font-size: 1.2rem;
+  color: var(--ink);
+  margin: 0 0 .25rem;
+}
+.queue-sub {
+  font-size: .8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+.sm-btn {
+  padding: .45rem .85rem !important;
+  font-size: .78rem !important;
+  min-height: 38px !important;
+}
+
+.queue-list {
+  display: grid;
+  gap: .75rem;
+}
+.queue-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: .85rem;
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+.queue-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.queue-badge {
+  display: inline-block;
+  padding: .25rem .55rem;
+  border-radius: var(--radius-pill);
+  font-size: .7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-right: .5rem;
+}
+.queue-badge[data-envio='PENDIENTE_ENVIO'] {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
+}
+.queue-badge[data-envio='ENVIANDO'] {
+  background: var(--primary-light);
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+}
+.queue-badge[data-envio='SINCRONIZADA'] {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
+}
+.queue-badge[data-envio='ERROR'] {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+.queue-store {
+  font-size: .9rem;
+  color: var(--ink);
+}
+.queue-time {
+  font-size: .72rem;
+  color: var(--text-muted);
+}
+.queue-details {
+  display: flex;
+  gap: 1.25rem;
+  font-size: .78rem;
+  color: var(--text-body);
+  flex-wrap: wrap;
+}
+.queue-result {
+  background: var(--paper);
+  border-radius: var(--radius-sm);
+  padding: .6rem .8rem;
+  font-size: .78rem;
+  margin-top: .35rem;
+}
+.queue-result.accepted {
+  border-left: 3px solid var(--success);
+}
+.queue-result.rejected {
+  border-left: 3px solid var(--warning);
+}
+.queue-result strong {
+  display: block;
+  margin-bottom: .2rem;
+}
+.queue-result p {
+  margin: 0;
+  color: var(--text-body);
+}
+.queue-result small {
+  display: block;
+  margin-top: .2rem;
+  color: var(--text-muted);
+}
+.queue-error {
+  color: var(--danger);
+  font-size: .76rem;
+}
+
+/* Badge de sincronización offline en reserva central (gestion de reservas) */
+.badge-sync-origin {
+  display: inline-block;
+  background: var(--brass-soft);
+  color: var(--brass-strong);
+  border: 1px solid rgba(168, 135, 91, .3);
+  padding: .15rem .5rem;
+  border-radius: var(--radius-pill);
+  font-size: .65rem;
+  font-weight: 800;
+  margin-top: .25rem;
+}
+
+/* Desglose de líneas (gestion de reservas) */
+.lineas-desglose {
+  margin-top: .85rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--border);
+}
+.lineas-tit {
+  font-size: .76rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: .45rem;
+}
+.line-list-full {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: .5rem;
+}
+.line-item-row {
+  background: var(--paper);
+  border-radius: var(--radius-sm);
+  padding: .6rem .8rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+  font-size: .8rem;
+}
+.line-item-main {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.line-status-pill {
+  font-size: .68rem;
+  font-weight: 750;
+  padding: .15rem .45rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-body);
+  text-transform: capitalize;
+}
+.line-item-quantities {
+  display: flex;
+  gap: .75rem;
+  font-size: .75rem;
+  flex-wrap: wrap;
+}
+.warn-qty {
+  color: var(--warning);
+}
+.ok-qty {
+  color: var(--success);
+}
+.muted-qty {
+  color: var(--text-muted);
+}
+
+/* Line builder modal */
+.line-builder {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) 90px minmax(0, 1.5fr) auto;
+  gap: .6rem;
+  margin: 1rem 0;
+}
+.line-builder > * {
+  min-width: 0;
+}
+.line-list {
+  list-style: none;
+  padding: 0;
+  margin: .8rem 0;
+  display: grid;
+  gap: .4rem;
+}
+.line-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .65rem .75rem;
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  font-size: .82rem;
+}
+.line-list button {
+  border: 0;
+  background: transparent;
+  color: var(--danger);
+  font-weight: 700;
+  cursor: pointer;
+}
+.field-error {
+  color: var(--danger, #b91c1c);
+  font-size: .76rem;
+  margin-top: .25rem;
+  display: block;
+  font-weight: 600;
+}
+.cycle-hint {
+  font-size: .74rem;
+  color: var(--text-muted, #64748b);
+  margin-top: .25rem;
+  display: block;
+}
+
+@media (max-width: 700px) {
+  .line-builder {
+    grid-template-columns: 1fr;
+  }
+  .line-list li {
+    align-items: flex-start;
+  }
+  .line-item-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .line-item-quantities {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

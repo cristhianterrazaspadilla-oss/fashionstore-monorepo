@@ -1,0 +1,105 @@
+<div *ngIf="visible" class="modal-backdrop" (click)="cancelar()" aria-hidden="true"></div>
+
+<div
+  *ngIf="visible"
+  class="modal-wrapper"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="dialog-saldo-title"
+  (click)="cancelar()"
+>
+  <div #dialogBox class="dialog-box" (click)="$event.stopPropagation()">
+    <header class="dialog-header">
+      <div class="header-icon" aria-hidden="true">💳</div>
+      <div>
+        <h2 id="dialog-saldo-title" class="dialog-title">Aplicar saldo a favor</h2>
+        <p class="dialog-subtitle">Descuenta un importe de tu saldo acumulado para esta compra.</p>
+      </div>
+      <button type="button" class="btn-close" (click)="cancelar()" aria-label="Cerrar diálogo" [disabled]="cargando">&times;</button>
+    </header>
+
+    <div class="dialog-body">
+      <!-- Balance metrics cards -->
+      <div class="balance-summary-grid">
+        <div class="summary-item">
+          <span class="summary-label">Saldo disponible</span>
+          <strong class="summary-val">{{ bs(saldoDisponible) }}</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Total a pagar</span>
+          <strong class="summary-val">{{ bs(totalPorPagar) }}</strong>
+        </div>
+      </div>
+
+      <!-- Input de monto a aplicar -->
+      <div class="form-group">
+        <div class="label-row">
+          <label for="input-monto-saldo" class="input-label">Monto a aplicar (Bs):</label>
+          <div class="quick-buttons">
+            <button type="button" class="btn-quick" (click)="aplicarMitad()" [disabled]="cargando">50%</button>
+            <button type="button" class="btn-quick" (click)="aplicarMaximo()" [disabled]="cargando">Todo</button>
+          </div>
+        </div>
+
+        <div class="input-prefix-wrapper">
+          <span class="input-prefix" aria-hidden="true">Bs</span>
+          <input
+            #inputMonto
+            id="input-monto-saldo"
+            type="number"
+            step="0.01"
+            min="0.01"
+            [max]="saldoDisponible"
+            [(ngModel)]="montoAplicar"
+            (input)="validarMonto()"
+            class="input-control"
+            [class.input-error]="errorValidacion"
+            placeholder="0.00"
+            [disabled]="cargando"
+          />
+        </div>
+
+        <span *ngIf="errorValidacion" class="validation-message" role="alert">
+          {{ errorValidacion }}
+        </span>
+      </div>
+
+      <!-- Resumen dinámico -->
+      <div class="preview-box">
+        <div class="preview-row">
+          <span>Descuento por saldo:</span>
+          <strong class="preview-discount">-{{ bs(montoAplicar || 0) }}</strong>
+        </div>
+        <div class="preview-row">
+          <span>Restante a pagar por otro medio:</span>
+          <strong class="preview-highlight">{{ bs(restantePorPagar) }}</strong>
+        </div>
+        <div class="preview-row muted-row">
+          <span>Saldo que te quedará disponible:</span>
+          <span>{{ bs(saldoRemanente) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <footer class="dialog-footer">
+      <button
+        type="button"
+        class="btn-secondary"
+        (click)="cancelar()"
+        [disabled]="cargando"
+      >
+        Cancelar
+      </button>
+
+      <button
+        type="button"
+        class="btn-primary"
+        (click)="confirmar()"
+        [disabled]="cargando || !montoAplicar || !!errorValidacion"
+      >
+        <span *ngIf="cargando" class="spinner-sm" aria-hidden="true"></span>
+        <span>{{ cargando ? 'Aplicando...' : 'Confirmar aplicación' }}</span>
+      </button>
+    </footer>
+  </div>
+</div>

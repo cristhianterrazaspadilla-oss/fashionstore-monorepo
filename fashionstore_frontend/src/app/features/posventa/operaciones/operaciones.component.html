@@ -1,0 +1,539 @@
+<section class="cycle-page">
+  <header class="cycle-hero">
+    <div>
+      <p class="cycle-kicker">Control de tienda</p>
+      <h1>Operaciones</h1>
+      <p>Consulta ventas locales en hora de Bolivia, procesa devoluciones con verificación de entrega a 15 días, gestiona cambios de prendas y registra mermas con trazabilidad.</p>
+    </div>
+  </header>
+
+  <nav class="cycle-tabs" aria-label="Secciones de operaciones">
+    <button type="button" [class.active]="tab==='ventas'" (click)="tab='ventas'">Ventas por sucursal</button>
+    <button type="button" [class.active]="tab==='devolucion'" (click)="tab='devolucion'">Devolución e Inspección</button>
+    <button type="button" [class.active]="tab==='cambios'" (click)="tab='cambios'">Cambios de prenda</button>
+    <button type="button" [class.active]="tab==='merma'" (click)="tab='merma'">Merma</button>
+  </nav>
+
+  <div *ngIf="error" class="cycle-alert danger" role="alert">{{ error }}</div>
+  <div *ngIf="exito" class="cycle-alert success" role="status">{{ exito }}</div>
+
+  <!-- VENTAS POR SUCURSAL (CU25) -->
+  <ng-container *ngIf="tab==='ventas'">
+    <div class="cycle-toolbar">
+      <label>
+        <span>Sucursal</span>
+        <select [(ngModel)]="sucursal">
+          <option value="">Selecciona</option>
+          <option *ngFor="let s of sucursales" [value]="s.id">{{ s.nombre }}</option>
+        </select>
+      </label>
+      <label>
+        <span>Desde</span>
+        <input type="date" [(ngModel)]="desde">
+      </label>
+      <label>
+        <span>Hasta</span>
+        <input type="date" [(ngModel)]="hasta">
+      </label>
+      <button type="button" class="cycle-primary" (click)="cargarVentas()">Consultar</button>
+    </div>
+
+    <div *ngIf="cargando" class="cycle-state" role="status">Preparando resumen comercial…</div>
+
+    <!-- Desglose Comercial E2 (CU25) -->
+    <div class="metric-grid" *ngIf="reporte">
+      <article>
+        <span>Ventas totales</span>
+        <strong>{{ reporte.resumen.total_ventas }}</strong>
+      </article>
+      <article>
+        <span>Unidades</span>
+        <strong>{{ reporte.resumen.unidades }}</strong>
+      </article>
+      <article *ngIf="reporte.resumen.ventas_brutas !== undefined">
+        <span>Ventas brutas</span>
+        <strong>{{ bs(reporte.resumen.ventas_brutas) }}</strong>
+      </article>
+      <article *ngIf="reporte.resumen.total_descuentos !== undefined">
+        <span>Descuentos</span>
+        <strong class="text-muted">- {{ bs(reporte.resumen.total_descuentos) }}</strong>
+      </article>
+      <article>
+        <span>Neto comercial</span>
+        <strong class="text-brass">{{ bs(reporte.resumen.neto_comercial ?? reporte.resumen.monto_total) }}</strong>
+      </article>
+      <article>
+        <span>Ticket promedio</span>
+        <strong>{{ bs(reporte.resumen.ticket_promedio) }}</strong>
+      </article>
+    </div>
+
+    <div class="table-wrap" *ngIf="reporte">
+      <table class="cycle-table">
+        <thead>
+          <tr>
+            <th>Venta</th>
+            <th>Fecha central</th>
+            <th>Fecha local (Bolivia)</th>
+            <th>Unidades</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let v of reporte.items">
+            <td class="mono strong">{{ v.numero }}</td>
+            <td>{{ fechaHoraBO(v.fecha_central || v.creada_en) }}</td>
+            <td>{{ v.fecha_fisica_local ? fechaHoraBO(v.fecha_fisica_local) : fechaHoraBO(v.creada_en) }}</td>
+            <td>{{ v.unidades }}</td>
+            <td class="num strong">{{ bs(v.total) }}</td>
+            <td><span class="status">{{ v.estado.toLowerCase().replaceAll('_',' ') }}</span></td>
+            <td>
+              <button type="button" class="cycle-ghost small" (click)="irADevolucionDesdeVenta(v)">Devolver…</button>
+            </td>
+          </tr>
+          <tr *ngIf="reporte.items.length === 0">
+            <td colspan="7" class="empty">No se encontraron ventas para el período o sucursal seleccionados.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-container>
+
+  <!-- DEVOLUCION E INSPECCION (CU20) -->
+  <section class="cycle-card form-card" *ngIf="tab==='devolucion'">
+    <h2>Registrar devolución e inspección técnica</h2>
+    <p>Busca la venta por comprobante. El plazo voluntario cuenta 15 días desde la entrega real (<code>entregada_en</code>). Casos posteriores por defecto o incumplimiento pasan a evaluación autorizada sin rechazo automático.</p>
+
+    <!-- Búsqueda de Comprobante -->
+    <div class="search-box">
+      <label class="search-label">
+        <span>Buscar venta por número de comprobante o ID</span>
+        <div class="search-row">
+          <input
+            type="text"
+            [(ngModel)]="busquedaVenta"
+            placeholder="Ej. VNT-2026-0001 o ID..."
+            (keyup.enter)="buscarVentaParaDevolucion()"
+          >
+          <button
+            type="button"
+            class="cycle-primary"
+            (click)="buscarVentaParaDevolucion()"
+            [disabled]="buscandoVenta"
+          >
+            {{ buscandoVenta ? 'Buscando…' : 'Buscar venta' }}
+          </button>
+        </div>
+      </label>
+    </div>
+
+    <!-- Vista previa de la venta y verificación de 15 días -->
+    <div *ngIf="comprobanteDev" class="comprobante-preview">
+      <div class="preview-header">
+        <div><strong>Venta:</strong> {{ comprobanteDev.numero }}</div>
+        <div><strong>Fecha:</strong> {{ fechaHoraBO(comprobanteDev.creada_en) }}</div>
+        <div><strong>Total:</strong> {{ bs(comprobanteDev.total) }}</div>
+        <div><strong>Sucursal:</strong> {{ comprobanteDev.sucursal_nombre || comprobanteDev.sucursal_id }}</div>
+      </div>
+
+      <!-- Plazo voluntario de 15 días desde entrega -->
+      <div class="delivery-status-banner" [class.valid]="estaDentroPlazo15Dias(comprobanteDev)" [class.expired]="!estaDentroPlazo15Dias(comprobanteDev)">
+        <div *ngIf="comprobanteDev.entregada_en">
+          <span>Entrega confirmada: <strong>{{ fechaHoraBO(comprobanteDev.entregada_en) }}</strong> (hace {{ diasDesdeEntrega(comprobanteDev) }} días)</span>
+          <span *ngIf="estaDentroPlazo15Dias(comprobanteDev)" class="badge-status-inline text-success">
+            ✓ Dentro del plazo voluntario de 15 días
+          </span>
+          <span *ngIf="!estaDentroPlazo15Dias(comprobanteDev)" class="badge-status-inline text-warning">
+            ⚠ Plazo voluntario de 15 días vencido. Casos por defecto de fabricación pasan a PENDIENTE DE EVALUACIÓN sin rechazo automático.
+          </span>
+        </div>
+        <div *ngIf="!comprobanteDev.entregada_en">
+          <span>Venta sin entrega física registrada aún. Reclamos por defecto o producto incorrecto pasan a <strong>PENDIENTE DE EVALUACIÓN</strong>.</span>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="cycle-table small-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Prenda / SKU</th>
+              <th>Cant. vendida</th>
+              <th>Precio unit.</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let item of comprobanteDev.detalles; let i = index"
+              [class.row-selected]="detalleSeleccionado?.id === item.id"
+            >
+              <td>{{ i + 1 }}</td>
+              <td>{{ obtenerSkuVariante(item.variante_id) }}</td>
+              <td>{{ item.cantidad }}</td>
+              <td>{{ bs(item.precio_unitario) }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="cycle-ghost small"
+                  (click)="seleccionarLineaDevolucion(item)"
+                >
+                  {{ detalleSeleccionado?.id === item.id ? 'Seleccionada ✓' : 'Seleccionar' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Formulario de devolución -->
+    <div class="cycle-form dev-form">
+      <div *ngIf="detalleSeleccionado" class="selected-badge span-all">
+        Línea seleccionada: <strong>{{ obtenerSkuVariante(detalleSeleccionado.variante_id) }}</strong>
+        — Cantidad vendida: <strong>{{ detalleSeleccionado.cantidad }}</strong>
+      </div>
+
+      <label class="span-all">
+        <span>Identificador de línea de venta</span>
+        <input
+          type="text"
+          [(ngModel)]="detalleVenta"
+          placeholder="Selecciona una línea de arriba o ingresa el identificador"
+        >
+      </label>
+
+      <label>
+        <span>Cantidad a devolver</span>
+        <input
+          type="number"
+          min="1"
+          [max]="maxCantidadDev"
+          [(ngModel)]="cantidadDev"
+        >
+        <span *ngIf="detalleSeleccionado" class="field-hint">Máximo: {{ maxCantidadDev }} unidades</span>
+      </label>
+
+      <label>
+        <span>Motivo tipado</span>
+        <select [(ngModel)]="motivoCodigoDev">
+          <option *ngFor="let m of motivosCatalogo" [value]="m.codigo">{{ m.label }}</option>
+        </select>
+      </label>
+
+      <label class="span-all">
+        <span>Detalle explicativo del motivo</span>
+        <textarea
+          rows="2"
+          [(ngModel)]="motivo"
+          placeholder="Detalla las razones de la devolución o la falla observada..."
+        ></textarea>
+      </label>
+
+      <!-- Aviso explicativo si pasará a PENDIENTE_EVALUACION -->
+      <div *ngIf="esReclamoTardioDefecto(comprobanteDev, motivoCodigoDev)" class="span-all cycle-alert info" role="status">
+        ℹ <strong>Evaluación autorizada:</strong> Al ser un reclamo fuera del plazo voluntario de 15 días o por defecto/incumplimiento, se registrará con estado <strong>PENDIENTE DE EVALUACIÓN</strong> para revisión técnica sin rechazo automático.
+      </div>
+
+      <!-- Panel de Inspección Técnica (CU20) -->
+      <div class="span-all inspection-panel">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="realizarInspeccion">
+          <strong class="checkbox-title">Realizar inspección técnica formal de la prenda</strong>
+        </label>
+
+        <div *ngIf="realizarInspeccion" class="inspection-fields">
+          <label>
+            <span>Condición física inspeccionada</span>
+            <select [(ngModel)]="condicionFisica">
+              <option value="EXCELENTE_SIN_USO">Sin uso, con etiquetas originales</option>
+              <option value="BUEN_ESTADO">Buen estado general</option>
+              <option value="DEFECTO_FABRICA">Falla o defecto de confección evidente</option>
+              <option value="DETERIORO_USO">Deterioro por uso indebido</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Dictamen técnico</span>
+            <select [(ngModel)]="dictamenInspeccion">
+              <option value="APROBADA_REPOSICION">Aprobada para reposición de prenda</option>
+              <option value="APROBADA_REEMBOLSO">Aprobada para reembolso económico</option>
+              <option value="RECHAZADA">Rechazada (no cumple políticas)</option>
+            </select>
+          </label>
+
+          <label class="checkbox-label span-all">
+            <input type="checkbox" [(ngModel)]="responsabilidadTienda">
+            <span>Responsabilidad imputable a la tienda</span>
+          </label>
+
+          <label class="span-all">
+            <span>Observaciones técnicas del peritaje</span>
+            <input
+              type="text"
+              [(ngModel)]="observacionesInspeccion"
+              placeholder="Detalles sobre estado de costuras, tela, accesorios..."
+            >
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      class="cycle-primary"
+      [disabled]="!detalleVenta || cantidadDev < 1 || procesando"
+      (click)="devolver()"
+    >
+      {{ procesando ? 'Registrando devolución…' : 'Confirmar devolución' }}
+    </button>
+  </section>
+
+  <!-- CAMBIOS DE PRENDA (CU08) -->
+  <section class="cycle-card form-card" *ngIf="tab==='cambios'">
+    <h2>Gestión de cambios de prendas</h2>
+    <p>Procesa solicitudes dentro de los 15 días desde la entrega real (<code>entregada_en</code>). Casos por defecto o producto incorrecto pasan a <code>PENDIENTE_EVALUACION</code>. Liquidación de diferencia a favor del cliente es exclusivamente <strong>SALDO</strong> o <strong>REEMBOLSO</strong>.</p>
+
+    <!-- Búsqueda de venta previa -->
+    <div class="search-box">
+      <label class="search-label">
+        <span>Buscar venta por número de comprobante o ID</span>
+        <div class="search-row">
+          <input
+            type="text"
+            [(ngModel)]="busquedaVentaCambio"
+            placeholder="Ej. VNT-2026-0001..."
+            (keyup.enter)="buscarVentaParaCambio()"
+          >
+          <button
+            type="button"
+            class="cycle-primary"
+            (click)="buscarVentaParaCambio()"
+            [disabled]="buscandoVentaCambio"
+          >
+            {{ buscandoVentaCambio ? 'Buscando…' : 'Buscar venta' }}
+          </button>
+        </div>
+      </label>
+    </div>
+
+    <div *ngIf="comprobanteCambio" class="cambio-workflow">
+      <!-- Verificación de entrega 15 días -->
+      <div class="delivery-status-banner" [class.valid]="estaDentroPlazo15Dias(comprobanteCambio)" [class.expired]="!estaDentroPlazo15Dias(comprobanteCambio)">
+        <div *ngIf="comprobanteCambio.entregada_en">
+          <span>Entrega confirmada: <strong>{{ fechaHoraBO(comprobanteCambio.entregada_en) }}</strong> (hace {{ diasDesdeEntrega(comprobanteCambio) }} días)</span>
+          <span *ngIf="estaDentroPlazo15Dias(comprobanteCambio)" class="badge-status-inline text-success">
+            ✓ Dentro del plazo voluntario de 15 días
+          </span>
+          <span *ngIf="!estaDentroPlazo15Dias(comprobanteCambio)" class="badge-status-inline text-warning">
+            ⚠ Plazo voluntario vencido. Casos por defecto o entrega incorrecta se evaluarán sin rechazo automático.
+          </span>
+        </div>
+        <div *ngIf="!comprobanteCambio.entregada_en">
+          <span>Venta sin entrega confirmada aún. Reclamos por defecto o incumplimiento pasan a PENDIENTE DE EVALUACIÓN.</span>
+        </div>
+      </div>
+
+      <!-- Selector de motivo -->
+      <div class="cambio-motivo-box">
+        <label>
+          <span>Motivo del cambio:</span>
+          <select [(ngModel)]="motivoCodigoCambio">
+            <option *ngFor="let m of motivosCatalogo" [value]="m.codigo">{{ m.label }}</option>
+          </select>
+        </label>
+        <div *ngIf="esReclamoTardioDefecto(comprobanteCambio, motivoCodigoCambio)" class="cycle-alert info" role="status">
+          ℹ Reclamo tardío por defecto de confección o incumplimiento: se creará en <strong>PENDIENTE DE EVALUACIÓN</strong> sin rechazo automático.
+        </div>
+      </div>
+
+      <!-- 1. Prendas a devolver -->
+      <div class="cambio-section">
+        <h3>1. Prendas originales a entregar para el cambio</h3>
+        <p class="section-desc">Selecciona las prendas vendidas que el cliente devolverá:</p>
+        <div class="table-wrap">
+          <table class="cycle-table small-table">
+            <thead>
+              <tr>
+                <th>Prenda / SKU</th>
+                <th>Cant. disponible</th>
+                <th>Precio</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let det of comprobanteCambio.detalles">
+                <td>{{ obtenerSkuVariante(det.variante_id) }}</td>
+                <td>{{ det.cantidad }}</td>
+                <td>{{ bs(det.precio_unitario) }}</td>
+                <td>
+                  <button type="button" class="cycle-ghost small" (click)="agregarLineaOriginalCambio(det)">
+                    + Agregar al cambio
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div *ngIf="lineasOriginalesCambio.length > 0" class="items-selected-list">
+          <span class="list-title">Prendas a devolver seleccionadas:</span>
+          <ul>
+            <li *ngFor="let l of lineasOriginalesCambio; let idx = index">
+              <span>{{ obtenerSkuVariante(l.variante_id) }} (×{{ l.cantidad }}) — {{ bs(l.cantidad * l.precio_unitario_bob) }}</span>
+              <button type="button" class="btn-remove-item" (click)="quitarLineaOriginalCambio(idx)" aria-label="Quitar">&times;</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2. Prendas de reemplazo -->
+      <div class="cambio-section">
+        <h3>2. Nuevas prendas de reemplazo</h3>
+        <p class="section-desc">Selecciona las prendas del catálogo que se llevará el cliente:</p>
+        <div class="reemplazo-row">
+          <select [(ngModel)]="varianteReemplazo" class="select-variante">
+            <option value="">Selecciona prenda del catálogo</option>
+            <option *ngFor="let v of variantes" [value]="v.id">
+              {{ v.sku }} — Bs {{ v.precio }}
+            </option>
+          </select>
+          <input type="number" min="1" [(ngModel)]="cantidadReemplazo" class="input-qty" aria-label="Cantidad">
+          <button type="button" class="cycle-primary small" (click)="agregarReemplazoCambio()">
+            Agregar reemplazo
+          </button>
+        </div>
+
+        <div *ngIf="reemplazosCambio.length > 0" class="items-selected-list">
+          <span class="list-title">Nuevas prendas elegidas:</span>
+          <ul>
+            <li *ngFor="let r of reemplazosCambio; let idx = index">
+              <span>{{ obtenerSkuVariante(r.variante_id) }} (×{{ r.cantidad }}) — {{ bs(r.cantidad * r.precio_unitario_bob) }}</span>
+              <button type="button" class="btn-remove-item" (click)="quitarReemplazoCambio(idx)" aria-label="Quitar">&times;</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 3. Balance financiero de la diferencia -->
+      <div class="difference-card">
+        <div class="difference-row">
+          <span>Valor total prendas entregadas:</span>
+          <strong>{{ bs(calcularTotalOriginalCambio()) }}</strong>
+        </div>
+        <div class="difference-row">
+          <span>Valor total prendas de reemplazo:</span>
+          <strong>{{ bs(calcularTotalReemplazoCambio()) }}</strong>
+        </div>
+        <div class="difference-row highlight-difference">
+          <span>Diferencia financiera:</span>
+          <strong [class.text-danger]="calcularDiferenciaCambio() > 0" [class.text-success]="calcularDiferenciaCambio() < 0">
+            {{ calcularDiferenciaCambio() > 0 ? 'Cliente abona: ' + bs(calcularDiferenciaCambio()) : (calcularDiferenciaCambio() < 0 ? 'A favor del cliente: ' + bs(Math.abs(calcularDiferenciaCambio())) : 'Sin diferencia (0.00)') }}
+          </strong>
+        </div>
+      </div>
+
+      <!-- Botón de solicitud de cambio -->
+      <div *ngIf="!cambioRegistrado" class="action-wrap">
+        <button
+          type="button"
+          class="cycle-primary"
+          [disabled]="!lineasOriginalesCambio.length || !reemplazosCambio.length || procesando"
+          (click)="solicitarCambio()"
+        >
+          {{ procesando ? 'Registrando cambio…' : 'Solicitar cambio de prendas' }}
+        </button>
+      </div>
+
+      <!-- 4. Resolución de diferencia financiera -->
+      <div *ngIf="cambioRegistrado" class="resolution-panel">
+        <h4>Resolución de la diferencia financiera</h4>
+        <p>Nota de cambio: <strong>{{ cambioRegistrado.nota_codigo }}</strong> — Estado actual: <span class="status">{{ cambioRegistrado.estado }}</span></p>
+
+        <!-- Bloqueo si está en PENDIENTE_EVALUACION -->
+        <div *ngIf="cambioRegistrado.estado === 'PENDIENTE_EVALUACION'" class="cycle-alert warning" role="alert">
+          <strong>Solicitud en evaluación:</strong> Este cambio se encuentra en estado <em>PENDIENTE DE EVALUACIÓN</em>. Requiere dictamen autorizado antes de resolver la diferencia financiera.
+        </div>
+
+        <div *ngIf="cambioRegistrado.estado !== 'PENDIENTE_EVALUACION'">
+          <!-- Si la diferencia es a favor del cliente: SALDO o REEMBOLSO EXCLUSIVO -->
+          <div *ngIf="calcularDiferenciaCambio() < 0" class="resolution-options">
+            <p>El cliente tiene diferencia a favor de <strong>{{ bs(Math.abs(calcularDiferenciaCambio())) }}</strong>. Elige la resolución financiera exclusiva:</p>
+            <div class="radio-row">
+              <label>
+                <input type="radio" [(ngModel)]="destinoDiferencia" value="SALDO">
+                Acreditar a saldo a favor del cliente
+              </label>
+              <label>
+                <input type="radio" [(ngModel)]="destinoDiferencia" value="REEMBOLSO">
+                Emitir orden de reembolso monetario
+              </label>
+            </div>
+            <p class="field-hint">Resolución exclusiva: no se permite combinar saldo y reembolso por el mismo importe.</p>
+          </div>
+
+          <div *ngIf="calcularDiferenciaCambio() > 0" class="resolution-options">
+            <p>El cliente debe abonar <strong>{{ bs(calcularDiferenciaCambio()) }}</strong> en caja.</p>
+            <label>
+              <input type="radio" [(ngModel)]="destinoDiferencia" value="PAGO_CLIENTE">
+              Cobro en caja (efectivo / tarjeta)
+            </label>
+          </div>
+
+          <div *ngIf="calcularDiferenciaCambio() === 0" class="resolution-options">
+            <p>Cambio equivalente sin balance pendiente.</p>
+          </div>
+
+          <button
+            type="button"
+            class="cycle-primary"
+            (click)="resolverDiferencia()"
+            [disabled]="procesando"
+          >
+            {{ procesando ? 'Resolviendo…' : 'Finalizar y resolver diferencia' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MERMA -->
+  <section class="cycle-card form-card" *ngIf="tab==='merma'">
+    <h2>Registrar merma</h2>
+    <p>Retira unidades dañadas o perdidas e indica una causa verificable para el registro en Kardex.</p>
+    <div class="cycle-form">
+      <label>
+        <span>Sucursal</span>
+        <select [(ngModel)]="sucursal">
+          <option value="">Selecciona</option>
+          <option *ngFor="let s of sucursales" [value]="s.id">{{ s.nombre }}</option>
+        </select>
+      </label>
+      <label>
+        <span>Variante</span>
+        <select [(ngModel)]="variante">
+          <option value="">Selecciona</option>
+          <option *ngFor="let v of variantes" [value]="v.id">{{ v.sku }}</option>
+        </select>
+      </label>
+      <label>
+        <span>Cantidad</span>
+        <input type="number" min="1" [(ngModel)]="cantidadMerma">
+      </label>
+      <label class="span-all">
+        <span>Causa</span>
+        <textarea rows="3" [(ngModel)]="causa" placeholder="Explique la causa de la merma..." required></textarea>
+      </label>
+    </div>
+    <button
+      type="button"
+      class="cycle-danger"
+      [disabled]="!variante || !sucursal || !causa.trim() || procesando"
+      (click)="mermar()"
+    >
+      {{ procesando ? 'Registrando…' : 'Confirmar merma' }}
+    </button>
+  </section>
+</section>

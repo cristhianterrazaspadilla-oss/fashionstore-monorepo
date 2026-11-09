@@ -1,0 +1,48 @@
+/* FashionStore design system — boutique urbana */
+:root {
+  --ink: #17202a;
+  --ink-soft: #273440;
+  --paper: #f7f5f2;
+  --canvas: #fbfaf8;
+  --surface: #ffffff;
+  --brass: #a8875b;
+  --brass-strong: #80633f;
+  --brass-soft: #f1e9dd;
+  --primary: var(--ink);
+  --primary-hover: #2c3945;
+  --primary-light: #edf0f2;
+  --accent: var(--brass);
+  --accent-light: var(--brass-soft);
+  --bg-gradient: linear-gradient(180deg, var(--canvas) 0%, var(--paper) 100%);
+  --card-bg: var(--surface);
+  --card-glass: rgba(255, 255, 255, .94);
+  --text-main: var(--ink);
+  --text-body: #344054;
+  --text-muted: #667085;
+  --border: #e4e1dc;
+  --border-strong: #cec8bf;
+  --success: #16805d;
+  --success-bg: #edf8f3;
+  --success-border: #a9ddc8;
+  --warning: #a15c10;
+  --warning-bg: #fff8e8;
+  --warning-border: #efd494;
+  --danger: #c43d4b;
+  --danger-bg: #fff1f2;
+  --danger-border: #f2b8bf;
+  --radius-sm: 8px;
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(23, 32, 42, .04), 0 12px 32px rgba(23, 32, 42, .055);
+  --shadow-float: 0 24px 64px rgba(23, 32, 42, .18);
+  --shadow-btn: none;
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --content-wide: 1280px;
+  --content-admin: 1200px;
+}

@@ -1,0 +1,41 @@
+from backend.app.core.modules.experiencia_cliente.models import (
+    HistorialNavegacion,
+    SolicitudIA,
+)
+from backend.app.core.modules.experiencia_cliente.schemas import (
+    CONSENTIMIENTO_VIGENTE,
+    PruebaVirtualDTO,
+    AutorizacionCrearDTO,
+    AutorizacionDTO,
+    NavegacionCrearDTO,
+    RecomendacionPedirDTO,
+    RecomendacionItemDTO,
+    RecomendacionRespuestaDTO,
+    BusquedaVozDTO,
+    BusquedaRespuestaDTO,
+    ReportePedirDTO,
+    ReporteRespuestaDTO,
+    DecisionPedirDTO,
+    DecisionItemDTO,
+    DecisionRespuestaDTO,
+)
+
+__all__ = [
+    "HistorialNavegacion",
+    "SolicitudIA",
+    "CONSENTIMIENTO_VIGENTE",
+    "PruebaVirtualDTO",
+    "AutorizacionCrearDTO",
+    "AutorizacionDTO",
+    "NavegacionCrearDTO",
+    "RecomendacionPedirDTO",
+    "RecomendacionItemDTO",
+    "RecomendacionRespuestaDTO",
+    "BusquedaVozDTO",
+    "BusquedaRespuestaDTO",
+    "ReportePedirDTO",
+    "ReporteRespuestaDTO",
+    "DecisionPedirDTO",
+    "DecisionItemDTO",
+    "DecisionRespuestaDTO",
+]

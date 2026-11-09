@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fashionstore.local/contratos/segundo-parcial/0.2.0/operacion.schema.json",
+  "title": "Operación de sincronización FashionStore",
+  "type": "object",
+  "required": [
+    "version_esquema",
+    "operacion_id",
+    "tipo",
+    "creada_local_en",
+    "empresa_id",
+    "usuario_id",
+    "dispositivo_id",
+    "secuencia_local",
+    "datos"
+  ],
+  "properties": {
+    "version_esquema": {
+      "const": 1
+    },
+    "operacion_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "tipo": {
+      "enum": [
+        "SOLICITAR_RESERVA",
+        "SOLICITAR_COMPRA",
+        "REGISTRAR_VENTA_CAJA"
+      ]
+    },
+    "creada_local_en": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "empresa_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "usuario_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "dispositivo_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "secuencia_local": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "referencia_horaria_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "datos": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "tipo": {
+            "const": "SOLICITAR_RESERVA"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "datos": {
+            "$ref": "#/$defs/reserva"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tipo": {
+            "const": "SOLICITAR_COMPRA"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "datos": {
+            "$ref": "#/$defs/compra"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tipo": {
+            "const": "REGISTRAR_VENTA_CAJA"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "datos": {
+            "$ref": "#/$defs/venta_caja"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "linea": {
+      "type": "object",
+      "required": [
+        "variante_id",
+        "cantidad"
+      ],
+      "properties": {
+        "variante_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "cantidad": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "reserva": {
+      "type": "object",
+      "required": [
+        "sucursal_id",
+        "visita_en",
+        "lineas"
+      ],
+      "properties": {
+        "sucursal_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "visita_en": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lineas": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/linea"
+          }
+        }
+      }
+    },
+    "compra": {
+      "type": "object",
+      "required": [
+        "sucursal_id",
+        "lineas"
+      ],
+      "properties": {
+        "sucursal_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lineas": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/linea"
+              }
+            ],
+            "type": "object",
+            "required": [
+              "precio_visto_bob"
+            ],
+            "properties": {
+              "precio_visto_bob": {
+                "$ref": "#/$defs/importe"
+              }
+            }
+          }
+        }
+      }
+    },
+    "venta_caja": {
+      "type": "object",
+      "required": [
+        "turno_id",
+        "habilitacion_id",
+        "version_precios",
+        "vendida_local_en",
+        "lineas",
+        "total_bob",
+        "efectivo_recibido_bob",
+        "entregada_local_en"
+      ],
+      "properties": {
+        "turno_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "habilitacion_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "version_precios": {
+          "type": "string",
+          "minLength": 1
+        },
+        "vendida_local_en": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "entregada_local_en": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "total_bob": {
+          "$ref": "#/$defs/importe"
+        },
+        "efectivo_recibido_bob": {
+          "$ref": "#/$defs/importe"
+        },
+        "cambio_entregado_bob": {
+          "$ref": "#/$defs/importe"
+        },
+        "lineas": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/linea"
+              }
+            ],
+            "type": "object",
+            "required": [
+              "precio_autorizado_bob"
+            ],
+            "properties": {
+              "precio_autorizado_bob": {
+                "$ref": "#/$defs/importe"
+              }
+            }
+          }
+        }
+      }
+    },
+    "importe": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+    }
+  }
+}

@@ -1,0 +1,51 @@
+<div
+  *ngIf="abierto"
+  class="dialog-backdrop"
+  (click)="onBackdropClick($event)"
+  aria-hidden="false"
+>
+  <div
+    #dialogContainer
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="confirm-dialog-title"
+    aria-describedby="confirm-dialog-desc"
+    class="dialog-panel"
+    tabindex="-1"
+  >
+    <div class="dialog-header">
+      <h3 id="confirm-dialog-title" class="dialog-title">{{ titulo }}</h3>
+    </div>
+
+    <div class="dialog-body">
+      <p id="confirm-dialog-desc" class="dialog-description">{{ descripcion }}</p>
+    </div>
+
+    <div class="dialog-actions">
+      <button
+        #cancelButton
+        type="button"
+        class="dialog-btn dialog-btn-cancel"
+        (click)="onCancelar()"
+        [disabled]="procesando"
+        [attr.aria-disabled]="procesando"
+      >
+        {{ textoCancelar }}
+      </button>
+
+      <button
+        #confirmButton
+        type="button"
+        class="dialog-btn"
+        [class.dialog-btn-danger]="variante === 'danger'"
+        [class.dialog-btn-warning]="variante === 'warning'"
+        [class.dialog-btn-primary]="variante === 'primary'"
+        (click)="onConfirmar()"
+        [disabled]="procesando"
+        [attr.aria-disabled]="procesando"
+      >
+        {{ procesando ? 'Procesando…' : textoConfirmar }}
+      </button>
+    </div>
+  </div>
+</div>

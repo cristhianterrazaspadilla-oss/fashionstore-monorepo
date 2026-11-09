@@ -1,0 +1,112 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.radial-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+
+.radial-svg-wrap {
+  width: 100%;
+  max-width: 128px;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  position: relative;
+  margin: 0 auto;
+}
+
+.radial-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.radial-track {
+  fill: none;
+  stroke: var(--paper, #f7f5f2);
+  stroke-width: 8;
+}
+
+.radial-fill {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Colores según variante semántica */
+.radial-container[data-color='brass'] .radial-track {
+  stroke: var(--brass-soft, #f1e9dd);
+}
+.radial-container[data-color='brass'] .radial-fill {
+  stroke: var(--brass, #a8875b);
+}
+
+.radial-container[data-color='ink'] .radial-track {
+  stroke: var(--border, #e4e1dc);
+}
+.radial-container[data-color='ink'] .radial-fill {
+  stroke: var(--ink, #17202a);
+}
+
+.radial-container[data-color='success'] .radial-track {
+  stroke: var(--success-bg, #edf8f3);
+}
+.radial-container[data-color='success'] .radial-fill {
+  stroke: var(--success, #16805d);
+}
+
+.radial-text-valor {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 1.18rem;
+  fill: var(--ink, #17202a);
+  letter-spacing: -0.02em;
+}
+
+.radial-text-etiqueta {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 0.45rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  fill: var(--text-muted, #667085);
+}
+
+.radial-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.radial-leyenda-titulo {
+  font-size: 0.8rem;
+  font-weight: 750;
+  color: var(--ink, #17202a);
+  text-wrap: balance;
+}
+
+.radial-leyenda-sub {
+  font-size: 0.74rem;
+  color: var(--text-muted, #667085);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radial-fill {
+    transition: none;
+  }
+}

@@ -1,0 +1,139 @@
+<section class="saldo-container" aria-label="Consulta y movimientos de saldo a favor">
+  <div class="header-section">
+    <div>
+      <h1 class="page-title">Mi saldo a favor</h1>
+      <p class="page-subtitle">Gestiona tu balance acumulado por devoluciones, notas de crédito o pagos anticipados.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn-refresh" (click)="cargarSaldo()" [disabled]="cargando" aria-label="Actualizar balance de saldo">
+        <span aria-hidden="true">↻</span>
+        <span>Actualizar</span>
+      </button>
+      <a routerLink="/catalogo" class="btn-primary">Explorar catálogo</a>
+    </div>
+  </div>
+
+  <!-- Alerta de error -->
+  <div *ngIf="error" class="alert-box alert-error" role="alert">
+    <div class="alert-content">
+      <strong>Aviso:</strong>
+      <span>{{ error }}</span>
+    </div>
+    <button type="button" class="btn-alert-retry" (click)="cargarSaldo()">Reintentar</button>
+  </div>
+
+  <!-- Estado de carga -->
+  <div *ngIf="cargando" class="loading-state" role="status" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Consultando tu libro de saldo en línea...</p>
+  </div>
+
+  <div *ngIf="!cargando && resumen" class="dashboard-content">
+    <!-- Tarjetas de balances -->
+    <div class="balance-cards-grid">
+      <div class="balance-card primary-card">
+        <div class="card-icon" aria-hidden="true">💳</div>
+        <div class="card-body">
+          <span class="card-label">Saldo disponible</span>
+          <strong class="card-amount highlight-amount">{{ bs(resumen.saldo_disponible_bob) }}</strong>
+          <span class="card-hint">Listo para aplicar a tus próximas compras online o en caja física.</span>
+        </div>
+      </div>
+
+      <div class="balance-card secondary-card">
+        <div class="card-icon" aria-hidden="true">🔒</div>
+        <div class="card-body">
+          <span class="card-label">Saldo retenido temporalmente</span>
+          <strong class="card-amount muted-amount">{{ bs(resumen.saldo_retenido_bob) }}</strong>
+          <span class="card-hint">Asignado a pedidos o reservas en proceso de confirmación.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Banner informativo de uso -->
+    <div class="info-banner">
+      <div class="info-icon" aria-hidden="true">💡</div>
+      <div class="info-text">
+        <strong>¿Cómo utilizar tu saldo?</strong>
+        <p>Al confirmar una compra en el carrito o en nuestras sucursales de boutique, puedes indicar qué importe de tu saldo disponible deseas descontar del total.</p>
+      </div>
+    </div>
+
+    <!-- Sección de movimientos históricos -->
+    <div class="movements-panel">
+      <div class="panel-header">
+        <div class="panel-title-area">
+          <h2 class="panel-title">Historial de movimientos</h2>
+          <span class="movements-count">{{ movimientosFiltrados.length }} registro(s)</span>
+        </div>
+
+        <div class="panel-filters">
+          <div class="filter-group">
+            <label for="filtro-tipo" class="filter-label">Tipo:</label>
+            <select id="filtro-tipo" [(ngModel)]="filtroTipo" class="filter-select">
+              <option value="TODOS">Todos los tipos</option>
+              <option value="CREDITO">Crédito a favor</option>
+              <option value="RETENCION">Retención</option>
+              <option value="DEBITO">Débito / Pago</option>
+              <option value="RESTAURACION">Restauración</option>
+            </select>
+          </div>
+
+          <div class="search-group">
+            <label for="busqueda-motivo" class="sr-only">Buscar por concepto o motivo</label>
+            <input
+              id="busqueda-motivo"
+              type="search"
+              [(ngModel)]="terminoBusqueda"
+              placeholder="Buscar por concepto o motivo..."
+              class="search-input"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Estado vacío de movimientos -->
+      <div *ngIf="movimientosFiltrados.length === 0" class="empty-state">
+        <div class="empty-icon" aria-hidden="true">📋</div>
+        <h3 class="empty-title">Sin movimientos registrados</h3>
+        <p class="empty-desc">
+          {{ terminoBusqueda || filtroTipo !== 'TODOS' ? 'No se encontraron registros que coincidan con los filtros seleccionados.' : 'Aún no registras movimientos en tu libro de saldo.' }}
+        </p>
+      </div>
+
+      <!-- Tabla / Lista responsive de movimientos -->
+      <div *ngIf="movimientosFiltrados.length > 0" class="table-responsive">
+        <table class="movements-table" aria-label="Lista histórica de movimientos de saldo">
+          <thead>
+            <tr>
+              <th scope="col">Fecha y hora</th>
+              <th scope="col">Concepto</th>
+              <th scope="col">Tipo</th>
+              <th scope="col" class="text-right">Monto</th>
+              <th scope="col" class="text-right">Saldo final</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let m of movimientosFiltrados">
+              <td class="col-date">{{ fechaHora(m.creado_en) }}</td>
+              <td class="col-desc">
+                <span class="desc-main">{{ m.motivo || 'Movimiento de saldo registrado' }}</span>
+              </td>
+              <td class="col-badge">
+                <span [class]="'movement-badge ' + claseTipo(m.tipo)">
+                  {{ etiquetaTipo(m.tipo) }}
+                </span>
+              </td>
+              <td class="col-amount text-right" [class.positive]="m.tipo === 'CREDITO' || m.tipo === 'RESTAURACION'" [class.negative]="m.tipo === 'DEBITO' || m.tipo === 'RETENCION'">
+                {{ signoMonto(m.tipo) }}{{ bs(m.monto_bob) }}
+              </td>
+              <td class="col-resulting text-right">
+                {{ bs(m.saldo_resultante_bob) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>

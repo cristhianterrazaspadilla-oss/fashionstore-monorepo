@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fashionstore.local/contratos/segundo-parcial/0.3.2/referencia-horaria-respuesta.schema.json",
+  "title": "CU04 referencia horaria emitida",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["referencia_horaria_id", "empresa_id", "usuario_id", "dispositivo_id", "hora_central_en", "valida_hasta", "tolerancia_segundos", "politica_version"],
+  "properties": {
+    "referencia_horaria_id": {"type": "string", "format": "uuid"},
+    "empresa_id": {"type": "string", "format": "uuid"},
+    "usuario_id": {"type": "string", "format": "uuid"},
+    "dispositivo_id": {"type": "string", "format": "uuid"},
+    "hora_central_en": {"type": "string", "format": "date-time", "pattern": "-04:00$"},
+    "valida_hasta": {"type": "string", "format": "date-time", "pattern": "-04:00$"},
+    "tolerancia_segundos": {"type": "integer", "minimum": 0},
+    "politica_version": {"type": "string", "minLength": 1}
+  },
+  "$comment": "La política se congela al emitir. hora_central_en y valida_hasta se muestran en America/La_Paz; instantes se almacenan UTC."
+}
