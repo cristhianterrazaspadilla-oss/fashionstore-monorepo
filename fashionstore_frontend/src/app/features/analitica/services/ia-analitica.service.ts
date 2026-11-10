@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, catchError } from 'rxjs';
+import { Observable, catchError, throwError } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import {
   DecisionPedirDTO,
@@ -29,11 +29,11 @@ export class IAAnaliticaService {
       `${this.api}/analitica/reportes-interpretados`,
       dto
     ).pipe(
-      catchError(() =>
-        this.http.post<ReporteInterpretadoResultadoDTO>(
+      catchError(error => error.status === 404
+        ? this.http.post<ReporteInterpretadoResultadoDTO>(
           `${this.api}/ia/reportes-interpretados`,
           dto
-        )
+        ) : throwError(() => error)
       )
     );
   }
@@ -91,13 +91,17 @@ export class IAAnaliticaService {
   generarReporte(consulta: string): Observable<ReporteRespuestaDTO> {
     const dto: ReportePedirDTO = { consulta };
     return this.http.post<ReporteRespuestaDTO>(`${this.api}/analitica/reportes`, dto).pipe(
-      catchError(() => this.http.post<ReporteRespuestaDTO>(`${this.api}/ia/reportes`, dto))
+      catchError(error => error.status === 404
+        ? this.http.post<ReporteRespuestaDTO>(`${this.api}/ia/reportes`, dto)
+        : throwError(() => error))
     );
   }
 
   decisionesInventario(dto: DecisionPedirDTO = {}): Observable<DecisionRespuestaDTO> {
     return this.http.post<DecisionRespuestaDTO>(`${this.api}/analitica/decisiones-inventario`, dto).pipe(
-      catchError(() => this.http.post<DecisionRespuestaDTO>(`${this.api}/ia/decisiones-inventario`, dto))
+      catchError(error => error.status === 404
+        ? this.http.post<DecisionRespuestaDTO>(`${this.api}/ia/decisiones-inventario`, dto)
+        : throwError(() => error))
     );
   }
 }

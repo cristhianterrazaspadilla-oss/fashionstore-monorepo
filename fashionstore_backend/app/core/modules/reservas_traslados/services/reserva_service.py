@@ -390,7 +390,7 @@ class ReservaService:
     ) -> ReservaDTO:
         self._exigir_empresa(usuario)
         try:
-            actual = await self.reserva_repo.buscarPorId(reserva_id, empresa_id=usuario.empresa_id)
+            actual = await self.reserva_repo.buscarPorId(reserva_id, empresa_id=usuario.empresa_id, bloquear=True)
             if actual is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
             if actual.estado in ("CANCELADA", "VENCIDA", "COMPLETADA"):
@@ -424,7 +424,7 @@ class ReservaService:
         - Traslado DESPACHADO: continua; al recibirse quedara disponible (no reservado).
         - Traslado RECIBIDO: reservado en destino -> disponible + LIBERACION_RESERVA.
         """
-        traslados = await self.reserva_repo.trasladosDeReserva(reserva.id)
+        traslados = await self.reserva_repo.trasladosDeReserva(reserva.id, bloquear=True)
         por_detalle: Dict[uuid.UUID, list] = {}
         for t in traslados:
             for d in await self.traslado_repo.detallesDeTraslado(t.id):
@@ -438,7 +438,7 @@ class ReservaService:
         filas = await self.inventario_repo.bloquearFilas(list(claves))
 
         for det in reserva.detalles:
-            if det.estado_linea == "RESERVADA" and det.cantidad_reservada > 0:
+            if det.estado_linea in ("RESERVADA", "VENDIDA_PARCIAL") and det.cantidad_reservada > 0:
                 fila = filas.get((reserva.sucursal_destino_id, det.variante_id))
                 if fila is None or fila.reservado < det.cantidad_reservada:  # pragma: no cover
                     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Inconsistencia de stock reservado")
@@ -514,7 +514,7 @@ class ReservaService:
         """PENDIENTE -> PREPARADA. Sin traslados pendientes ni vencimiento."""
         self._exigir_empresa(usuario)
         try:
-            reserva = await self.reserva_repo.buscarPorId(reserva_id, empresa_id=usuario.empresa_id)
+            reserva = await self.reserva_repo.buscarPorId(reserva_id, empresa_id=usuario.empresa_id, bloquear=True)
             if reserva is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
             self._autorizar_sucursal_staff(usuario, reserva)
@@ -550,7 +550,7 @@ class ReservaService:
         """PREPARADA -> ATENDIDA (cliente en vestidor)."""
         self._exigir_empresa(usuario)
         try:
-            reserva = await self.reserva_repo.buscarPorId(reserva_id, empresa_id=usuario.empresa_id)
+            reserva = await self.reserva_repo.buscarPorId(reserva_id, empresa_id=usuario.empresa_id, bloquear=True)
             if reserva is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
             self._autorizar_sucursal_staff(usuario, reserva)
@@ -631,7 +631,7 @@ class ReservaService:
                         continue
                     try:
                         async with self.db.begin_nested():
-                            actual = await self.reserva_repo.buscarPorId(reserva.id, empresa_id=reserva.empresa_id)
+                            actual = await self.reserva_repo.buscarPorId(reserva.id, empresa_id=reserva.empresa_id, bloquear=True)
                             if actual.estado not in ESTADOS_NO_TERMINALES_RESERVA:
                                 resultado.omitidas.append(str(reserva.id))
                                 continue

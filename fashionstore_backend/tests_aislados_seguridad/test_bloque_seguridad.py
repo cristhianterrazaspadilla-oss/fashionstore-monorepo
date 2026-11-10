@@ -314,7 +314,7 @@ async def test_error_publico_y_debug(datos, caplog):
     async def falla():
         raise RuntimeError("contenido-sensible-de-prueba")
     # La ruta se agrega una sola vez; solo existe en este proceso de pruebas.
-    if not any(r.path == BASE+"/fallo-controlado" for r in e.app.routes):
+    if not any(getattr(r, "path", None) == BASE+"/fallo-controlado" for r in e.app.routes):
         e.app.add_api_route(BASE+"/fallo-controlado", falla)
     with caplog.at_level(logging.ERROR):
         r = await peticion(e, "GET", "/fallo-controlado")
@@ -336,11 +336,11 @@ async def test_http_5xx_sin_detalles_y_sin_excepcion_asgi(datos, caplog):
     e = datos
     async def falla_http():
         raise HTTPException(status_code=503, detail="contenido-interno-de-prueba")
-    if not any(r.path == BASE+"/fallo-http-controlado" for r in e.app.routes):
+    if not any(getattr(r, "path", None) == BASE+"/fallo-http-controlado" for r in e.app.routes):
         e.app.add_api_route(BASE+"/fallo-http-controlado", falla_http)
     async def inesperado_controlado():
         raise RuntimeError("contenido-inesperado-de-prueba")
-    if not any(r.path == BASE+"/inesperado-asgi" for r in e.app.routes):
+    if not any(getattr(r, "path", None) == BASE+"/inesperado-asgi" for r in e.app.routes):
         e.app.add_api_route(BASE+"/inesperado-asgi", inesperado_controlado)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=e.app, raise_app_exceptions=True),
                                 base_url="http://aislado") as client:
@@ -402,7 +402,7 @@ async def test_error_estructurado_conserva_codigo_publico_sin_datos_internos(dat
             "codigo": "STRIPE_DESHABILITADO", "mensaje": "detalle-interno-sintetico",
             "dato_interno": "dato-sintetico-no-publico",
         })
-    if not any(r.path == BASE+"/proveedor-controlado" for r in e.app.routes):
+    if not any(getattr(r, "path", None) == BASE+"/proveedor-controlado" for r in e.app.routes):
         e.app.add_api_route(BASE+"/proveedor-controlado", falla_proveedor)
     r = await peticion(e, "GET", "/proveedor-controlado")
     assert r.status_code == 503

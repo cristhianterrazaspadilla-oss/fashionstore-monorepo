@@ -82,8 +82,12 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
         _variantes = vs.where((e) => e.activa).toList();
         _cargando = false;
         if (_variantes.isNotEmpty) {
-          _varianteSel = _variantes.first.id;
-          _cargarDisponibilidad(_variantes.first.id);
+          if (_varianteSel == null) _varianteSel = _variantes.first.id;
+          if (_variantes.any((v) => v.id == _varianteSel)) {
+            _cargarDisponibilidad(_varianteSel!);
+          } else {
+            _varianteSel = null;
+          }
         }
       });
     } catch (e) {
@@ -103,13 +107,13 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
     });
     try {
       final d = await _servicio.disponibilidad(varianteId);
-      if (!mounted) return;
+      if (!mounted || _varianteSel != varianteId) return;
       setState(() {
         _disponibilidad = d;
         _cargandoDisp = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || _varianteSel != varianteId) return;
       setState(() {
         _errorDisp = e.toString();
         _cargandoDisp = false;
@@ -332,6 +336,8 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
+                      if (_servicio.usandoSnapshot)
+                        const Text('Copia descargada: precios y existencias pueden haber cambiado. Guardar una reserva no garantiza stock ni aceptación central.'),
                       const Text(
                         'Elige la variante que quieres comprar o reservar.',
                         style: TextStyle(color: Colors.grey),
@@ -352,7 +358,7 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                           children: [
                             for (final v in _variantes)
                               ChoiceChip(
-                                label: Text(v.sku),
+                                label: Text(_servicio.etiquetaVariante(v)),
                                 selected: _varianteSel == v.id,
                                 onSelected: (_) {
                                   setState(() {
@@ -369,9 +375,11 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
-                      const Text(
-                        'Te mostramos dónde hay unidades listas para apartar.',
-                        style: TextStyle(color: Colors.grey),
+                      Text(
+                        _servicio.usandoSnapshot
+                            ? 'Disponibilidad descargada; requiere validación central al sincronizar.'
+                            : 'Te mostramos dónde hay unidades listas para apartar.',
+                        style: const TextStyle(color: Colors.grey),
                       ),
                       const SizedBox(height: 8),
                       if (_cargandoDisp)

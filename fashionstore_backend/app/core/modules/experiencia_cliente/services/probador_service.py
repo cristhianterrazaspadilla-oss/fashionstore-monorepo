@@ -1,6 +1,5 @@
 """Controller ProbadorService — CU17 (RF13) con Decart Lucy 2.5 Realtime."""
 import uuid
-from datetime import timedelta
 from typing import Tuple
 from urllib.parse import urlparse
 
@@ -156,12 +155,17 @@ class ProbadorService:
                         exp = exp.replace(tzinfo=_tz.utc)
                     if exp > self.reloj.ahora():
                         dto_previo = AutorizacionDTO(**previo.respuesta)
-                        return dto_previo, False
-                except Exception:
-                    dto_previo = AutorizacionDTO(**previo.respuesta)
-                    return dto_previo, False
+                        if dto_previo.client_token:
+                            return dto_previo, False
+                except (ValueError, TypeError):
+                    # Una expiración ilegible no demuestra una autorización vigente.
+                    pass
                 await self.db.delete(previo)
                 await self.db.flush()
+                await idem3.reclamar(
+                    self.db, clave, digest, recurso_tipo="PROBADOR",
+                    operacion="AUTORIZAR", usuario_id=usuario.id, ttl_horas=1,
+                )
             variante, _, recurso = await self._variante_compatible(dto.variante_id, usuario.empresa_id)
             if not settings.DECART_ENABLED or not settings.DECART_API_KEY:
                 raise decart_client.autorizacion_no_disponible()
@@ -186,7 +190,9 @@ class ProbadorService:
 
                     expira = expira.replace(tzinfo=_tz.utc)
             except Exception:
-                expira = self.reloj.ahora() + timedelta(seconds=decart_client.TTL_SEGUNDOS)
+                raise HTTPException(status_code=502, detail="El proveedor no entregó una expiración válida para la autorización")
+            if expira <= self.reloj.ahora() or not token.client_token:
+                raise HTTPException(status_code=502, detail="El proveedor entregó una autorización inválida o vencida")
             salida = AutorizacionDTO(
                 client_token=token.client_token, expires_at=expira,
                 modelo=decart_client.MODELO_EXCLUSIVO,

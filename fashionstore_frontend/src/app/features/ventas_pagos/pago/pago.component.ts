@@ -27,6 +27,7 @@ export class PagoComponent implements OnInit, OnDestroy {
   error: string | null = null;
   exito: string | null = null;
   avisoTimeout = false;
+  avisoCambioPrecio: string | null = null;
   requiereAccion3DS = false;
   procesando3DS = false;
   guardarMetodo = false;
@@ -82,6 +83,13 @@ export class PagoComponent implements OnInit, OnDestroy {
         next: e => {
           this.estado = e;
           this.cargando = false;
+          const visto = this.route.snapshot.queryParamMap.get('importe_visto_bob');
+          if (visto !== null && /^\d+(\.\d{1,2})?$/.test(visto) && Number.isFinite(Number(e.monto)) &&
+              Math.round(Number(visto) * 100) !== Math.round(Number(e.monto) * 100)) {
+            this.avisoCambioPrecio = `El servidor actualizó el total de ${this.bs(visto)} a ${this.bs(e.monto)}. Revisa los precios, promociones y entrega antes de confirmar el pago.`;
+          } else {
+            this.avisoCambioPrecio = null;
+          }
 
           // Si la venta está pendiente y el pago no tiene intención o está pendiente
           if (e.estado_venta === 'PENDIENTE_PAGO' &&

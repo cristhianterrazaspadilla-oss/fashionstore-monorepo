@@ -272,11 +272,15 @@ class VentaService:
 
         reserva = None
         if dto.reserva_id is not None:
-            reserva = await self.reserva_repo.buscarPorId(dto.reserva_id)
+            reserva = await self.reserva_repo.buscarPorId(
+                dto.reserva_id, empresa_id=usuario.empresa_id, bloquear=True
+            )
             if reserva is None or reserva.empresa_id != usuario.empresa_id:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
             if reserva.sucursal_destino_id != dto.sucursal_id:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La reserva pertenece a otra sucursal")
+            if dto.cliente_id is not None and dto.cliente_id != reserva.cliente_id:
+                raise HTTPException(status_code=409, detail="El cliente no corresponde al propietario de la reserva")
             if reserva.estado != "ATENDIDA":
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -322,6 +326,9 @@ class VentaService:
             variantes[item.variante_id] = variante
 
         claves = sorted({(dto.sucursal_id, i.variante_id) for i in dto.items}, key=lambda c: (str(c[0]), str(c[1])))
+        if reserva is not None:
+            # También se liberan las prendas reservadas que no se compran.
+            claves += [(dto.sucursal_id, det.variante_id) for det in reserva.detalles]
         filas = await self.inventario_repo.bloquearFilas(claves)
 
         ahora = self.reloj.ahora()
@@ -408,7 +415,7 @@ class VentaService:
             )
             if linea is not None:
                 linea.estado_linea = (
-                    "VENDIDA" if linea.cantidad_vendida >= linea.cantidad_reservada else "VENDIDA_PARCIAL"
+                    "VENDIDA" if linea.cantidad_reservada == 0 else "VENDIDA_PARCIAL"
                 )
                 await self.db.flush()
 
@@ -427,7 +434,7 @@ class VentaService:
                     resto = det.cantidad_reservada
                     if resto > 0:
                         fila = filas.get((dto.sucursal_id, det.variante_id))
-                        if fila is None:  # pragma: no cover (defensivo)
+                        if fila is None or fila.reservado < resto:
                             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Inconsistencia de inventario al liberar")
                         fila.reservado -= resto
                         fila.disponible += resto

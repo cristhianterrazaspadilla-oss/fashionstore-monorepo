@@ -16,6 +16,7 @@
   </div>
 
   <div *ngIf="!cargando && estado" class="pago-container">
+    <div *ngIf="avisoCambioPrecio" class="cycle-alert warning" role="alert">{{ avisoCambioPrecio }}</div>
     <div class="pago-estado-card cycle-card">
       <div class="pago-estado-header">
         <span class="status" [class]="clase(estado.estado_pago)">{{ etiqueta(estado.estado_pago) }}</span>

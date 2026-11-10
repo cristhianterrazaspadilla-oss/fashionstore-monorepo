@@ -243,7 +243,9 @@ class DevolucionService:
             )
             stmt_idm = select(RegistroIdempotencia).where(
                 RegistroIdempotencia.clave == clave,
+                RegistroIdempotencia.usuario_id == usuario.id,
                 RegistroIdempotencia.recurso_tipo == "DEVOLUCION",
+                RegistroIdempotencia.operacion == "SOLICITAR_DEVOLUCION",
             )
             prev = (await self.db.execute(stmt_idm)).scalars().first()
             if prev is not None:
@@ -264,6 +266,11 @@ class DevolucionService:
         rol = (usuario.rol.nombre if usuario.rol else "").upper()
         if rol == "CLIENTE" and venta.cliente_id != usuario.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="La venta pertenece a otro cliente")
+        if rol != "CLIENTE":
+            self._autorizar_personal(usuario, venta.sucursal_id)
+        ids = [item.detalle_venta_id for item in dto.lineas]
+        if len(ids) != len(set(ids)):
+            raise HTTPException(status_code=400, detail="Línea original duplicada en la devolución")
 
         if dto.motivo_codigo == "OTRO" and not (dto.motivo_descripcion and dto.motivo_descripcion.strip()):
             raise HTTPException(
@@ -294,14 +301,13 @@ class DevolucionService:
             else:
                 estado_inicial = "SOLICITADA"
 
-        from backend.app.core.modules.posventa.services.cambio_service import Cambio, DetalleCambio
-
         # Validar cantidades disponibles para devolución (excluyendo ya devueltas o cambiadas)
-        for item in dto.lineas:
+        for item in sorted(dto.lineas, key=lambda linea: str(linea.detalle_venta_id)):
             stmt_det = (
                 select(DetalleVenta)
-                .where(DetalleVenta.id == item.detalle_venta_id)
+                .where(DetalleVenta.id == item.detalle_venta_id, DetalleVenta.venta_id == venta.id)
                 .with_for_update()
+                .execution_options(populate_existing=True)
             )
             det = (await self.db.execute(stmt_det)).scalars().first()
             if det is None or det.venta_id != venta.id:
@@ -310,28 +316,7 @@ class DevolucionService:
                     detail=f"Línea de venta {item.detalle_venta_id} no pertenece a la venta {venta.id}",
                 )
 
-            # Sumar devoluciones previas no rechazadas
-            stmt_acum = (
-                select(DetalleDevolucion.cantidad_solicitada)
-                .join(Devolucion, DetalleDevolucion.devolucion_id == Devolucion.id)
-                .where(
-                    DetalleDevolucion.detalle_venta_id == det.id,
-                    Devolucion.estado != "RECHAZADA",
-                )
-            )
-            cant_devuelta = sum((await self.db.execute(stmt_acum)).scalars().all(), 0)
-
-            # Sumar cambios previos no rechazados para esta misma unidad
-            stmt_camb = (
-                select(DetalleCambio.cantidad)
-                .join(Cambio, DetalleCambio.cambio_id == Cambio.id)
-                .where(
-                    DetalleCambio.detalle_venta_id == det.id,
-                    DetalleCambio.tipo_linea == "ORIGINAL",
-                    Cambio.estado != "RECHAZADO",
-                )
-            )
-            cant_cambiada = sum((await self.db.execute(stmt_camb)).scalars().all(), 0)
+            cant_devuelta, cant_cambiada = await self.detalle_repo.cantidadesPosventaComprometidas(det.id)
 
             if cant_devuelta + cant_cambiada + item.cantidad > det.cantidad:
                 raise HTTPException(
@@ -436,14 +421,18 @@ class DevolucionService:
 
         stmt_dev = (
             select(Devolucion)
-            .where(Devolucion.id == devolucion_id)
+            .where(Devolucion.id == devolucion_id, Devolucion.empresa_id == usuario.empresa_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         dev = (await self.db.execute(stmt_dev)).scalars().first()
         if dev is None or dev.empresa_id != usuario.empresa_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Devolución no encontrada")
 
         self._autorizar_personal(usuario, dev.sucursal_id)
+
+        if dto.dictamen == "APROBADA_REPOSICION" and dto.condicion_fisica not in ("EXCELENTE", "BUENA"):
+            raise HTTPException(status_code=409, detail="La condición inspeccionada no permite reponer stock vendible")
 
         if dev.estado not in ("SOLICITADA", "RECIBIDA", "PENDIENTE_EVALUACION"):
             raise HTTPException(
@@ -460,24 +449,37 @@ class DevolucionService:
         stmt_detalles = select(DetalleDevolucion).where(DetalleDevolucion.devolucion_id == dev.id)
         detalles = (await self.db.execute(stmt_detalles)).scalars().all()
 
+        lineas_venta = {}
+        for det in detalles:
+            det_venta = await self.db.get(DetalleVenta, det.detalle_venta_id)
+            if (det.empresa_id != dev.empresa_id or det.venta_id != dev.venta_id
+                    or det_venta is None or det_venta.venta_id != dev.venta_id):
+                raise HTTPException(status_code=409, detail="Detalle de devolución inconsistente con la venta original")
+            lineas_venta[det.id] = det_venta
+        filas = {}
+        if dto.dictamen == "APROBADA_REPOSICION":
+            filas = await self.inventario_repo.bloquearFilas([
+                (dev.sucursal_id, det_venta.variante_id) for det_venta in lineas_venta.values()
+            ])
+            if any(fila is None for fila in filas.values()):
+                raise HTTPException(status_code=409, detail="Falta inventario de la venta original; requiere conciliación")
+
         for det in detalles:
             det.cantidad_recibida = det.cantidad_solicitada
             det.condicion_fisica = dto.condicion_fisica
             det.responsabilidad_tienda = dto.responsabilidad_tienda
             det.inspeccionado_por = usuario.id
 
-            det_venta = await self.db.get(DetalleVenta, det.detalle_venta_id)
+            det_venta = lineas_venta[det.id]
 
             if dto.dictamen == "APROBADA_REPOSICION":
                 det.cantidad_aceptada = det.cantidad_recibida
                 det.cantidad_rechazada = 0
 
                 # Reingreso de stock a disponible
-                filas = await self.inventario_repo.bloquearFilas([(dev.sucursal_id, det_venta.variante_id)])
-                fila = filas.get((dev.sucursal_id, det_venta.variante_id))
-                if fila:
-                    fila.disponible += det.cantidad_aceptada
-                    await self.db.flush()
+                fila = filas[(dev.sucursal_id, det_venta.variante_id)]
+                fila.disponible += det.cantidad_aceptada
+                await self.db.flush()
 
                 # Kardex DEVOLUCION
                 mov = MovimientoInventario(
@@ -528,6 +530,8 @@ class DevolucionService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Devolución no encontrada")
         if rol_de(usuario) == "CLIENTE" and dev.cliente_id != usuario.id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Devolución no encontrada")
+        if rol_de(usuario) != "CLIENTE":
+            self._autorizar_personal(usuario, dev.sucursal_id)
 
         stmt_det = select(DetalleDevolucion).where(DetalleDevolucion.devolucion_id == dev.id)
         detalles = (await self.db.execute(stmt_det)).scalars().all()
@@ -578,6 +582,7 @@ class DevolucionService:
             select(DetalleVenta)
             .where(DetalleVenta.id == dto.detalle_venta_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         detalle = (await self.db.execute(stmt_detalle)).scalars().first()
         if detalle is None:
@@ -608,21 +613,22 @@ class DevolucionService:
             await self.db.commit()
             return movimiento_previo, False
 
-        devuelta = await self.detalle_repo.cantidadDevueltaAcumulada(detalle.id)
-        if devuelta + dto.cantidad > detalle.cantidad:
+        devuelta, cambiada = await self.detalle_repo.cantidadesPosventaComprometidas(detalle.id)
+        if devuelta + cambiada + dto.cantidad > detalle.cantidad:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
                     f"La devolución acumulada excede lo vendido "
-                    f"(vendido: {detalle.cantidad}, devuelto: {devuelta})"
+                    f"(vendido: {detalle.cantidad}, devuelto/comprometido: {devuelta}, cambiado: {cambiada})"
                 ),
             )
 
         filas = await self.inventario_repo.bloquearFilas([(venta.sucursal_id, detalle.variante_id)])
         fila = filas.get((venta.sucursal_id, detalle.variante_id))
-        if fila:
-            fila.disponible += dto.cantidad
-            await self.db.flush()
+        if fila is None:
+            raise HTTPException(status_code=409, detail="Falta inventario de la venta original; requiere conciliación")
+        fila.disponible += dto.cantidad
+        await self.db.flush()
 
         mov = MovimientoInventario(
             variante_id=detalle.variante_id,

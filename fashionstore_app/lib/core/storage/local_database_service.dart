@@ -674,10 +674,26 @@ class LocalDatabaseService {
     );
   }
 
-  /// Obtiene la disponibilidad conocida por sucursal de una variante desde SQLite.
-  Future<List<DisponibilidadSucursal>> disponibilidadVarianteLocal(String varianteId) async {
+  Future<List<Map<String, Object?>>> variantesProductoLocal(String productoId, String empresaCodigoOId) async {
+    final meta = await obtenerSnapshotActivo(empresaCodigoOId);
+    if (meta == null) return const [];
     final db = await database;
-    final rows = await db.query(
+    return db.rawQuery('''
+      SELECT v.* FROM catalogo_variantes v
+      JOIN catalogo_productos p ON p.id = v.producto_id
+      WHERE p.id = ? AND p.empresa_id = ? ORDER BY v.id
+    ''', [productoId, meta.empresaId]);
+  }
+
+  /// Obtiene la disponibilidad conocida por sucursal de una variante desde SQLite.
+  Future<List<DisponibilidadSucursal>> disponibilidadVarianteLocal(String varianteId, {String? empresaCodigoOId}) async {
+    final db = await database;
+    final meta = empresaCodigoOId == null ? null : await obtenerSnapshotActivo(empresaCodigoOId);
+    if (empresaCodigoOId != null && meta == null) return const [];
+    final rows = meta != null ? await db.rawQuery('''
+      SELECT v.* FROM catalogo_variantes v JOIN catalogo_productos p ON p.id = v.producto_id
+      WHERE v.id = ? AND p.empresa_id = ? LIMIT 1
+    ''', [varianteId, meta.empresaId]) : await db.query(
       'catalogo_variantes',
       where: 'id = ?',
       whereArgs: [varianteId],
@@ -690,7 +706,12 @@ class LocalDatabaseService {
       if (decoded is List) {
         return decoded
             .whereType<Map>()
-            .map((e) => DisponibilidadSucursal.fromJson(e.cast<String, dynamic>()))
+            .where((e) => e['disponible_conocido'] is num || e['disponible'] is num)
+            .map((e) => DisponibilidadSucursal.fromJson({
+                  ...e.cast<String, dynamic>(),
+                  'variante_id': varianteId,
+                  'disponible': e['disponible_conocido'] ?? e['disponible'],
+                }))
             .toList();
       }
     } catch (_) {}

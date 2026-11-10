@@ -42,8 +42,11 @@ class TrasladoRepository:
         reserva_id: Optional[uuid.UUID] = None,
         limit: int = 50,
         offset: int = 0,
+        empresa_id: Optional[uuid.UUID] = None,
     ) -> Tuple[List[Traslado], int]:
         filtros = []
+        if empresa_id is not None:
+            filtros.append(Traslado.empresa_id == empresa_id)
         if estado is not None:
             filtros.append(Traslado.estado == estado)
         if sucursal_origen_id is not None:

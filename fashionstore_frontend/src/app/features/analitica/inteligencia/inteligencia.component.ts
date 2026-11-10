@@ -13,7 +13,9 @@ import {
   SegmentacionProductosResultadoDTO,
   OrigenDatosML
 } from '../models/analitica-ia.models';
-import { formatearBs, type DecimalApi } from '../../../core/utils/moneda.util';
+import { entradaLocalIso, formatearBs, type DecimalApi } from '../../../core/utils/moneda.util';
+import { OrganizacionService } from '../../organizacion/services/organizacion.service';
+import { SucursalDTO } from '../../organizacion/models/organizacion.models';
 import { etiquetaEstado, claseEstado } from '../../../core/utils/estado-mapper.util';
 import { formatearErrorApi } from '../../../core/utils/error-handler.util';
 import { RadialProgressComponent } from '../../../shared/data-viz/radial-progress/radial-progress.component';
@@ -67,6 +69,11 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
   generando = false;
   errorReporte: string | null = null;
   tipoSeleccionado?: TipoReportePermitido;
+  sucursalesReporte: SucursalDTO[] = [];
+  sucursalReporte = '';
+  desdeReporte = '';
+  hastaReporte = '';
+  errorSucursales: string | null = null;
 
   tiposPermitidos: { id: TipoReportePermitido; label: string; desc: string }[] = [
     { id: 'VENTAS_POR_SUCURSAL', label: 'Ventas por sucursal', desc: 'Consolidado de ingresos y unidades por punto de venta' },
@@ -109,10 +116,18 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
   errorDecision: string | null = null;
 
   private readonly destroyRef = inject(DestroyRef);
+  private readonly organizacionService = inject(OrganizacionService);
 
   constructor(private iaService: IAAnaliticaService) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.organizacionService.gestionarSucursales(undefined, false)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: sucursales => this.sucursalesReporte = sucursales,
+        error: e => this.errorSucursales = formatearErrorApi(e, 'No se pudieron consultar las sucursales autorizadas.')
+      });
+  }
 
   ngOnDestroy(): void {
     this.limpiarIntervaloCarga();
@@ -164,7 +179,10 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
 
     this.iaService.solicitarReporteInterpretado({
       consulta: textoConsulta,
-      tipo_reporte: tipo
+      tipo_reporte: tipo,
+      sucursal_id: this.sucursalReporte || undefined,
+      desde: entradaLocalIso(this.desdeReporte),
+      hasta: entradaLocalIso(this.hastaReporte)
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -173,52 +191,38 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
           this.generando = false;
           this.limpiarIntervaloCarga();
         },
-        error: () => {
-          // Fallback a reporte legado si el backend aún no expone la ruta tipada
-          this.generarReporteLegado(textoConsulta);
+        error: e => {
+          this.errorReporte = formatearErrorApi(e, 'No se pudo generar el reporte solicitado.');
+          this.generando = false;
+          this.limpiarIntervaloCarga();
         }
       });
   }
 
   generarReporte(): void {
     if (!this.consulta.trim() || this.generando) return;
-    this.generando = true;
-    this.errorReporte = null;
-    this.reporte = null;
-    this.reporteTipado = null;
-    this.iniciarSecuenciaCarga();
-
-    this.iaService.generarReporte(this.consulta.trim())
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: r => {
-          this.reporte = r;
-          this.generando = false;
-          this.limpiarIntervaloCarga();
-        },
+    const consulta = this.consulta.trim();
+    if (/(inventario|stock|existencia|agot|reserva)/i.test(consulta)) {
+      if (this.sucursalReporte || this.desdeReporte || this.hastaReporte) {
+        this.errorReporte = 'Los reportes legados de inventario y reservas consultan el ámbito completo de la empresa. Usa el dashboard para filtros de sucursal o período.';
+        return;
+      }
+      this.generando = true;
+      this.errorReporte = null;
+      this.reporte = null;
+      this.reporteTipado = null;
+      this.iniciarSecuenciaCarga();
+      this.iaService.generarReporte(consulta).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: r => { this.reporte = r; this.generando = false; this.limpiarIntervaloCarga(); },
         error: e => {
-          this.errorReporte = formatearErrorApi(e, 'No se pudo generar el reporte.');
+          this.errorReporte = formatearErrorApi(e, 'No se pudo consultar el reporte legado.');
           this.generando = false;
           this.limpiarIntervaloCarga();
         }
       });
-  }
-
-  private generarReporteLegado(consulta: string): void {
-    this.iaService.generarReporte(consulta)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: r => {
-          this.reporte = r;
-          this.generando = false;
-          this.limpiarIntervaloCarga();
-        },
-        error: e => {
-          this.errorReporte = formatearErrorApi(e, 'No se pudo generar el reporte.');
-          this.generando = false;
-          this.limpiarIntervaloCarga();
-        }
-      });
+      return;
+    }
+    this.ejecutarReporteTipado();
   }
 
   exportarCsv(): void {
@@ -246,6 +250,7 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
 
   // --- CU10: Pronóstico Supervisado de Demanda ---
   consultarPronostico(): void {
+    this.pronostico = null;
     this.consultandoPronostico = true;
     this.errorPronostico = null;
 
@@ -268,6 +273,7 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
   }
 
   entrenarPronostico(): void {
+    this.pronostico = null;
     this.consultandoPronostico = true;
     this.errorPronostico = null;
 
@@ -291,6 +297,7 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
 
   // --- CU11: Segmentación No Supervisada de Productos ---
   consultarSegmentacion(): void {
+    this.segmentacion = null;
     this.consultandoSegmentacion = true;
     this.errorSegmentacion = null;
 
@@ -314,6 +321,7 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
   }
 
   entrenarSegmentacion(): void {
+    this.segmentacion = null;
     this.consultandoSegmentacion = true;
     this.errorSegmentacion = null;
 
