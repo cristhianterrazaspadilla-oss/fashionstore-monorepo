@@ -37,6 +37,8 @@ class IntencionPago:
     empresa_id: Optional[str] = None
     cliente_id: Optional[str] = None
     metadata: Optional[dict] = None
+    capturado_centavos: Optional[int] = None
+    reembolsado_centavos: Optional[int] = None
 
 
 @dataclass
@@ -55,7 +57,8 @@ class ReembolsoInfo:
     id: str
     payment_intent_id: str
     centavos_usd: int
-    estado: str  # succeeded | pending | failed
+    estado: str  # succeeded | pending | failed | canceled | requires_action
+    moneda: Optional[str] = None
 
 
 class StripeGateway:
@@ -104,6 +107,12 @@ class StripeGateway:
     ) -> ReembolsoInfo:
         raise NotImplementedError
 
+    async def consultar_reembolso(self, referencia: str) -> ReembolsoInfo:
+        raise NotImplementedError
+
+    async def buscar_reembolso(self, payment_intent_id: str, clave: str) -> Optional[ReembolsoInfo]:
+        raise NotImplementedError
+
     async def consultar_payment_method(self, payment_method_id: str) -> dict:
         raise NotImplementedError
 
@@ -117,6 +126,7 @@ class FakeStripeGateway(StripeGateway):
         self.por_venta: dict[str, str] = {}
         self.setup_intents: dict[str, SetupIntentInfo] = {}
         self.reembolsos: dict[str, ReembolsoInfo] = {}
+        self.claves_reembolso: dict[str, str] = {}
         self.payment_methods: dict[str, dict] = {}
         self.simular_requiere_accion: bool = False
         self.simular_sin_customer: bool = False
@@ -178,6 +188,10 @@ class FakeStripeGateway(StripeGateway):
         if payment_intent_id not in self.intenciones:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Intención no encontrada")
         inten = self.intenciones[payment_intent_id]
+        if inten.estado == 'SUCCEEDED':
+            inten.capturado_centavos = inten.monto_centavos
+            inten.reembolsado_centavos = sum(r.centavos_usd for r in self.reembolsos.values()
+                if r.payment_intent_id == payment_intent_id and r.estado == 'succeeded')
         if inten.metadata is None and payment_intent_id in self.intenciones_creadas:
             inten.metadata = dict(self.intenciones_creadas[payment_intent_id].metadata or {})
         return inten
@@ -347,18 +361,29 @@ class FakeStripeGateway(StripeGateway):
             inten.estado = "SUCCEEDED"
         return inten
 
-    async def crear_reembolso(
-        self, payment_intent_id: str, centavos_usd: int, idempotency_key: Optional[str] = None,
-    ) -> ReembolsoInfo:
+    async def crear_reembolso(self, payment_intent_id, centavos_usd, idempotency_key=None):
+        if not idempotency_key:
+            raise ValueError("El reembolso requiere clave durable")
+        previo = await self.buscar_reembolso(payment_intent_id, idempotency_key)
+        if previo:
+            if previo.centavos_usd != centavos_usd:
+                raise ValueError("Clave reutilizada con otro importe")
+            return previo
+        pi = await self.consultar_intencion(payment_intent_id)
+        if pi.estado != 'SUCCEEDED' or centavos_usd <= 0 or centavos_usd > pi.capturado_centavos - pi.reembolsado_centavos:
+            raise ValueError("Importe no reembolsable")
         re_id = f"re_test_{secrets.token_hex(4)}"
-        reemb = ReembolsoInfo(
-            id=re_id,
-            payment_intent_id=payment_intent_id,
-            centavos_usd=centavos_usd,
-            estado="succeeded",
-        )
-        self.reembolsos[re_id] = reemb
-        return reemb
+        resultado = ReembolsoInfo(re_id, payment_intent_id, centavos_usd, 'succeeded', pi.moneda)
+        self.reembolsos[re_id] = resultado
+        self.claves_reembolso[idempotency_key] = re_id
+        return resultado
+
+    async def consultar_reembolso(self, referencia):
+        return self.reembolsos[referencia]
+
+    async def buscar_reembolso(self, payment_intent_id, clave):
+        r = self.reembolsos.get(self.claves_reembolso.get(clave))
+        return r if r and r.payment_intent_id == payment_intent_id else None
 
     # Helpers de prueba: transiciones controladas sin red.
     def marcar(self, pi_id: str, estado: str) -> None:
@@ -556,6 +581,7 @@ class RealStripeGateway(StripeGateway):
             r = await cli.get(
                 f"https://api.stripe.com/v1/payment_intents/{payment_intent_id}",
                 auth=(settings.STRIPE_SECRET_KEY, ""),
+                params={"expand[]": "latest_charge"},
             )
         if r.status_code >= 400:
             raise HTTPException(
@@ -575,6 +601,9 @@ class RealStripeGateway(StripeGateway):
             id=data["id"], venta_id=str(meta.get("venta_id", "") or meta.get("recurso_id", "")),
             monto_centavos=int(data.get("amount", 0)), moneda=str(data.get("currency", "usd")),
             estado=estado, client_secret=data.get("client_secret"),
+            capturado_centavos=data.get("amount_received"),
+            reembolsado_centavos=(data["latest_charge"].get("amount_refunded")
+                if isinstance(data.get("latest_charge"), dict) else None),
             empresa_id=str(meta.get("empresa_id", "")) if meta.get("empresa_id") else None,
             cliente_id=str(meta.get("cliente_id", "")) if meta.get("cliente_id") else None,
             metadata=meta,
@@ -775,28 +804,61 @@ class RealStripeGateway(StripeGateway):
             estado=estado, client_secret=data.get("client_secret"),
         )
 
-    async def crear_reembolso(
-        self, payment_intent_id: str, centavos_usd: int, idempotency_key: Optional[str] = None,
-    ) -> ReembolsoInfo:
-        import httpx
-
-        async with httpx.AsyncClient(timeout=15.0) as cli:
-            r = await cli.post(
-                "https://api.stripe.com/v1/refunds",
-                auth=(settings.STRIPE_SECRET_KEY, ""),
-                headers={"Idempotency-Key": idempotency_key or secrets.token_hex(16)},
-                data={"payment_intent": payment_intent_id, "amount": str(centavos_usd)},
-            )
-        if r.status_code >= 400:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail={"codigo": "STRIPE_REEMBOLSO_FALLIDO", "mensaje": "No se pudo procesar el reembolso en Stripe"},
-            )
-        data = r.json()
+    @staticmethod
+    def _reembolso(data):
+        # Campos ausentes nunca se sustituyen por valores de la solicitud.
         return ReembolsoInfo(
-            id=data["id"], payment_intent_id=payment_intent_id,
-            centavos_usd=int(data.get("amount", centavos_usd)), estado=data.get("status", "succeeded"),
+            id=data.get("id", ""), payment_intent_id=data.get("payment_intent", ""),
+            centavos_usd=data.get("amount"), estado=data.get("status", "unknown"),
+            moneda=data.get("currency"),
         )
+
+    async def crear_reembolso(self, payment_intent_id, centavos_usd, idempotency_key=None):
+        import httpx
+        if not idempotency_key or not isinstance(centavos_usd, int) or centavos_usd <= 0:
+            raise ValueError("El reembolso requiere importe entero positivo y clave durable")
+        async with httpx.AsyncClient(timeout=15.0) as cli:
+            r = await cli.post("https://api.stripe.com/v1/refunds",
+                auth=(settings.STRIPE_SECRET_KEY, ""),
+                headers={"Idempotency-Key": idempotency_key},
+                data={"payment_intent": payment_intent_id, "amount": str(centavos_usd),
+                      "metadata[ejecucion_id]": idempotency_key})
+        if r.status_code >= 400:
+            raise HTTPException(502, detail={"codigo": "STRIPE_REEMBOLSO_FALLIDO",
+                                           "mensaje": "Resultado no confirmado; consulte o concilie la operacion"})
+        return self._reembolso(r.json())
+
+    async def consultar_reembolso(self, referencia):
+        import httpx
+        async with httpx.AsyncClient(timeout=15.0) as cli:
+            r = await cli.get(f"https://api.stripe.com/v1/refunds/{referencia}",
+                              auth=(settings.STRIPE_SECRET_KEY, ""))
+        if r.status_code != 200:
+            raise HTTPException(502, detail="No se pudo verificar el reembolso")
+        return self._reembolso(r.json())
+
+    async def buscar_reembolso(self, payment_intent_id, clave):
+        import httpx
+        encontrados = []
+        params = {"payment_intent": payment_intent_id, "limit": 100}
+        async with httpx.AsyncClient(timeout=15.0) as cli:
+            while True:
+                r = await cli.get("https://api.stripe.com/v1/refunds",
+                                  auth=(settings.STRIPE_SECRET_KEY, ""), params=params)
+                if r.status_code != 200:
+                    raise HTTPException(502, detail="No se pudo verificar el historial de reembolsos")
+                datos = r.json()
+                for registro in datos.get("data", []):
+                    if (registro.get("metadata") or {}).get("ejecucion_id") == clave:
+                        encontrados.append(self._reembolso(registro))
+                if not datos.get("has_more"):
+                    break
+                if not datos.get("data"):
+                    raise HTTPException(502, detail="Historial de reembolsos incompleto")
+                params["starting_after"] = datos["data"][-1]["id"]
+        if len(encontrados) > 1:
+            raise HTTPException(409, detail="CONCILIACION_REQUERIDA: varias referencias para una ejecucion")
+        return encontrados[0] if encontrados else None
 
     async def consultar_payment_method(self, payment_method_id: str) -> dict:
         import httpx

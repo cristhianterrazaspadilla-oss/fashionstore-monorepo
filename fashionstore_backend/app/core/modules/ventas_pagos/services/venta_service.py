@@ -17,6 +17,7 @@ from backend.app.core.reloj import RelojSistema
 from backend.app.core.modules.ventas_pagos.models import DetalleVenta, Pago, Venta
 from backend.app.core.modules.inventario.models import MovimientoInventario
 from backend.app.core.modules.identidad_empresas.models import Usuario
+from backend.app.core.modules.identidad_empresas.services.plan_service import PlanService
 from backend.app.core.modules.inventario.repositories.inventario_repository import InventarioRepository
 from backend.app.core.modules.inventario.repositories.movimiento_repository import MovimientoRepository
 from backend.app.core.modules.ventas_pagos.repositories.pago_repository import PagoRepository
@@ -202,6 +203,14 @@ class VentaService:
             if reintento is not None:
                 self._autorizar_lectura_venta(usuario, reintento)
                 return await self._a_comprobante(reintento.id, self._con_costos(usuario), usuario.empresa_id), False
+            capacidad = await PlanService(self.db).validar_capacidad(
+                usuario.empresa_id, fecha_referencia=self.reloj.ahora()
+            )
+            if not capacidad.habilitado:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=capacidad.motivo_rechazo or "La suscripción no habilita nuevas ventas",
+                )
             venta = await self._venta_en_tx(usuario, dto, clave, digest)
             salida = await self._a_comprobante(venta.id, self._con_costos(usuario), usuario.empresa_id)
             await self.db.commit()

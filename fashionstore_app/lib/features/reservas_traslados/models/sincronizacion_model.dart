@@ -35,11 +35,11 @@ class ReferenciaHorariaModel {
       empresaId: '${j['empresa_id'] ?? fallbackEmpresaId ?? ''}',
       usuarioId: '${j['usuario_id'] ?? fallbackUsuarioId ?? ''}',
       dispositivoId: '${j['dispositivo_id'] ?? fallbackDispositivoId ?? ''}',
-      horaCentralEn: '${j['hora_central_en'] ?? j['emitida_en'] ?? DateTime.now().toUtc().toIso8601String()}',
-      validaHasta: '${j['valida_hasta'] ?? j['vence_en'] ?? DateTime.now().toUtc().add(const Duration(hours: 8)).toIso8601String()}',
+      horaCentralEn: '${j['hora_central_en'] ?? j['emitida_en'] ?? ''}',
+      validaHasta: '${j['valida_hasta'] ?? j['vence_en'] ?? ''}',
       toleranciaSegundos: (j['tolerancia_segundos'] as num?)?.toInt() ?? 300,
       politicaVersion: (j['politica_version'] as num?)?.toInt() ?? 1,
-      emitidaEn: '${j['emitida_en'] ?? DateTime.now().toUtc().toIso8601String()}',
+      emitidaEn: '${j['emitida_en'] ?? j['hora_central_en'] ?? ''}',
     );
   }
 
@@ -71,8 +71,8 @@ class ReferenciaHorariaModel {
 
   bool get estaVencida {
     final v = DateTime.tryParse(validaHasta);
-    if (v == null) return false;
-    return DateTime.now().toUtc().isAfter(v.toUtc());
+    if (v == null || DateTime.tryParse(horaCentralEn) == null) return true;
+    return !DateTime.now().toUtc().isBefore(v.toUtc());
   }
 }
 
@@ -138,7 +138,9 @@ class OperacionSincronizacionLocal {
     Map<String, dynamic> datos = {};
     try {
       datos = jsonDecode(datosJson) as Map<String, dynamic>;
-    } catch (_) {}
+    } catch (_) {
+      throw StateError('Contenido original ilegible; la solicitud se conserva sin enviar.');
+    }
 
     final tipo = datos['_tipo_operacion']?.toString() ?? 'SOLICITAR_RESERVA';
     final datosClean = Map<String, dynamic>.from(datos)..remove('_tipo_operacion');
@@ -230,7 +232,7 @@ class ResultadoOperacionDTO {
       operacionId: '${j['operacion_id'] ?? ''}',
       estado: '${j['estado'] ?? ''}',
       codigo: '${j['codigo'] ?? 'OK'}',
-      recibidaEn: '${j['recibida_en'] ?? DateTime.now().toUtc().toIso8601String()}',
+      recibidaEn: '${j['recibida_en'] ?? ''}',
       detalle: '${j['detalle'] ?? j['mensaje'] ?? ''}',
       aceptadaEn: (j['aceptada_en'] ?? j['creada_en'])?.toString(),
       venceEn: j['vence_en'] as String?,

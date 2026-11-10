@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Observable, map } from 'rxjs';
+import { esUuid } from '../services/reembolso-intentos';
 import { ReembolsoService } from '../services/reembolso.service';
 import { AuthService } from '../../identidad_empresas/services/auth.service';
 import {
@@ -24,6 +26,9 @@ import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-d
 })
 export class ReembolsosComponent implements OnInit {
   reembolsos: ReembolsoDetalleDTO[] = [];
+  consultaAdministrativa = false;
+  idConsulta = '';
+  private revisionCarga = 0;
   cargando = true;
   error: string | null = null;
   exito: string | null = null;
@@ -62,20 +67,45 @@ export class ReembolsosComponent implements OnInit {
   }
 
   cargarReembolsos(): void {
+    if (this.consultaAdministrativa) {
+      this.consultarAdministrativo();
+      return;
+    }
+    this.cargar(this.reembolsoService.listarMios());
+  }
+
+  verMisReembolsos(): void {
+    this.consultaAdministrativa = false;
+    this.cargarReembolsos();
+  }
+
+  consultarAdministrativo(): void {
+    if (!this.esPersonal) return;
+    if (!esUuid(this.idConsulta.trim())) {
+      this.error = 'Indica el UUID del reembolso que deseas consultar.';
+      return;
+    }
+    this.consultaAdministrativa = true;
+    this.cargar(this.reembolsoService.consultar(this.idConsulta).pipe(map(r => [r])));
+  }
+
+  private cargar(origen: Observable<ReembolsoDetalleDTO[]>): void {
+    const revision = ++this.revisionCarga;
     this.cargando = true;
     this.error = null;
-    this.reembolsoService.listar()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (items) => {
-          this.reembolsos = items || [];
-          this.cargando = false;
-        },
-        error: (err) => {
-          this.error = formatearErrorApi(err, 'No fue posible consultar la lista de reembolsos.');
-          this.cargando = false;
-        }
-      });
+    this.reembolsos = [];
+    origen.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: items => {
+        if (revision !== this.revisionCarga) return;
+        this.reembolsos = items;
+        this.cargando = false;
+      },
+      error: err => {
+        if (revision !== this.revisionCarga) return;
+        this.error = formatearErrorApi(err, 'No fue posible consultar los reembolsos.');
+        this.cargando = false;
+      }
+    });
   }
 
   get reembolsosFiltrados(): ReembolsoDetalleDTO[] {
@@ -84,18 +114,18 @@ export class ReembolsosComponent implements OnInit {
       list = list.filter(r => r.estado === this.filtroEstado);
     }
     if (this.filtroMedio !== 'TODOS') {
-      list = list.filter(r => r.medio_original === this.filtroMedio);
+      list = list.filter(r => r.componentes.some(c => c.medio === this.filtroMedio));
     }
     return list;
   }
 
   get esPersonal(): boolean {
     const rol = this.auth.obtenerUsuarioActual()?.rol;
-    return rol === 'ADMINISTRADOR' || rol === 'ENCARGADO' || rol === 'SUPERADMIN';
+    return rol === 'ADMINISTRADOR' || rol === 'ENCARGADO';
   }
 
   // Modal Solicitud
-  abrirModalSolicitud(origenId = '', tipo: 'VENTA' | 'PEDIDO' | 'DEVOLUCION' = 'VENTA'): void {
+  abrirModalSolicitud(origenId = '', tipo: ReembolsoSolicitudDTO['origen_tipo'] = 'VENTA'): void {
     this.solicitud = {
       origen_tipo: tipo,
       origen_id: origenId,
@@ -113,8 +143,10 @@ export class ReembolsosComponent implements OnInit {
   }
 
   enviarSolicitud(): void {
-    if (!this.solicitud.origen_id.trim()) {
-      this.errorSolicitud = 'Indica el identificador o número del comprobante.';
+    if (this.solicitando) return;
+    const referencia = this.solicitud.origen_id.trim();
+    if (!referencia || (this.solicitud.origen_tipo !== 'VENTA' && !esUuid(referencia))) {
+      this.errorSolicitud = 'Indica el UUID de la operación. Solo una venta admite también su número de comprobante.';
       return;
     }
     this.solicitando = true;
@@ -138,21 +170,23 @@ export class ReembolsosComponent implements OnInit {
 
   // Operaciones de personal
   iniciarAutorizacion(r: ReembolsoDetalleDTO): void {
+    if (!this.esPersonal || r.estado !== 'PENDIENTE_AUTORIZACION') return;
     this.reembolsoSeleccionado = r;
     this.accionPendiente = 'AUTORIZAR';
     this.dialogoConfirmarVisible = true;
   }
 
   iniciarEjecucion(r: ReembolsoDetalleDTO): void {
+    if (!this.esPersonal || !['AUTORIZADO', 'EN_PROCESO'].includes(r.estado)) return;
     this.reembolsoSeleccionado = r;
     this.accionPendiente = 'EJECUTAR';
     this.dialogoConfirmarVisible = true;
   }
 
   confirmarAccion(): void {
-    if (!this.reembolsoSeleccionado || !this.accionPendiente || this.procesandoAccion) return;
+    if (!this.esPersonal || !this.reembolsoSeleccionado || !this.accionPendiente || this.procesandoAccion) return;
     this.procesandoAccion = true;
-    const id = this.reembolsoSeleccionado.reembolso_id;
+    const id = this.reembolsoSeleccionado.id;
 
     if (this.accionPendiente === 'AUTORIZAR') {
       this.reembolsoService.autorizar(id, { motivo_aprobacion: 'Autorizado tras revisión técnica' })
@@ -171,10 +205,12 @@ export class ReembolsosComponent implements OnInit {
     } else if (this.accionPendiente === 'EJECUTAR') {
       this.reembolsoService.ejecutar(id)
         .subscribe({
-          next: () => {
+          next: resultado => {
             this.procesandoAccion = false;
             this.dialogoConfirmarVisible = false;
-            this.exito = 'Reembolso ejecutado hacia el medio original exitosamente.';
+            this.exito = resultado.estado === 'COMPLETADO'
+              ? 'Reembolso completado según la respuesta central.'
+              : 'Estado central: ' + this.etiquetaEstado(resultado.estado) + '. Consulta el estado antes de reintentar.';
             this.cargarReembolsos();
           },
           error: (err) => {
@@ -194,7 +230,6 @@ export class ReembolsosComponent implements OnInit {
   etiquetaEstado(estado: EstadoReembolso): string {
     switch (estado) {
       case 'PENDIENTE_AUTORIZACION':
-      case 'SOLICITADO':
         return 'Pendiente de aprobación';
       case 'AUTORIZADO':
         return 'Aprobado para devolución';
@@ -213,7 +248,6 @@ export class ReembolsosComponent implements OnInit {
 
   claseEstado(estado: EstadoReembolso): string {
     switch (estado) {
-      case 'SOLICITADO':
       case 'PENDIENTE_AUTORIZACION':
         return 'badge-warning';
       case 'AUTORIZADO':

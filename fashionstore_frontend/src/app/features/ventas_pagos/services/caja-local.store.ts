@@ -255,8 +255,21 @@ export class CajaLocalStore {
       req.onsuccess = () => {
         const v = req.result;
         if (!v || !this.coincide(v.origen, ctx)) { this.fallar(tx, 'Operación fuera del ámbito actual'); return; }
-        if (resultado.operacion_id !== operacionId || !['REGISTRADA_CENTRAL', 'CONCILIACION_REQUERIDA'].includes(resultado.resultado)) {
+        if (resultado?.operacion_id !== operacionId || !['REGISTRADA_CENTRAL', 'CONCILIACION_REQUERIDA'].includes(resultado.resultado)) {
           this.fallar(tx, 'Resultado no confirmado: se conserva la operación original'); return;
+        }
+        if (resultado.resultado === 'REGISTRADA_CENTRAL') {
+          const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const total = Number(resultado.total_bob), esperado = Number(v.cuerpo.total_bob);
+          if (!uuid.test(resultado.venta_id || '') || !uuid.test(resultado.comprobante_id || '') ||
+              typeof resultado.numero !== 'string' || !resultado.numero.trim() ||
+              typeof resultado.recibida_central_en !== 'string' || !Number.isFinite(Date.parse(resultado.recibida_central_en)) ||
+              !/(Z|[+-]\d{2}:\d{2})$/i.test(resultado.recibida_central_en) ||
+              !['number', 'string'].includes(typeof resultado.total_bob) || String(resultado.total_bob).trim() === '' ||
+              !Number.isFinite(total) || total < 0 || !Number.isFinite(esperado) ||
+              Math.round(total * 100) !== Math.round(esperado * 100)) {
+            this.fallar(tx, 'Confirmación central incompleta o distinta a la venta: se conserva el pendiente'); return;
+          }
         }
         v.resultado_central = resultado; v.estado_local = resultado.resultado; st.put(v); listo();
       };

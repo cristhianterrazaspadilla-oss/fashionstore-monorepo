@@ -113,6 +113,19 @@ export class ReservasComponent implements OnInit, OnDestroy {
         this.cargarReservasLocales();
       }
     });
+    let identidad = JSON.stringify(this.auth.obtenerUsuarioActual());
+    this.redSub.add(this.auth.usuario$.subscribe(u => {
+      const actual = JSON.stringify(u);
+      if (actual === identidad) return;
+      identidad = actual;
+      this.reservasLocales = []; this.reservas = []; this.lineas = [];
+      this.cerrarModal();
+      this.cargarReservasLocales();
+    }));
+    this.redSub.add(this.auth.privacidadExpirada$.subscribe(() => {
+      this.reservasLocales = []; this.reservas = []; this.lineas = [];
+      this.cerrarModal();
+    }));
   }
 
   ngOnDestroy(): void {
@@ -207,7 +220,9 @@ export class ReservasComponent implements OnInit, OnDestroy {
 
   async cargarReservasLocales(): Promise<void> {
     try {
-      this.reservasLocales = await this.syncOfflineService.listarReservasLocales();
+      const identidad = JSON.stringify(this.auth.obtenerUsuarioActual());
+      const pendientes = await this.syncOfflineService.listarReservasLocales();
+      if (this.auth.esVentanaPrivacidadValida() && identidad === JSON.stringify(this.auth.obtenerUsuarioActual())) this.reservasLocales = pendientes;
     } catch {
       this.reservasLocales = [];
     }
@@ -227,7 +242,7 @@ export class ReservasComponent implements OnInit, OnDestroy {
       const resumen = await this.syncOfflineService.sincronizarCola();
       this.sincronizando = false;
       if (resumen.sincronizadas > 0) {
-        this.exito = `Se sincronizaron exitosamente ${resumen.sincronizadas} reserva(s) con el servidor.`;
+        this.exito = `El servidor procesó ${resumen.sincronizadas} operación(es). Revisa su resultado; no implica aceptación de la reserva.`;
       } else if (resumen.errores > 0) {
         this.error = `Ocurrieron observaciones en ${resumen.errores} reserva(s). Revisa el estado de cada solicitud.`;
       } else {
@@ -309,7 +324,7 @@ export class ReservasComponent implements OnInit, OnDestroy {
         this.fechaVisita = '';
         this.observacion = '';
         this.errorHorario = '';
-        this.exito = 'Reserva guardada fuera de línea en este dispositivo. Se sincronizará automáticamente al conectar.';
+        this.exito = 'Solicitud guardada como pendiente en este dispositivo. Se intentará enviar al conectar; todavía no está aceptada ni garantiza existencias.';
         this.cargarReservasLocales();
       } catch (e: any) {
         this.procesando = '';

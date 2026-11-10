@@ -113,36 +113,17 @@ class SincronizacionOfflineService {
     required dynamic items,
     String? notas,
   }) async {
-    String usrId = usuarioId ?? '';
-    String dispId = dispositivoId ?? '';
-    String empId = empresaId;
-
     final sesion = await _sesiones.leerValida();
-    if (sesion != null) {
-      if (!BoliviaTime.dentroDeVentana8Horas(sesion.guardadaEn)) {
-        throw const ApiException(
-          statusCode: 401,
-          mensaje:
-              'La ventana de 8 horas de tu sesión expiró. Inicia sesión conectado.',
-        );
-      }
-      if (usrId.isEmpty) {
-        usrId = sesion.usuario.usuarioId;
-      }
-      if (sesion.usuario.empresaId != null &&
-          sesion.usuario.empresaId!.isNotEmpty &&
-          (empId.isEmpty || empId == 'fashionstore')) {
-        empId = sesion.usuario.empresaId!;
-      }
-    } else if (usrId.isEmpty) {
-      throw const ApiException(
-        statusCode: 401,
-        mensaje: 'Inicia sesión para registrar una reserva.',
-      );
+    if (sesion == null || !BoliviaTime.dentroDeVentana8Horas(sesion.guardadaEn) ||
+        sesion.usuario.empresaId == null || sesion.usuario.empresaId!.isEmpty) {
+      throw const ApiException(statusCode: 401, mensaje: 'Inicia sesion conectado para registrar reservas offline.');
     }
-
-    if (dispId.isEmpty) {
-      dispId = await DispositivoHelper.obtenerDispositivoId();
+    final empId = sesion.usuario.empresaId!;
+    final usrId = sesion.usuario.usuarioId.isNotEmpty ? sesion.usuario.usuarioId : sesion.usuario.id;
+    final dispId = await DispositivoHelper.obtenerDispositivoId();
+    if ((empresaId.isNotEmpty && empresaId != 'fashionstore' && empresaId != empId) ||
+        (usuarioId != null && usuarioId != usrId) || (dispositivoId != null && dispositivoId != dispId)) {
+      throw StateError('El origen indicado no corresponde a la sesion actual.');
     }
 
     DateTime visitaDateTime;
@@ -150,10 +131,11 @@ class SincronizacionOfflineService {
     if (v is DateTime) {
       visitaDateTime = v;
     } else if (v is String) {
-      visitaDateTime =
-          DateTime.tryParse(v) ?? DateTime.now().add(const Duration(days: 1));
+      final fecha = DateTime.tryParse(v);
+      if (fecha == null) throw StateError('Fecha de visita invalida.');
+      visitaDateTime = fecha;
     } else {
-      visitaDateTime = DateTime.now().add(const Duration(days: 1));
+      throw StateError('Indica la fecha de visita antes de guardar la reserva.');
     }
 
     List<Map<String, dynamic>> lineas;
@@ -170,22 +152,30 @@ class SincronizacionOfflineService {
           return {'variante_id': e.varianteId, 'cantidad': e.cantidad};
         }
         final m = (e as Map).cast<String, dynamic>();
+        final cantidad = m['cantidad'];
+        if (cantidad is! num || !cantidad.isFinite || cantidad <= 0 || cantidad != cantidad.toInt()) {
+          throw StateError('Indica una cantidad entera positiva para cada prenda.');
+        }
         return {
           'variante_id': '${m['variante_id'] ?? ''}',
-          'cantidad': (m['cantidad'] as num?)?.toInt() ?? 1,
+          'cantidad': cantidad.toInt(),
         };
       }).toList();
     } else {
       lineas = [];
     }
 
+    if (lineas.isEmpty || lineas.any((l) => (l['variante_id'] as String).isEmpty ||
+        l['cantidad'] is! int || (l['cantidad'] as int) <= 0)) {
+      throw StateError('La reserva requiere prendas y cantidades enteras positivas.');
+    }
     // Obtener referencia horaria activa en SQLite
     final ref = await _storage.obtenerReferenciaHorariaValida(
       empresaId: empId,
       usuarioId: usrId,
     );
 
-    if (ref == null || ref.id.isEmpty) {
+    if (ref == null || ref.id.isEmpty || ref.empresaId != empId || ref.usuarioId != usrId || ref.dispositivoId != dispId) {
       throw const ApiException(
         statusCode: 428,
         mensaje:
@@ -221,6 +211,12 @@ class SincronizacionOfflineService {
       actualizadoEn: DateTime.now().toUtc().toIso8601String(),
     );
 
+    final actual = await _sesiones.leerValida();
+    if (actual == null || actual.usuario.empresaId != empId ||
+        (actual.usuario.usuarioId.isNotEmpty ? actual.usuario.usuarioId : actual.usuario.id) != usrId ||
+        !BoliviaTime.dentroDeVentana8Horas(actual.guardadaEn)) {
+      throw StateError('La sesion cambio; la solicitud no se asigna a otra cuenta.');
+    }
     await _storage.encolarOperacion(op);
     return op;
   }
@@ -302,24 +298,23 @@ class SincronizacionOfflineService {
 
     try {
       final sesion = await _sesiones.leerValida();
-      String empId = empresaId ?? '';
-      String usrId = usuarioId ?? '';
-
-      if (sesion != null) {
-        if (!BoliviaTime.dentroDeVentana8Horas(sesion.guardadaEn)) {
-          return const [];
-        }
-        usrId = sesion.usuario.usuarioId;
-        if (sesion.usuario.empresaId != null &&
-            sesion.usuario.empresaId!.isNotEmpty) {
-          empId = sesion.usuario.empresaId!;
-        }
-      } else if (usrId.isEmpty) {
-        return const [];
+      if (sesion == null || !BoliviaTime.dentroDeVentana8Horas(sesion.guardadaEn)) return const [];
+      final empId = sesion.usuario.empresaId ?? '';
+      final usrId = sesion.usuario.usuarioId.isNotEmpty ? sesion.usuario.usuarioId : sesion.usuario.id;
+      if (empId.isEmpty || usrId.isEmpty || (empresaId != null && empresaId != empId) ||
+          (usuarioId != null && usuarioId != usrId)) return const [];
+      Future<bool> mismaSesion() async {
+        final actual = await _sesiones.leerValida();
+        return actual != null && actual.usuario.empresaId == empId &&
+          (actual.usuario.usuarioId.isNotEmpty ? actual.usuario.usuarioId : actual.usuario.id) == usrId &&
+          BoliviaTime.dentroDeVentana8Horas(actual.guardadaEn);
       }
-
-      if (empId.isEmpty || usrId.isEmpty) {
-        return const [];
+      bool resultadoValido(OperacionSincronizacionLocal op, ResultadoOperacionDTO res) {
+        if (res.operacionId != op.operacionId) return false;
+        if (op.toApiPayload()['tipo'] != 'SOLICITAR_RESERVA') return res.estado.isNotEmpty;
+        return ['ACEPTADA', 'RECHAZADA', 'CONFLICTO'].contains(res.estado) &&
+          DateTime.tryParse(res.recibidaEn) != null &&
+          (res.estado != 'ACEPTADA' || ((res.recursoId?.isNotEmpty ?? false) && (res.aceptadaEn?.isNotEmpty ?? false)));
       }
 
       final pendientes = await _storage.listarOperacionesCola(
@@ -331,6 +326,7 @@ class SincronizacionOfflineService {
       final resultados = <ResultadoOperacionDTO>[];
 
       for (final op in pendientes) {
+        if (!await mismaSesion()) break;
         if (op.estadoEnvio == 'ENVIANDO') {
           // Consultar primero por UUID original antes de reenviar
           try {
@@ -339,6 +335,8 @@ class SincronizacionOfflineService {
               convertir: (j) => ResultadoOperacionDTO.fromJson(
                   (j as Map).cast<String, dynamic>()),
             );
+            if (!await mismaSesion()) break;
+            if (!resultadoValido(op, res)) continue;
             await _storage.actualizarEstadoOperacion(
               op.operacionId,
               res.estado,
@@ -361,6 +359,7 @@ class SincronizacionOfflineService {
         await _storage.actualizarEstadoOperacion(op.operacionId, 'ENVIANDO');
 
         try {
+          if (!await mismaSesion()) break;
           final res = await _api.post<ResultadoOperacionDTO>(
             '/sincronizacion/operaciones',
             cuerpo: op.toApiPayload(),
@@ -368,6 +367,8 @@ class SincronizacionOfflineService {
                 (j as Map).cast<String, dynamic>()),
           );
 
+          if (!await mismaSesion()) break;
+          if (!resultadoValido(op, res)) continue;
           await _storage.actualizarEstadoOperacion(
             op.operacionId,
             res.estado,
@@ -411,7 +412,7 @@ class SincronizacionOfflineService {
         }
       }
 
-      return resultados;
+      return await mismaSesion() ? resultados : const [];
     } finally {
       _sincronizando = false;
     }
@@ -431,30 +432,20 @@ class SincronizacionOfflineService {
     String? usuarioId,
   }) async {
     final sesion = await _sesiones.leerValida();
-    String empId = empresaId ?? '';
-    String usrId = usuarioId ?? '';
-
-    if (sesion != null) {
-      if (!BoliviaTime.dentroDeVentana8Horas(sesion.guardadaEn)) {
-        return const [];
-      }
-      usrId = sesion.usuario.usuarioId;
-      if (sesion.usuario.empresaId != null &&
-          sesion.usuario.empresaId!.isNotEmpty) {
-        empId = sesion.usuario.empresaId!;
-      }
-    } else if (usrId.isEmpty) {
-      return const [];
-    }
-
-    if (empId.isEmpty || usrId.isEmpty) {
-      return const [];
-    }
-
-    return _storage.listarOperacionesCola(
+    if (sesion == null || !BoliviaTime.dentroDeVentana8Horas(sesion.guardadaEn)) return const [];
+    final empId = sesion.usuario.empresaId ?? '';
+    final usrId = sesion.usuario.usuarioId.isNotEmpty ? sesion.usuario.usuarioId : sesion.usuario.id;
+    if (empId.isEmpty || usrId.isEmpty || (empresaId != null && empresaId != empId) ||
+        (usuarioId != null && usuarioId != usrId)) return const [];
+    final operaciones = await _storage.listarOperacionesCola(
       empresaId: empId,
       usuarioId: usrId,
     );
+    final actual = await _sesiones.leerValida();
+    if (actual == null || actual.usuario.empresaId != empId ||
+        (actual.usuario.usuarioId.isNotEmpty ? actual.usuario.usuarioId : actual.usuario.id) != usrId ||
+        !BoliviaTime.dentroDeVentana8Horas(actual.guardadaEn)) return const [];
+    return operaciones;
   }
 
   /// Monitoreo de red mientras la aplicación está en ejecución.

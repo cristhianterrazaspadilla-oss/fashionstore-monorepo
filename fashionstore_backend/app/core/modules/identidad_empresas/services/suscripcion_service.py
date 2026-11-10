@@ -61,7 +61,17 @@ class SuscripcionService:
             usuario_id=admin_plataforma.id,
         )
         if registro_previo is not None and registro_previo.respuesta:
+            if str(registro_previo.respuesta.get("empresa_id")) != str(empresa_id):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="La clave de idempotencia ya pertenece a otra empresa",
+                )
             return SuscripcionRespuestaDTO(**registro_previo.respuesta)
+        if registro_previo is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="La asignación con esta clave sigue pendiente de confirmación",
+            )
 
         # 1. Validar fechas
         inicio_utc = asegurar_utc(dto.inicio_en)

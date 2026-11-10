@@ -569,7 +569,7 @@ class _BolsaScreenState extends State<BolsaScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Solicitud offline ${op.operacionId.substring(0, 8)} guardada (PENDIENTE_ENVIO). Se sincronizará automáticamente.',
+            'Solicitud offline ${op.operacionId.substring(0, 8)} guardada (PENDIENTE_ENVIO). Se intentará enviar al conectar; no está aceptada ni garantiza existencias.',
           ),
           backgroundColor: Colors.blue.shade800,
         ),

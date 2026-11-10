@@ -267,8 +267,9 @@ export class SincronizacionOfflineService {
    * Asigna UUID estable, secuencia local y fecha/hora con offset de Bolivia (-04:00).
    */
   async registrarReservaOffline(datos: OperacionDatosReserva): Promise<OperacionEncolada> {
+    datos = structuredClone(datos);
     const usuario = this.authService.obtenerUsuarioActual();
-    if (!usuario) {
+    if (!usuario || !esVentanaPrivacidadValida()) {
       throw new Error('Debes iniciar sesión para registrar una reserva fuera de línea.');
     }
 
@@ -294,6 +295,10 @@ export class SincronizacionOfflineService {
       );
     }
 
+    if (ref.empresa_id !== empresaId || ref.usuario_id !== usuarioId || ref.dispositivo_id !== dispositivoId ||
+        !datos.lineas.length || datos.lineas.some(l => !l.variante_id || !Number.isInteger(l.cantidad) || l.cantidad <= 0)) {
+      throw new Error('Referencia de otra identidad/dispositivo o lineas de reserva invalidas.');
+    }
     const referenciaHorariaId = ref.referencia_horaria_id;
     const secuencia = await this.offlineStore.obtenerSiguienteSecuencia(dispositivoId, usuarioId);
     const creadaLocalEn = obtenerHoraBoliviaIso();
@@ -322,6 +327,11 @@ export class SincronizacionOfflineService {
       actualizado_en: creadaLocalEn
     };
 
+    const actual = this.authService.obtenerUsuarioActual();
+    if (!actual || !esVentanaPrivacidadValida() || this.authService.obtenerEmpresaId() !== empresaId ||
+        (actual.usuario_id || actual.id) !== usuarioId) {
+      throw new Error('La sesion cambio antes de guardar la reserva; no se atribuye a otra cuenta.');
+    }
     // Guardar cabecera, líneas y UUID en una transacción atómica antes de mostrar PENDIENTE_ENVIO
     await this.offlineStore.encolarOperacionAtomiaca(operacion);
 
@@ -447,7 +457,8 @@ export class SincronizacionOfflineService {
         total: pendientes.length,
         sincronizadas,
         errores,
-        pendientes: pendientes.length - sincronizadas - errores
+        pendientes: (await this.offlineStore.obtenerColaOperaciones(empresaId, usuarioId))
+          .filter(op => op.estado_envio === 'PENDIENTE_ENVIO' || op.estado_envio === 'ENVIANDO').length
       };
     } finally {
       this.sincronizandoSubject.next(false);
@@ -473,11 +484,30 @@ export class SincronizacionOfflineService {
    * Si quedó en ENVIANDO, primero consulta por UUID para verificar si ya fue procesada.
    */
   async procesarOperacionEncolada(op: OperacionEncolada): Promise<void> {
+    op = structuredClone(op);
+    const verificarAmbito = () => {
+      const u = this.authService.obtenerUsuarioActual();
+      if (!u || !esVentanaPrivacidadValida() || op.empresa_id !== this.authService.obtenerEmpresaId() ||
+          op.usuario_id !== (u.usuario_id || u.id)) {
+        throw new Error('La operacion pertenece a otra sesion; se conserva sin enviar.');
+      }
+    };
+    const verificarResultado = (r: ResultadoOperacionDurable) => {
+      verificarAmbito();
+      if (r?.operacion_id !== op.operacion_id || (op.tipo === 'SOLICITAR_RESERVA' &&
+          (!['ACEPTADA', 'RECHAZADA', 'CONFLICTO'].includes(r.estado) ||
+           !Number.isFinite(Date.parse(r.recibida_en || '')) ||
+           (r.estado === 'ACEPTADA' && (!r.recurso_id || !r.aceptada_en))))) {
+        throw new Error('Resultado central no confirmado para la solicitud original.');
+      }
+    };
+    verificarAmbito();
     // Si la operación quedó en ENVIANDO (por recarga, reinicio o corte de red):
     if (op.estado_envio === 'ENVIANDO') {
       try {
         const resultadoPrevio = await this.consultarOperacionPorId(op.operacion_id);
         if (resultadoPrevio) {
+          verificarResultado(resultadoPrevio);
           await this.offlineStore.actualizarEstadoOperacion(
             op.operacion_id,
             'SINCRONIZADA',
@@ -494,6 +524,7 @@ export class SincronizacionOfflineService {
       }
     }
 
+    verificarAmbito();
     // Marcar como ENVIANDO antes de emitir la llamada
     await this.offlineStore.actualizarEstadoOperacion(op.operacion_id, 'ENVIANDO');
 
@@ -528,6 +559,7 @@ export class SincronizacionOfflineService {
     };
 
     try {
+      verificarAmbito();
       const resultado = await new Promise<ResultadoOperacionDurable>((resolve, reject) => {
         this.http.post<ResultadoOperacionDurable>(`${this.api}/sincronizacion/operaciones`, comando).subscribe({
           next: resolve,
@@ -535,6 +567,7 @@ export class SincronizacionOfflineService {
         });
       });
 
+      verificarResultado(resultado);
       // Manejo estricto de las respuestas del protocolo v3:
       // PENDIENTE_INTERVENCION, REQUIERE_NUEVA_ACEPTACION, REQUIERE_ACCION_CLIENTE, PENDIENTE_PAGO, ACEPTADA
       switch (resultado.estado) {
@@ -606,10 +639,10 @@ export class SincronizacionOfflineService {
           detalleError
         );
       } else {
-        // Falla de red temporal o 503: mantener en PENDIENTE_ENVIO para reintento con el mismo UUID
+        // Resultado incierto: conservar ENVIANDO para consultar el UUID antes de reenviar.
         await this.offlineStore.actualizarEstadoOperacion(
           op.operacion_id,
-          'PENDIENTE_ENVIO',
+          'ENVIANDO',
           undefined,
           'Conexión interrumpida durante el envío. Se reintentará al recuperar la red.'
         );
@@ -677,6 +710,11 @@ export class SincronizacionOfflineService {
       throw new Error(`Operación ${operacionId} no encontrada en la cola local.`);
     }
 
+    const u = this.authService.obtenerUsuarioActual();
+    if (!u || !esVentanaPrivacidadValida() || op.empresa_id !== this.authService.obtenerEmpresaId() ||
+        op.usuario_id !== (u.usuario_id || u.id) || op.tipo !== 'SOLICITAR_COMPRA') {
+      throw new Error('Solo puede continuar una compra propia; la reserva original no se modifica.');
+    }
     const datosCompra = { ...(op.datos as OperacionDatosCompra) };
     const authLimpia = sanitizarAutorizacionCobro(autorizacion);
     if (authLimpia) {
@@ -703,8 +741,18 @@ export class SincronizacionOfflineService {
    */
   async actualizarEstadoDesdeServidor(operacionId: string): Promise<ResultadoOperacionDurable | null> {
     try {
+      const op = await this.offlineStore.obtenerOperacionPorId(operacionId);
+      const u = this.authService.obtenerUsuarioActual();
+      if (!op || !u || !esVentanaPrivacidadValida() || op.empresa_id !== this.authService.obtenerEmpresaId() ||
+          op.usuario_id !== (u.usuario_id || u.id)) return null;
       const res = await this.consultarOperacionPorId(operacionId);
       if (res) {
+        const actual = this.authService.obtenerUsuarioActual();
+        if (!actual || !esVentanaPrivacidadValida() || op.empresa_id !== this.authService.obtenerEmpresaId() ||
+            op.usuario_id !== (actual.usuario_id || actual.id) || res.operacion_id !== operacionId ||
+            (op.tipo === 'SOLICITAR_RESERVA' && (!['ACEPTADA', 'RECHAZADA', 'CONFLICTO'].includes(res.estado) ||
+              !Number.isFinite(Date.parse(res.recibida_en || '')) ||
+              (res.estado === 'ACEPTADA' && (!res.recurso_id || !res.aceptada_en))))) return null;
         let nuevoEstadoEnvio: import('./offline-store.service').EstadoEnvio = 'SINCRONIZADA';
         if (res.estado === 'PENDIENTE_INTERVENCION') {
           nuevoEstadoEnvio = 'PENDIENTE_INTERVENCION';

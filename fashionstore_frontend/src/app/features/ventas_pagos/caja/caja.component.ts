@@ -954,7 +954,7 @@ export class CajaComponent implements OnInit, OnDestroy {
       total: total,
       efectivo: this.efectivoRecibido,
       cambio: this.cambioEntregado,
-      esOffline: !navigator.onLine
+      esOffline: true // El registro local aun no tiene confirmacion central.
     };
 
     // La transaccion relee el balance durable y asigna la secuencia; no guarda una copia obsoleta.

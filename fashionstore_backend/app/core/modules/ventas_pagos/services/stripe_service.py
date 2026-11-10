@@ -18,6 +18,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.ambito_comercial import exigir_empresa_recurso
 from backend.app.core.modules.ventas_pagos.integraciones import stripe_gateway as gw
 from backend.app.core.config import settings
 from backend.app.core.idempotencia import hash_payload
@@ -70,6 +71,7 @@ class StripeService:
         return venta
 
     def _autorizar_intencion(self, usuario: Usuario, venta: Venta) -> None:
+        exigir_empresa_recurso(usuario, venta)
         if es_admin(usuario):
             return
         if rol_de(usuario) == "CLIENTE" and venta.cliente_id == usuario.id:
@@ -143,6 +145,7 @@ class StripeService:
                     "centavos_usd": str(cotizacion.centavos_usd),
                 },
             )
+            await self._validar_intencion_venta(venta, inten)
             if referencia is None:
                 monto_usd = cotizacion.monto_usd
             if pago_previo is not None:
@@ -220,11 +223,33 @@ class StripeService:
                     or int(meta.get("centavos_usd", 0)) != esperado):
                 raise HTTPException(status_code=409, detail="La cotización congelada no coincide con la venta")
         else:
-            # Intenciones anteriores a la cotización congelada: impedir aprobar
-            # importes BOB enviados erróneamente como USD.
-            esperado = (await TasaCambioService(self.db).cotizar(Decimal(str(venta.total)))).centavos_usd
+            raise HTTPException(409, detail="CONCILIACION_REQUERIDA: cargo antiguo sin cotizacion original verificable")
         if inten.monto_centavos != esperado:
             raise HTTPException(status_code=409, detail="El importe Stripe no coincide con el total convertido")
+        # Guardar la cotizacion original en la tabla existente, tambien para CU15.
+        # El reembolso nunca reconstruye un cargo usando la tasa vigente.
+        orden = (await self.db.execute(select(OrdenPago).where(
+            OrdenPago.empresa_id == venta.empresa_id,
+            OrdenPago.proveedor == "STRIPE", OrdenPago.referencia_externa == inten.id,
+        ))).scalars().first()
+        if orden is not None:
+            if (orden.venta_id != venta.id or orden.monto_bob != venta.total or
+                    orden.centavos_usd != esperado or str(orden.tasa_id) != str(meta["tasa_id"])):
+                raise HTTPException(409, detail="CONCILIACION_REQUERIDA: cotizacion guardada contradictoria")
+        else:
+            orden = OrdenPago(
+                empresa_id=venta.empresa_id, contexto="VENTA", venta_id=venta.id,
+                proveedor="STRIPE", clave_externa="cu15:" + inten.id,
+                referencia_externa=inten.id, estado="PENDIENTE", monto_bob=venta.total,
+                tasa_id=uuid.UUID(str(meta["tasa_id"])),
+                monto_usd=Decimal(esperado) / 100, centavos_usd=esperado,
+            )
+            self.db.add(orden)
+        if inten.estado == "SUCCEEDED":
+            if inten.capturado_centavos != esperado:
+                raise HTTPException(409, detail="CONCILIACION_REQUERIDA: captura distinta del importe original")
+            orden.estado = "CAPTURADO"
+        await self.db.flush()
         return Decimal(esperado) / Decimal("100")
 
     async def estado(self, usuario: Usuario, venta_id: uuid.UUID) -> EstadoPagoDTO:

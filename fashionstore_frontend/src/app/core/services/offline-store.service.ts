@@ -503,11 +503,15 @@ export class OfflineStoreService {
       const tx = db.transaction(['cola_sincronizacion'], 'readwrite');
       const store = tx.objectStore('cola_sincronizacion');
       const getReq = store.get(operacionId);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('No se pudo persistir el estado de la operacion.'));
+      tx.onabort = () => reject(tx.error || new Error('Actualizacion de estado abortada.'));
 
       getReq.onsuccess = () => {
         const item = getReq.result as OperacionEncolada | undefined;
         if (!item) {
-          resolve();
+          reject(new Error('Operacion original no encontrada; no se confirma sincronizacion.'));
+          tx.abort();
           return;
         }
 
@@ -524,7 +528,6 @@ export class OfflineStoreService {
         }
 
         const putReq = store.put(item);
-        putReq.onsuccess = () => resolve();
         putReq.onerror = () => reject(putReq.error);
       };
 

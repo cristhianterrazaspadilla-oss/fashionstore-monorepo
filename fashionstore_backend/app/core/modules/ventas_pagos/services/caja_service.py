@@ -102,7 +102,12 @@ class CajaService:
             usuario_id=usuario.id,
         )
         if previo is not None and previo.respuesta:
-            return TurnoHabilitacionDTO(**previo.respuesta)
+            habilitacion = TurnoHabilitacionDTO(**previo.respuesta)
+            if habilitacion.empresa_id is None or habilitacion.hora_central_en is None:
+                # Una respuesta historica puede preceder a estos metadatos.
+                # Recuperarlos del turno autorizado, sin inventar origen ni renovar su vigencia.
+                return await self.obtener_turno(habilitacion.turno_id, usuario)
+            return habilitacion
 
         # 1. Validar plan operativo activo y capacidad offline de la empresa
         ahora = utcnow()

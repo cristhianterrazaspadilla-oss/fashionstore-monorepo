@@ -146,7 +146,7 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content:
-              Text('Reservamos $_cantidad prenda(s) para probar en tienda.'),
+              Text('Añadimos $_cantidad prenda(s) a la bolsa. Todavía no se ha solicitado ni aceptado una reserva.'),
           action: SnackBarAction(
             label: 'Ver reservas',
             onPressed: () => Navigator.pop(context),
