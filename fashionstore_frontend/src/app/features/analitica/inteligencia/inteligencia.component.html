@@ -114,11 +114,16 @@
             type="button"
             class="cycle-primary btn-consultar"
             (click)="generarReporte()"
-            [disabled]="generando || !consulta.trim()"
+            [disabled]="generando || escuchando || !consulta.trim()"
           >
             {{ generando ? 'Interpretando…' : 'Consultar datos' }}
           </button>
+          <button type="button" class="cycle-secondary" (click)="alternarDictado()" [disabled]="generando || !dictado.disponible"
+            [attr.aria-pressed]="escuchando" aria-label="Dictar consulta de reporte">{{ escuchando ? 'Detener micrófono' : '🎤 Dictar' }}</button>
         </div>
+        <p role="status" aria-live="polite">{{ escuchando ? 'Escuchando en español… Detén, revisa el texto y pulsa Consultar datos.' : 'Dictado opcional según navegador y conexión; revisa el texto antes de consultar.' }}</p>
+        <p *ngIf="!dictado.disponible">Dictado no disponible en este navegador. Puedes escribir la consulta.</p>
+        <p *ngIf="errorVoz" role="alert">{{ errorVoz }}</p>
         <p class="ia-hint">
           Consultas tipadas permitidas: ventas por sucursal, ranking de productos, evolución semanal o ingresos por categoría.
         </p>
@@ -151,9 +156,13 @@
             <span class="report-origin-badge">Período: {{ reporteTipado.filtros_efectivos['desde'] || 'Sin inicio' }} / {{ reporteTipado.filtros_efectivos['hasta'] || 'Sin fin' }}</span>
           </div>
           <div class="header-actions">
-            <button type="button" class="cycle-secondary small" (click)="exportarCsv()">
+            <button type="button" class="cycle-secondary small" [disabled]="!exportacionDisponible || exportando" (click)="exportarCsv()">
               Exportar CSV
             </button>
+            <button type="button" class="cycle-secondary small" [disabled]="!exportacionDisponible || exportando" (click)="exportar('pdf')">PDF</button>
+            <button type="button" class="cycle-secondary small" [disabled]="!exportacionDisponible || exportando" (click)="exportar('html')">HTML</button>
+            <button type="button" class="cycle-secondary small" [disabled]="!exportacionDisponible || exportando" (click)="exportar('xlsx')">Excel XLSX</button>
+            <span *ngIf="errorExportacion" role="alert">{{ errorExportacion }}</span>
           </div>
         </div>
 

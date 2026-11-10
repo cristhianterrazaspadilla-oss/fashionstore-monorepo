@@ -42,7 +42,7 @@ export type EstadoDevolucion =
 export type DictamenInspeccion = 'APROBADA_REPOSICION' | 'APROBADA_REEMBOLSO' | 'RECHAZADA';
 
 export interface LineaDevolucionSolicitudDTO {
-  variante_id: string;
+  detalle_venta_id: string;
   cantidad: number;
 }
 
@@ -61,7 +61,7 @@ export interface InspeccionDTO {
 }
 
 export interface DevolucionDTO {
-  devolucion_id: string;
+  devolucion_id?: string;
   id?: string;
   venta_id: string;
   estado: EstadoDevolucion;
@@ -70,6 +70,9 @@ export interface DevolucionDTO {
   lineas?: LineaDevolucionSolicitudDTO[];
   inspeccion?: InspeccionDTO;
   creada_en?: string;
+  empresa_id?: string;
+  cliente_id?: string;
+  detalles?: { id: string; detalle_venta_id: string; cantidad_solicitada: number; cantidad_recibida: number; cantidad_aceptada: number; condicion_fisica?: string }[];
 }
 
 export interface MermaCrearDTO {

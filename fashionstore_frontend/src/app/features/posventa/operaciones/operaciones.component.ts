@@ -21,6 +21,8 @@ import {
 } from '../models/posventa.models';
 import { formatearErrorApi } from '../../../core/utils/error-handler.util';
 import { formatearBs, formatearFechaHora } from '../../../core/utils/moneda.util';
+import { esUuid } from '../services/reembolso-intentos';
+import { DevolucionDTO } from '../models/posventa.models';
 
 @Component({
   selector: 'app-operaciones',
@@ -51,6 +53,8 @@ export class OperacionesComponent implements OnInit {
   busquedaVenta = '';
   buscandoVenta = false;
   comprobanteDev?: ComprobantePosventa;
+  devolucionRegistrada?: DevolucionDTO;
+  idConsultaDevolucion = '';
   detalleSeleccionado?: DetalleVenta;
   detalleVenta = '';
   cantidadDev = 1;
@@ -58,7 +62,7 @@ export class OperacionesComponent implements OnInit {
   motivo = '';
   motivoCodigoDev = 'TALLA';
   realizarInspeccion = false;
-  condicionFisica = 'EXCELENTE_SIN_USO';
+  condicionFisica = 'EXCELENTE';
   responsabilidadTienda = true;
   dictamenInspeccion: DictamenInspeccion = 'APROBADA_REPOSICION';
   observacionesInspeccion = '';
@@ -140,6 +144,8 @@ export class OperacionesComponent implements OnInit {
     this.error = '';
     this.exito = '';
     this.detalleSeleccionado = undefined;
+    this.devolucionRegistrada = undefined;
+    this.comprobanteDev = undefined;
     this.detalleVenta = '';
 
     this.ventas.comprobante(termino).subscribe({
@@ -170,7 +176,7 @@ export class OperacionesComponent implements OnInit {
   irADevolucionDesdeVenta(v: VentaSucursal) {
     this.tab = 'devolucion';
     this.busquedaVenta = v.numero || v.id;
-    this.buscarVentaParaDevolucion(this.busquedaVenta);
+    this.buscarVentaParaDevolucion(v.id);
   }
 
   obtenerSkuVariante(varianteId: string): string {
@@ -202,74 +208,66 @@ export class OperacionesComponent implements OnInit {
   }
 
   devolver() {
-    this.error = '';
-    this.exito = '';
-
-    if (!this.detalleVenta) {
-      this.error = 'Debe seleccionar o especificar una línea de venta para la devolución.';
-      return;
-    }
-    if (this.cantidadDev < 1) {
-      this.error = 'La cantidad a devolver debe ser al menos 1.';
-      return;
-    }
-    if (this.detalleSeleccionado && this.cantidadDev > this.detalleSeleccionado.cantidad) {
-      this.error = `La cantidad no puede ser mayor a ${this.detalleSeleccionado.cantidad} unidades vendidas en esta línea.`;
-      return;
-    }
     if (this.procesando) return;
-
-    this.procesando = true;
-
-    // Procesar con protocolo formal CU20
-    if (this.comprobanteDev && this.detalleSeleccionado) {
-      this.posventa.solicitarDevolucion({
-        venta_id: this.comprobanteDev.id,
-        lineas: [{ variante_id: this.detalleSeleccionado.variante_id, cantidad: this.cantidadDev }],
-        motivo_codigo: this.motivoCodigoDev,
-        motivo_descripcion: this.motivo.trim() || undefined
-      }).subscribe({
-        next: dev => {
-          if (dev.estado === 'PENDIENTE_EVALUACION') {
-            this.procesando = false;
-            this.exito = 'Solicitud de devolución registrada con estado PENDIENTE DE EVALUACIÓN (reclamo por defecto o fuera de plazo voluntario). Pasará a revisión técnica autorizada sin rechazo automático.';
-            this.resetFormularioDevolucion();
-            return;
-          }
-
-          if (this.realizarInspeccion) {
-            const inspeccion: InspeccionDTO = {
-              condicion_fisica: this.condicionFisica,
-              responsabilidad_tienda: this.responsabilidadTienda,
-              dictamen: this.dictamenInspeccion,
-              observaciones: this.observacionesInspeccion.trim() || undefined
-            };
-            this.posventa.registrarInspeccion(dev.devolucion_id || dev.id || '', inspeccion).subscribe({
-              next: () => {
-                this.procesando = false;
-                this.exito = `Devolución e inspección técnica completadas con dictamen: ${this.dictamenInspeccion.replaceAll('_', ' ')}.`;
-                this.resetFormularioDevolucion();
-              },
-              error: e => {
-                this.procesando = false;
-                this.error = this.msg(e);
-              }
-            });
-          } else {
-            this.procesando = false;
-            this.exito = `Devolución registrada exitosamente con estado: ${dev.estado.replace(/_/g, ' ')}.`;
-            this.resetFormularioDevolucion();
-          }
-        },
-        error: () => {
-          // Fallback al endpoint directo si la versión preliminar aún no expone la ruta extendida
-          this.ejecutarDevolucionDirecta();
-        }
-      });
+    this.error = ''; this.exito = '';
+    if (this.devolucionRegistrada) {
+      if (this.realizarInspeccion) this.inspeccionarRegistrada();
+      else this.exito = 'La devolución ya está registrada. Consulta su estado o registra la inspección; no se crea otra solicitud.';
       return;
     }
+    if (!this.comprobanteDev || !this.detalleSeleccionado) {
+      this.error = 'Busca la venta original y selecciona una línea. No uses el UUID de un pago, pedido o reembolso.';
+      return;
+    }
+    if (!Number.isInteger(this.cantidadDev) || this.cantidadDev < 1 || this.cantidadDev > this.detalleSeleccionado.cantidad) {
+      this.error = 'Indica una cantidad válida. El servidor comprobará lo vendido menos lo ya devuelto o cambiado.';
+      return;
+    }
+    this.procesando = true;
+    this.posventa.solicitarDevolucion({
+      venta_id: this.comprobanteDev.id,
+      lineas: [{ detalle_venta_id: this.detalleSeleccionado.id, cantidad: this.cantidadDev }],
+      motivo_codigo: this.motivoCodigoDev, motivo_descripcion: this.motivo.trim() || undefined
+    }).subscribe({
+      next: dev => {
+        this.devolucionRegistrada = dev; this.procesando = false;
+        this.idConsultaDevolucion = dev.devolucion_id || dev.id || '';
+        this.exito = dev.estado === 'PENDIENTE_EVALUACION'
+          ? 'Solicitud registrada: PENDIENTE DE EVALUACIÓN autorizada. Esto no confirma un reembolso monetario.'
+          : 'Solicitud registrada: ' + dev.estado + '. Esto no confirma un reembolso monetario.';
+        if (this.realizarInspeccion && dev.estado !== 'PENDIENTE_EVALUACION') this.inspeccionarRegistrada();
+      },
+      error: e => { this.procesando = false; this.error = this.msg(e); }
+    });
+  }
 
-    this.ejecutarDevolucionDirecta();
+  inspeccionarRegistrada(): void {
+    const id = this.devolucionRegistrada?.devolucion_id || this.devolucionRegistrada?.id;
+    if (!id || this.procesando) return;
+    this.procesando = true;
+    this.posventa.registrarInspeccion(id, {
+      condicion_fisica: this.condicionFisica, responsabilidad_tienda: this.responsabilidadTienda,
+      dictamen: this.dictamenInspeccion, observaciones: this.observacionesInspeccion.trim() || undefined
+    }).subscribe({
+      next: dev => { this.devolucionRegistrada = dev; this.procesando = false; this.error = '';
+        this.exito = 'Inspección registrada con dictamen: ' + dev.estado + '. No acredita un reintegro de dinero.'; },
+      error: e => { this.procesando = false; this.error = this.msg(e); }
+    });
+  }
+
+  consultarDevolucionRegistrada(): void {
+    const id = this.idConsultaDevolucion.trim();
+    if (!esUuid(id) || this.procesando) { this.error = 'Introduce el UUID de la devolución que recibió el cliente, no el de la venta o pago.'; return; }
+    this.procesando = true;
+    this.posventa.consultarDevolucion(id).subscribe({
+      next: dev => { this.devolucionRegistrada = dev; this.procesando = false; this.error = ''; },
+      error: e => { this.devolucionRegistrada = undefined; this.procesando = false; this.error = this.msg(e); }
+    });
+  }
+
+  async copiarId(id: string): Promise<void> {
+    try { await navigator.clipboard.writeText(id); this.exito = 'UUID copiado.'; }
+    catch { this.error = 'No se pudo copiar. Selecciona el UUID visible y cópialo manualmente.'; }
   }
 
   private ejecutarDevolucionDirecta() {

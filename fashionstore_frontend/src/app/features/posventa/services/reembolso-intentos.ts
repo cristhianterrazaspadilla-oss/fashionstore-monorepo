@@ -16,13 +16,13 @@ function canonico(valor: any): string {
 }
 
 export class IntentosReembolso {
-  constructor(private storage: Storage) {}
+  constructor(private storage: Storage, private prefijo = 'fs_reembolso_intento:') {}
 
   private async key(ambito: string, operacion: string, cuerpo: unknown): Promise<string> {
     // Persistir solo identificadores y huella; nunca motivos, tokens o cuerpos.
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonico(cuerpo)));
     const huella = Array.from(new Uint8Array(hash), n => n.toString(16).padStart(2, '0')).join('');
-    return 'fs_reembolso_intento:' + JSON.stringify([ambito, operacion, huella]);
+    return this.prefijo + JSON.stringify([ambito, operacion, huella]);
   }
 
   async obtener(ambito: string, operacion: string, cuerpo: unknown, ejecutar = false): Promise<IntentoReembolso> {
