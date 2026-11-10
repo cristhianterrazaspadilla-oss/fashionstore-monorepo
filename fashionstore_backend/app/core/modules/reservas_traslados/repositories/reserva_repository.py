@@ -24,7 +24,8 @@ class ReservaRepository:
         return reserva
 
     async def buscarPorId(
-        self, reserva_id: uuid.UUID, empresa_id: Optional[uuid.UUID] = None
+        self, reserva_id: uuid.UUID, empresa_id: Optional[uuid.UUID] = None,
+        bloquear: bool = False,
     ) -> Optional[Reserva]:
         query = (
             select(Reserva)
@@ -33,6 +34,8 @@ class ReservaRepository:
         )
         if empresa_id is not None:
             query = query.where(Reserva.empresa_id == empresa_id)
+        if bloquear:
+            query = query.with_for_update().execution_options(populate_existing=True)
         result = await self.db.execute(query)
         return result.scalars().first()
 
@@ -71,10 +74,13 @@ class ReservaRepository:
         result = await self.db.execute(query)
         return result.scalars().first() is not None
 
-    async def trasladosDeReserva(self, reserva_id: uuid.UUID) -> List[Traslado]:
-        result = await self.db.execute(
-            select(Traslado).where(Traslado.reserva_id == reserva_id).order_by(Traslado.fecha_solicitud)
-        )
+    async def trasladosDeReserva(self, reserva_id: uuid.UUID, bloquear: bool = False) -> List[Traslado]:
+        query = select(Traslado).where(Traslado.reserva_id == reserva_id)
+        if bloquear:
+            query = query.order_by(Traslado.id).with_for_update().execution_options(populate_existing=True)
+        else:
+            query = query.order_by(Traslado.fecha_solicitud)
+        result = await self.db.execute(query)
         return list(result.scalars().all())
 
     async def listar(
@@ -127,7 +133,7 @@ class ReservaRepository:
         )
         if empresa_id is not None:
             query = query.where(Reserva.empresa_id == empresa_id)
-        query = query.order_by(Reserva.vence_en, Reserva.id).limit(limite).with_for_update(skip_locked=True)
+        query = query.order_by(Reserva.vence_en, Reserva.id).limit(limite).with_for_update(skip_locked=True).execution_options(populate_existing=True)
         result = await self.db.execute(query)
         return list(result.scalars().all())
 

@@ -11,10 +11,12 @@
 // Reserva y carrito son flujos distintos: nunca mezclar IDs, estados,
 // almacenamiento ni contadores con la bolsa de reserva (BolsaStore).
 
-double _aDouble(dynamic v, [double fb = 0]) {
-  if (v == null) return fb;
-  if (v is num) return v.toDouble();
-  return double.tryParse(v.toString()) ?? fb;
+double _aDouble(dynamic v) {
+  final n = v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '');
+  if (n == null || !n.isFinite || n < 0) {
+    throw const FormatException('Importe de carrito desconocido o inválido. Actualiza el carrito.');
+  }
+  return n;
 }
 
 DateTime? _aFecha(dynamic v) {
@@ -48,7 +50,7 @@ class LineaCarrito {
         varianteId: '${j['variante_id'] ?? ''}',
         cantidad: (j['cantidad'] as num?)?.toInt() ?? 0,
         precioUnitario: _aDouble(j['precio_unitario_bob'] ?? j['precio_unitario']),
-        descuentoUnitario: _aDouble(j['descuento_unitario']),
+        descuentoUnitario: _aDouble(j['descuento_unitario'] ?? (j.containsKey('precio_unitario_bob') ? 0 : null)),
         promocionId: j['promocion_id']?.toString(),
         subtotal: _aDouble(j['subtotal_bob'] ?? j['subtotal']),
       );
@@ -116,7 +118,7 @@ class CarritoCompra {
             .map((e) => LineaCarrito.fromJson(e.cast<String, dynamic>()))
             .toList(),
         subtotal: _aDouble(j['subtotal'] ?? j['total_estimado_bob']),
-        descuentoTotal: _aDouble(j['descuento_total']),
+        descuentoTotal: _aDouble(j['descuento_total'] ?? (j.containsKey('total_estimado_bob') ? 0 : null)),
         total: _aDouble(j['total'] ?? j['total_estimado_bob']),
       );
 

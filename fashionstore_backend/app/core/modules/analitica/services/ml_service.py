@@ -10,7 +10,7 @@ import json
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -381,8 +381,12 @@ class MLService:
             if producto is None:
                 raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-        semilla = datos.semilla or 42
+        semilla = datos.semilla if datos.semilla is not None else 42
+        if semilla < 0:
+            raise HTTPException(status_code=400, detail="La semilla debe ser un entero no negativo")
         origen_solicitado = (datos.origen_datos or "AUTO").upper()
+        if origen_solicitado not in ("AUTO", "REAL", "SINTETICO_REPRODUCIBLE"):
+            raise HTTPException(status_code=400, detail="Origen de datos ML no válido")
 
         # 1. Obtener catálogo base de productos de la empresa
         q_prods = select(Producto.id, Producto.nombre).where(Producto.empresa_id == empresa_id)
@@ -401,7 +405,8 @@ class MLService:
             .join(VarianteProducto, VarianteProducto.producto_id == Producto.id)
             .join(DetalleVenta, DetalleVenta.variante_id == VarianteProducto.id)
             .join(Venta, Venta.id == DetalleVenta.venta_id)
-            .where(Venta.empresa_id == empresa_id, Venta.estado == "PAGADA")
+            .where(Venta.empresa_id == empresa_id, Producto.empresa_id == empresa_id,
+                   VarianteProducto.empresa_id == empresa_id, Venta.estado == "PAGADA")
         )
         if datos.sucursal_id:
             q_ventas = q_ventas.where(Venta.sucursal_id == datos.sucursal_id)
@@ -477,9 +482,6 @@ class MLService:
                 metricas_finales = {
                     "estado": "DATOS_INSUFICIENTES",
                     "razon": f"Semanas con ventas ({num_semanas_reales}) insuficientes para validación temporal (mínimo 3 requeridas)",
-                    "mae": 0.0,
-                    "rmse": 0.0,
-                    "r2": 0.0,
                 }
                 parametros_artefacto = {"estado": "DATOS_INSUFICIENTES", "razon": metricas_finales["razon"]}
             else:
@@ -587,10 +589,20 @@ class MLService:
             raise HTTPException(status_code=403, detail="Solo Administrador empresarial autorizado")
         await PlanService(self.db).exigir_capacidad_analitica(empresa_id, "modelos_ml")
 
-        semilla = datos.semilla or 42
+        semilla = datos.semilla if datos.semilla is not None else 42
+        if semilla < 0:
+            raise HTTPException(status_code=400, detail="La semilla debe ser un entero no negativo")
         origen_solicitado = (datos.origen_datos or "AUTO").upper()
+        if origen_solicitado not in ("AUTO", "REAL", "SINTETICO_REPRODUCIBLE"):
+            raise HTTPException(status_code=400, detail="Origen de datos ML no válido")
 
         # 1. Obtener catálogo y métricas de ventas reales
+        hasta = _ahora_utc()
+        desde = hasta - timedelta(days=datos.periodo_dias)
+        ventas_periodo = select(Venta.id).where(
+            Venta.empresa_id == empresa_id, Venta.estado == "PAGADA",
+            Venta.creada_en >= desde, Venta.creada_en <= hasta,
+        )
         q = (
             select(
                 Producto.id,
@@ -602,7 +614,7 @@ class MLService:
             )
             .join(VarianteProducto, VarianteProducto.producto_id == Producto.id)
             .outerjoin(DetalleVenta, (DetalleVenta.variante_id == VarianteProducto.id) & (
-                DetalleVenta.venta_id.in_(select(Venta.id).where(Venta.empresa_id == empresa_id))
+                DetalleVenta.venta_id.in_(ventas_periodo)
             ))
             .outerjoin(Venta, Venta.id == DetalleVenta.venta_id)
             .where(Producto.empresa_id == empresa_id, VarianteProducto.empresa_id == empresa_id)
@@ -668,12 +680,16 @@ class MLService:
 
         else:
             # Caso REAL
-            if len(filas) < datos.num_grupos or len(filas) < 2:
+            patrones = {
+                (int(r[2] or 0), int(r[3] or 0), float(r[4] or 0),
+                 round(float(r[3] or 0) / max(1, int(r[5] or 1)), 2))
+                for r in filas
+            }
+            if len(filas) < datos.num_grupos or len(filas) < 2 or len(patrones) < datos.num_grupos:
                 metricas = {
                     "estado": "DATOS_INSUFICIENTES",
-                    "razon": f"Catálogo insuficiente ({len(filas)} productos) para formar {datos.num_grupos} grupos",
+                    "razon": f"Datos insuficientes en los últimos {datos.periodo_dias} días: {len(filas)} productos y {len(patrones)} perfiles distintos para {datos.num_grupos} grupos",
                     "silhouette_score": None,
-                    "inercia": 0.0,
                 }
                 parametros_pipeline = {"estado": "DATOS_INSUFICIENTES", "razon": metricas["razon"]}
             else:

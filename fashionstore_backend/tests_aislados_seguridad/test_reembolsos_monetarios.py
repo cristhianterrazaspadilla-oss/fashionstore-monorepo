@@ -1,8 +1,4 @@
-"""Solo SQLite en memoria y Stripe simulado; usar el conftest aislado.
-
-Los xfail son regresiones pendientes del servicio cuya modificacion rechazo
-la revision automatica. No constituyen correcciones aprobadas ni pruebas verdes.
-"""
+"""SQLite en memoria y Stripe simulado; no valida concurrencia PostgreSQL."""
 import uuid
 import sqlite3
 from datetime import datetime, timezone
@@ -25,6 +21,7 @@ from backend.app.core.modules.posventa.models import ObligacionReembolso, Compon
 from backend.app.core.modules.posventa.services.reembolso_service import ReembolsoService
 from backend.app.core.modules.posventa.schemas import ReembolsoSolicitudDTO
 from types import SimpleNamespace
+from test_bloque_seguridad import datos
 
 
 def test_reembolso_total_en_unidades_originales():
@@ -177,63 +174,194 @@ async def test_cu15_guarda_cotizacion_en_orden_existente_y_no_usa_tasa_actual(en
     assert 'CONCILIACION_REQUERIDA' in error.value.detail
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize('proveedor,esperado', [('pending', 'EN_PROCESO'), ('failed', 'FALLIDO'),
-    ('canceled', 'FALLIDO'), ('succeeded', 'COMPLETADO')])
-async def test_servicio_respeta_estado_y_concilia_consultando_sin_otro_desembolso(entorno, monkeypatch, proveedor, esperado):
-    e = entorno
-    empresa, cliente, venta_id = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
-    pago = Pago(id=uuid.uuid4(), empresa_id=empresa, contexto='VENTA', venta_id=venta_id,
-                metodo='STRIPE_TEST', monto=Decimal(210), estado='APROBADO', referencia_externa='pi_original')
-    obl = ObligacionReembolso(id=uuid.uuid4(), empresa_id=empresa, cliente_id=cliente,
-        origen_tipo='VENTA', origen_id=venta_id, motivo_codigo='OTRO', estado='AUTORIZADO', monto_bob=Decimal(210))
-    comp = ComponenteReembolso(id=uuid.uuid4(), empresa_id=empresa, obligacion_id=obl.id, pago_id=pago.id,
-        medio='STRIPE', monto_bob=Decimal(210), monto_usd=Decimal(30), centavos_usd=3000,
-        tasa_bob_por_usd=Decimal(7), estado='PENDIENTE')
-    e.session.add_all([pago, obl, comp])
-    await e.db.commit()
+@pytest.fixture
+def reembolso(datos, monkeypatch):
+    e = datos
+    from sqlalchemy.orm import Session
+    from backend.app.core.modules.posventa.models import EjecucionReembolso
+    e.venta = e.session.get(Venta, e.v1)
+    e.venta.total = e.venta.subtotal = Decimal("210.00")
+    tasa = TasaCambio(id=uuid.uuid4(), version=1, tasa_bob_por_usd=Decimal("7"),
+                     vigente_desde=datetime(2026, 1, 1, tzinfo=timezone.utc), motivo="sintetica")
+    e.pago = Pago(id=uuid.uuid4(), empresa_id=e.a, contexto="VENTA", venta_id=e.v1,
+        metodo="STRIPE_TEST", monto=Decimal("210"), estado="APROBADO", referencia_externa="pi_original")
+    e.orden = OrdenPago(id=uuid.uuid4(), empresa_id=e.a, contexto="VENTA", venta_id=e.v1,
+        proveedor="STRIPE", clave_externa="captura-original", referencia_externa="pi_original",
+        estado="CAPTURADO", monto_bob=Decimal("210"), tasa_id=tasa.id,
+        monto_usd=Decimal("30"), centavos_usd=3000)
+    e.obl = ObligacionReembolso(id=uuid.uuid4(), empresa_id=e.a, cliente_id=e.cliente.id,
+        origen_tipo="VENTA", origen_id=e.v1, motivo_codigo="OTRO", estado="AUTORIZADO",
+        autorizada_en=datetime(2026, 11, 8, tzinfo=timezone.utc), monto_bob=Decimal("210"))
+    e.comp = ComponenteReembolso(id=uuid.uuid4(), empresa_id=e.a, obligacion_id=e.obl.id, pago_id=e.pago.id,
+        medio="STRIPE", monto_bob=Decimal("210"), monto_usd=Decimal("30"), centavos_usd=3000,
+        tasa_bob_por_usd=Decimal("7"), estado="PENDIENTE")
+    e.session.add_all([tasa, e.pago, e.orden, e.obl, e.comp])
+    e.session.commit()
 
-    class Pendiente:
-        estado = 'pending'
-        llamadas = 0
+    class ProveedorControlado(gw.FakeStripeGateway):
+        def __init__(self):
+            super().__init__()
+            self.llamadas = 0
+            self.estado_inicial = "pending"
+            self.perder_respuesta = False
+            self.fallar_antes = False
+            self.intenciones["pi_original"] = gw.IntencionPago(
+                "pi_original", str(e.v1), 3000, "usd", "SUCCEEDED",
+                empresa_id=str(e.a), cliente_id=str(e.cliente.id),
+                metadata={"empresa_id": str(e.a), "venta_id": str(e.v1)})
 
         async def crear_reembolso(self, **kw):
+            # Verificación antes de entregar nada al proveedor, mediante otra
+            # sesión ORM. SQLite NO reproduce aislamiento/bloqueos PostgreSQL.
+            assert not e.session.in_transaction()
+            with Session(e.session.bind) as lectura:
+                ejec = lectura.execute(select(EjecucionReembolso).where(
+                    EjecucionReembolso.componente_id == e.comp.id)).scalars().one()
+                assert ejec.estado == "EN_PROCESO"
+                assert str(ejec.clave_ejecucion) == kw["idempotency_key"]
+                assert lectura.get(ComponenteReembolso, e.comp.id).estado == "EN_PROCESO"
+                assert lectura.get(ObligacionReembolso, e.obl.id).estado == "EN_PROCESO"
+            assert kw["payment_intent_id"] == "pi_original" and kw["centavos_usd"] == 3000
             self.llamadas += 1
-            return gw.ReembolsoInfo('re_pendiente', 'pi_original', 3000, 'pending', 'usd')
+            if self.fallar_antes:
+                raise TimeoutError("Sin prueba de recepción")
+            respuesta = await super().crear_reembolso(**kw)
+            respuesta.estado = self.estado_inicial
+            if self.perder_respuesta:
+                self.perder_respuesta = False
+                raise TimeoutError("Respuesta perdida después de aceptar")
+            return respuesta
 
-        async def consultar_reembolso(self, referencia):
-            assert referencia == 're_pendiente'
-            return gw.ReembolsoInfo('re_pendiente', 'pi_original', 3000, self.estado, 'usd')
-
-    gateway = Pendiente()
-    monkeypatch.setattr(gw, 'obtener_gateway', lambda: gateway)
-    usuario = SimpleNamespace(id=cliente, empresa_id=empresa, rol=SimpleNamespace(nombre='ADMINISTRADOR'))
-    resultado = await ReembolsoService(e.db).ejecutar_reembolso(usuario, obl.id, uuid.uuid4(), uuid.uuid4())
-    assert resultado.estado == 'EN_PROCESO' and resultado.completada_en is None
-    gateway.estado = proveedor
-    conciliado = await ReembolsoService(e.db).conciliar_reembolso(usuario, obl.id, uuid.uuid4())
-    assert conciliado.estado == esperado
-    assert (conciliado.completada_en is not None) == (esperado == 'COMPLETADO')
-    assert gateway.llamadas == 1
+    e.gateway = ProveedorControlado()
+    monkeypatch.setattr(gw, "obtener_gateway", lambda: e.gateway)
+    return e
 
 
-@pytest.mark.xfail(strict=True, reason='BLOQUEADO: revision automatica rechazo modificar derivacion/distribucion del servicio')
 @pytest.mark.asyncio
-async def test_regresion_solicitud_debe_usar_centavos_originales_no_tasa_fija(entorno):
-    e = entorno
-    empresa, cliente = uuid.uuid4(), uuid.uuid4()
-    venta = Venta(id=uuid.uuid4(), empresa_id=empresa, cliente_id=cliente,
-        numero='venta-sintetica', sucursal_id=uuid.uuid4(), estado='PAGADA', total=Decimal(210))
-    pago = Pago(id=uuid.uuid4(), empresa_id=empresa, contexto='VENTA', venta_id=venta.id,
-        metodo='STRIPE_TEST', monto=Decimal(210), estado='APROBADO', referencia_externa='pi_original')
-    tasa = TasaCambio(id=uuid.uuid4(), version=1, tasa_bob_por_usd=Decimal(7),
-        vigente_desde=datetime(2026, 1, 1, tzinfo=timezone.utc), motivo='sintetica')
-    orden = OrdenPago(id=uuid.uuid4(), empresa_id=empresa, contexto='VENTA', venta_id=venta.id,
-        proveedor='STRIPE', clave_externa='captura-original', referencia_externa='pi_original',
-        estado='CAPTURADO', monto_bob=Decimal(210), tasa_id=tasa.id, monto_usd=Decimal(30), centavos_usd=3000)
-    e.session.add_all([venta, pago, tasa, orden])
-    await e.db.commit()
-    actor = SimpleNamespace(id=cliente, empresa_id=empresa, rol=SimpleNamespace(nombre='ADMINISTRADOR'))
-    dto = ReembolsoSolicitudDTO(origen_tipo='VENTA', origen_id=venta.id, motivo_codigo='OTRO')
-    resultado = await ReembolsoService(e.db).solicitar_reembolso(actor, dto, uuid.uuid4())
+@pytest.mark.parametrize("proveedor,esperado", [("pending", "EN_PROCESO"), ("failed", "FALLIDO"),
+    ("canceled", "FALLIDO"), ("succeeded", "COMPLETADO")])
+async def test_servicio_respeta_estado_y_concilia_consultando_sin_otro_desembolso(reembolso, proveedor, esperado):
+    e = reembolso
+    resultado = await ReembolsoService(e.db).ejecutar_reembolso(e.admin, e.obl.id, uuid.uuid4(), uuid.uuid4())
+    assert resultado.estado == "EN_PROCESO" and resultado.completada_en is None
+    next(iter(e.gateway.reembolsos.values())).estado = proveedor
+    conciliado = await ReembolsoService(e.db).conciliar_reembolso(e.admin, e.obl.id, uuid.uuid4())
+    assert conciliado.estado == esperado
+    assert (conciliado.completada_en is not None) == (esperado == "COMPLETADO")
+    repetido = await ReembolsoService(e.db).ejecutar_reembolso(e.admin, e.obl.id, uuid.uuid4(), uuid.uuid4())
+    assert repetido.estado == esperado
+    assert e.gateway.llamadas == 1
+
+
+@pytest.mark.asyncio
+async def test_respuesta_perdida_recupera_en_sesion_nueva_con_clave_guardada(reembolso):
+    from sqlalchemy.orm import Session
+    from backend.app.core.modules.posventa.models import EjecucionReembolso
+    e = reembolso
+    e.gateway.estado_inicial = "succeeded"
+    e.gateway.perder_respuesta = True
+    with pytest.raises(HTTPException) as error:
+        await ReembolsoService(e.db).ejecutar_reembolso(e.admin, e.obl.id, uuid.uuid4(), uuid.uuid4())
+    assert error.value.status_code == 409
+    with Session(e.session.bind, expire_on_commit=False) as nueva:
+        ejec = nueva.execute(select(EjecucionReembolso)).scalars().one()
+        clave = ejec.clave_ejecucion
+        assert ejec.estado == "EN_PROCESO" and ejec.referencia_externa is None
+        servicio = ReembolsoService(type(e.db)(nueva))
+        salida = await servicio.ejecutar_reembolso(e.admin, e.obl.id, uuid.uuid4(), uuid.uuid4())
+        assert salida.estado == "COMPLETADO"
+        ejec = nueva.execute(select(EjecucionReembolso)).scalars().one()
+        assert ejec.clave_ejecucion == clave and ejec.referencia_externa
+    assert e.gateway.llamadas == 1 and len(e.gateway.reembolsos) == 1
+
+
+@pytest.mark.asyncio
+async def test_preparada_persistida_se_retoma_sin_crear_otra_ejecucion(reembolso, monkeypatch):
+    from backend.app.core.modules.posventa.models import EjecucionReembolso
+    e = reembolso
+    servicio = ReembolsoService(e.db)
+    async def interrupcion(*args, **kwargs):
+        raise TimeoutError("Interrupción después del commit, antes de reclamar envío")
+    monkeypatch.setattr(servicio, "_procesar_planes", interrupcion)
+    with pytest.raises(TimeoutError):
+        await servicio.ejecutar_reembolso(e.admin, e.obl.id, uuid.uuid4(), uuid.uuid4())
+    assert not e.session.in_transaction() and e.gateway.llamadas == 0
+    ejec = e.session.execute(select(EjecucionReembolso)).scalars().one()
+    clave = ejec.clave_ejecucion
+    assert ejec.estado == "PREPARADA"
+    e.session.commit()
+    await ReembolsoService(e.db).ejecutar_reembolso(e.admin, e.obl.id, uuid.uuid4(), uuid.uuid4())
+    assert e.gateway.llamadas == 1
+    assert e.session.execute(select(EjecucionReembolso)).scalars().one().clave_ejecucion == clave
+
+
+@pytest.mark.asyncio
+async def test_envio_incierto_sin_coincidencia_no_se_repite_ni_libera_reserva(reembolso):
+    from backend.app.core.modules.posventa.models import EjecucionReembolso
+    e = reembolso
+    e.gateway.fallar_antes = True
+    for _ in range(2):
+        with pytest.raises(HTTPException) as error:
+            await ReembolsoService(e.db).ejecutar_reembolso(e.admin, e.obl.id, uuid.uuid4(), uuid.uuid4())
+        assert error.value.status_code == 409
+    assert e.gateway.llamadas == 1 and not e.gateway.reembolsos
+    ejec = e.session.execute(select(EjecucionReembolso)).scalars().one()
+    assert ejec.estado == "EN_PROCESO" and ejec.referencia_externa is None
+    with pytest.raises(HTTPException):
+        await ReembolsoService(e.db).solicitar_reembolso(e.cliente,
+            ReembolsoSolicitudDTO(origen_tipo="VENTA", origen_id=e.v1, motivo_codigo="OTRO_MOTIVO"), uuid.uuid4())
+    assert e.session.execute(select(ObligacionReembolso)).scalars().one().id == e.obl.id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("actor,codigo", [("admin_b", 404), ("cliente", 403), ("otro", 403), ("plataforma", 403)])
+async def test_ejecucion_rechaza_otra_empresa_cliente_y_plataforma(reembolso, actor, codigo):
+    e = reembolso
+    with pytest.raises(HTTPException) as error:
+        await ReembolsoService(e.db).ejecutar_reembolso(getattr(e, actor), e.obl.id, uuid.uuid4(), uuid.uuid4())
+    assert error.value.status_code == codigo and e.gateway.llamadas == 0
+
+
+@pytest.mark.asyncio
+async def test_sucursal_autorizada_y_otro_titular_no_son_intercambiables(reembolso):
+    e = reembolso
+    assert (await ReembolsoService(e.db).obtener_reembolso(e.cliente, e.obl.id)).cliente_id == e.cliente.id
+    with pytest.raises(HTTPException) as error:
+        await ReembolsoService(e.db).obtener_reembolso(e.otro, e.obl.id)
+    assert error.value.status_code == 403
+    e.venta.sucursal_id = e.s2
+    e.session.commit()
+    with pytest.raises(HTTPException) as error:
+        await ReembolsoService(e.db).ejecutar_reembolso(e.personal, e.obl.id, uuid.uuid4(), uuid.uuid4())
+    assert error.value.status_code == 403 and e.gateway.llamadas == 0
+    e.venta.sucursal_id = e.s1
+    e.session.commit()
+    assert (await ReembolsoService(e.db).ejecutar_reembolso(
+        e.personal, e.obl.id, uuid.uuid4(), uuid.uuid4())).estado == "EN_PROCESO"
+
+
+@pytest.mark.asyncio
+async def test_parcial_b_no_habilitado_no_crea_ejecucion(reembolso):
+    from backend.app.core.modules.posventa.models import EjecucionReembolso
+    e = reembolso
+    e.obl.monto_bob = e.comp.monto_bob = Decimal("100")
+    e.comp.centavos_usd, e.comp.monto_usd = 1429, Decimal("14.29")
+    e.session.commit()
+    with pytest.raises(HTTPException) as error:
+        await ReembolsoService(e.db).ejecutar_reembolso(e.admin, e.obl.id, uuid.uuid4(), uuid.uuid4())
+    assert error.value.status_code == 409 and e.gateway.llamadas == 0
+    assert not e.session.execute(select(EjecucionReembolso)).scalars().all()
+
+
+@pytest.mark.asyncio
+async def test_regresion_solicitud_debe_usar_centavos_originales_no_tasa_fija(reembolso):
+    e = reembolso
+    # Crear por la ruta de solicitud real; no colocar el administrador como titular.
+    e.session.delete(e.comp)
+    e.session.delete(e.obl)
+    e.session.commit()
+    dto = ReembolsoSolicitudDTO(origen_tipo="VENTA", origen_id=e.v1, motivo_codigo="OTRO")
+    resultado = await ReembolsoService(e.db).solicitar_reembolso(e.admin, dto, uuid.uuid4())
+    assert resultado.cliente_id == e.cliente.id
     assert resultado.componentes[0].centavos_usd == 3000
+    assert resultado.componentes[0].pago_id == e.pago.id

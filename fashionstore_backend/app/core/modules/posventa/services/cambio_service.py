@@ -11,7 +11,7 @@ from __future__ import annotations
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from fastapi import HTTPException, status
@@ -26,6 +26,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     select,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,11 +34,14 @@ from sqlalchemy.orm import relationship
 
 from backend.app.core.database import Base
 from backend.app.core.idempotencia import hash_payload, resolver_idempotencia
+from backend.app.core.ambito_comercial import exigir_empresa_recurso, sucursal_autorizada
 from backend.app.core.modules.catalogo.models import VarianteProducto
-from backend.app.core.modules.identidad_empresas.models import Usuario
+from backend.app.core.modules.identidad_empresas.models import Empresa, Usuario
+from backend.app.core.modules.inventario.repositories.inventario_repository import InventarioRepository
 from backend.app.core.modules.organizacion.models import Sucursal
 from backend.app.core.modules.posventa.services.devolucion_service import Devolucion
 from backend.app.core.modules.ventas_pagos.models import DetalleVenta, RegistroIdempotencia, Venta
+from backend.app.core.modules.ventas_pagos.repositories.venta_repository import DetalleVentaRepository
 from backend.app.core.modules.ventas_pagos.services.pedido_service import ObligacionReembolso
 from backend.app.core.permisos import es_admin, exigir_sucursal, rol_de
 from backend.app.core.reloj import RelojSistema
@@ -194,6 +198,17 @@ class CambioService:
         self.db = db
         self.reloj = reloj or RelojSistema()
 
+    def _autorizar(self, usuario: Usuario, recurso) -> None:
+        exigir_empresa_recurso(usuario, recurso)
+        rol = rol_de(usuario)
+        if rol == "CLIENTE":
+            if recurso.cliente_id != usuario.id:
+                raise HTTPException(status_code=403, detail="El recurso pertenece a otro cliente")
+        elif rol == "ENCARGADO":
+            exigir_sucursal(usuario, recurso.sucursal_id)
+        elif rol != "ADMINISTRADOR":
+            raise HTTPException(status_code=403, detail="Rol no autorizado para gestionar cambios")
+
     async def listar_mios(
         self, usuario: Usuario, *, limite: int = 50, desplazamiento: int = 0
     ) -> List[CambioDTO]:
@@ -216,9 +231,15 @@ class CambioService:
 
         # Idempotencia previa con comercial.registros_idempotencia
         if clave:
+            await self.db.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:clave, 0))"),
+                {"clave": f"CAMBIO:SOLICITAR:{usuario.id}:{clave}"},
+            )
             stmt_idm = select(RegistroIdempotencia).where(
                 RegistroIdempotencia.clave == clave,
+                RegistroIdempotencia.usuario_id == usuario.id,
                 RegistroIdempotencia.recurso_tipo == "CAMBIO",
+                RegistroIdempotencia.operacion == "SOLICITAR_CAMBIO",
             )
             prev = (await self.db.execute(stmt_idm)).scalars().first()
             if prev is not None:
@@ -235,6 +256,16 @@ class CambioService:
         venta = await self.db.get(Venta, dto.venta_id)
         if venta is None or venta.empresa_id != usuario.empresa_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada en la empresa")
+        self._autorizar(usuario, venta)
+        if dto.sucursal_id != venta.sucursal_id:
+            raise HTTPException(status_code=409, detail="El cambio debe recibirse en la sucursal de la venta original")
+        await sucursal_autorizada(self.db, usuario, dto.sucursal_id)
+        ids = [item.detalle_venta_id for item in dto.lineas_originales]
+        if len(ids) != len(set(ids)):
+            raise HTTPException(status_code=400, detail="Línea original duplicada en el cambio")
+        reemplazos_ids = [item.variante_id for item in dto.reemplazos]
+        if len(reemplazos_ids) != len(set(reemplazos_ids)):
+            raise HTTPException(status_code=400, detail="Variante de reemplazo duplicada en el cambio")
 
         rol = (usuario.rol.nombre if usuario.rol else "").upper()
         if rol == "CLIENTE" and venta.cliente_id != usuario.id:
@@ -253,6 +284,10 @@ class CambioService:
             )
 
         ahora = self.reloj.ahora()
+        empresa = await self.db.get(Empresa, usuario.empresa_id)
+        if empresa is None or empresa.plazo_cambios_dias is None or empresa.plazo_cambios_dias <= 0:
+            raise HTTPException(status_code=409, detail="Falta una política válida de plazo de cambios para la empresa")
+        plazo_dias = empresa.plazo_cambios_dias
         es_caso_excepcional = dto.motivo_codigo in ("DEFECTO_FABRICACION", "PRODUCTO_INCORRECTO")
 
         if venta.entregada_en is None:
@@ -264,27 +299,26 @@ class CambioService:
             estado_inicial = "PENDIENTE_EVALUACION"
         else:
             dias_pasados = (ahora - venta.entregada_en).total_seconds() / 86400.0
-            if dias_pasados > 15:
+            if dias_pasados > plazo_dias:
                 if not es_caso_excepcional:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="El plazo voluntario de cambio (15 días desde la entrega) ha vencido",
+                        detail=f"El plazo voluntario de cambio ({plazo_dias} días desde la entrega) ha vencido",
                     )
                 estado_inicial = "PENDIENTE_EVALUACION"
             else:
                 estado_inicial = "SOLICITADO"
 
-        from backend.app.core.modules.posventa.services.devolucion_service import Devolucion, DetalleDevolucion
-
         # 1. Reconocimiento neto de las prendas originales con descuento prorrateado
         valor_reconocido = Decimal("0.00")
         lineas_orig_procesadas = []
 
-        for item in dto.lineas_originales:
+        for item in sorted(dto.lineas_originales, key=lambda linea: str(linea.detalle_venta_id)):
             stmt_det = (
                 select(DetalleVenta)
-                .where(DetalleVenta.id == item.detalle_venta_id)
+                .where(DetalleVenta.id == item.detalle_venta_id, DetalleVenta.venta_id == venta.id)
                 .with_for_update()
+                .execution_options(populate_existing=True)
             )
             det = (await self.db.execute(stmt_det)).scalars().first()
             if det is None or det.venta_id != venta.id:
@@ -293,27 +327,7 @@ class CambioService:
                     detail=f"Línea de venta {item.detalle_venta_id} no pertenece a la venta {venta.id}",
                 )
 
-            # Validar que no se haya cambiado o devuelto previamente
-            stmt_camb = (
-                select(DetalleCambio.cantidad)
-                .join(Cambio, DetalleCambio.cambio_id == Cambio.id)
-                .where(
-                    DetalleCambio.detalle_venta_id == det.id,
-                    DetalleCambio.tipo_linea == "ORIGINAL",
-                    Cambio.estado != "RECHAZADO",
-                )
-            )
-            cant_cambiada = sum((await self.db.execute(stmt_camb)).scalars().all(), 0)
-
-            stmt_dev = (
-                select(DetalleDevolucion.cantidad_solicitada)
-                .join(Devolucion, DetalleDevolucion.devolucion_id == Devolucion.id)
-                .where(
-                    DetalleDevolucion.detalle_venta_id == det.id,
-                    Devolucion.estado != "RECHAZADA",
-                )
-            )
-            cant_devuelta = sum((await self.db.execute(stmt_dev)).scalars().all(), 0)
+            cant_devuelta, cant_cambiada = await DetalleVentaRepository(self.db).cantidadesPosventaComprometidas(det.id)
 
             if cant_cambiada + cant_devuelta + item.cantidad > det.cantidad:
                 raise HTTPException(
@@ -330,6 +344,9 @@ class CambioService:
         # 2. Cotización de reemplazos
         valor_reemplazo = Decimal("0.00")
         lineas_reemp_procesadas = []
+        inventario = await InventarioRepository(self.db).bloquearFilas([
+            (dto.sucursal_id, item.variante_id) for item in dto.reemplazos
+        ])
 
         for item in dto.reemplazos:
             var = await self.db.get(VarianteProducto, item.variante_id)
@@ -338,6 +355,11 @@ class CambioService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Variante de reemplazo {item.variante_id} no encontrada en la empresa",
                 )
+            if not var.activa:
+                raise HTTPException(status_code=409, detail="La variante de reemplazo está inactiva")
+            fila = inventario.get((dto.sucursal_id, var.id))
+            if fila is None or fila.disponible < item.cantidad:
+                raise HTTPException(status_code=409, detail="Sin stock disponible para el reemplazo en la sucursal")
             p_actual = Decimal(str(var.precio or 0))
             tot_reemp = p_actual * Decimal(str(item.cantidad))
             valor_reemplazo += tot_reemp
@@ -468,10 +490,30 @@ class CambioService:
     ) -> CambioDTO:
         digest = hash_payload(dto.model_dump(mode="json"))
 
-        stmt_cambio = select(Cambio).where(Cambio.id == cambio_id).with_for_update()
+        stmt_cambio = select(Cambio).where(
+            Cambio.id == cambio_id, Cambio.empresa_id == usuario.empresa_id
+        ).with_for_update().execution_options(populate_existing=True)
         cambio = (await self.db.execute(stmt_cambio)).scalars().first()
         if cambio is None or cambio.empresa_id != usuario.empresa_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cambio no encontrado")
+        self._autorizar(usuario, cambio)
+
+        # Titularidad derivada del recurso original en servidor, no de un
+        # cliente_id inexistente en OrdenPago ni de la selección del formulario.
+        venta_original = (await self.db.execute(select(Venta).where(
+            Venta.id == cambio.venta_id, Venta.empresa_id == cambio.empresa_id
+        ))).scalars().first()
+        if (venta_original is None or venta_original.cliente_id is None or
+                venta_original.cliente_id != cambio.cliente_id or
+                venta_original.sucursal_id != cambio.sucursal_id):
+            raise HTTPException(409, detail="CONCILIACION_REQUERIDA: el cambio no acredita titular y sucursal de la venta original")
+        self._autorizar(usuario, venta_original)
+        await sucursal_autorizada(self.db, usuario, venta_original.sucursal_id)
+        titular = (await self.db.execute(select(Usuario.id).where(
+            Usuario.id == venta_original.cliente_id, Usuario.empresa_id == cambio.empresa_id
+        ))).scalar_one_or_none()
+        if titular is None:
+            raise HTTPException(409, detail="CONCILIACION_REQUERIDA: el titular original no pertenece a esta empresa")
 
         rol = (usuario.rol.nombre if usuario.rol else "").upper()
         if rol == "CLIENTE" and cambio.cliente_id != usuario.id:
@@ -544,6 +586,34 @@ class CambioService:
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="La diferencia es a favor de la tienda; destino debe ser PAGO_CLIENTE",
                     )
+                from backend.app.core.modules.ventas_pagos.models_ordenes import OrdenPago
+                capturas = (await self.db.execute(select(OrdenPago).where(
+                    OrdenPago.empresa_id == cambio.empresa_id, OrdenPago.cambio_id == cambio.id,
+                    OrdenPago.contexto == "CAMBIO", OrdenPago.estado == "CAPTURADO",
+                ))).scalars().all()
+                # OrdenPago -> cambio (misma empresa) -> venta -> titular ya
+                # autorizado arriba. No se debilita la comprobación de propietario.
+                if (len(capturas) != 1 or
+                        capturas[0].pedido_id is not None or capturas[0].reserva_id is not None or
+                        capturas[0].venta_id is not None or
+                        capturas[0].monto_bob != dif or capturas[0].proveedor != "STRIPE" or
+                        not capturas[0].referencia_externa or not capturas[0].referencia_externa.startswith("pi_")):
+                    raise HTTPException(status_code=409, detail="DIFERENCIA_PENDIENTE_DE_PAGO: falta una captura original verificable por el importe de la diferencia")
+                from backend.app.core.modules.organizacion.models import TasaCambio
+                orden = capturas[0]
+                tasa_original = await self.db.get(TasaCambio, orden.tasa_id) if orden.tasa_id else None
+                try:
+                    usd = Decimal(str(orden.monto_usd))
+                    tasa = Decimal(str(tasa_original.tasa_bob_por_usd)) if tasa_original else Decimal("NaN")
+                    if (not usd.is_finite() or usd <= 0 or not tasa.is_finite() or tasa <= 0 or
+                            type(orden.centavos_usd) is not int or usd * 100 != orden.centavos_usd or
+                            (dif / tasa).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) != usd):
+                        raise ValueError("Captura inconsistente")
+                except (InvalidOperation, ValueError, TypeError, ArithmeticError):
+                    raise HTTPException(409, detail="CONCILIACION_REQUERIDA: importes o cotización de la captura del cambio inconsistentes") from None
+                # La prueba financiera no acredita recepción/condición del original
+                # ni entrega del reemplazo: el bloqueo físico del bloque 6 continúa.
+                raise HTTPException(409, detail="CAMBIO_FISICO_PENDIENTE: captura vinculada y titular verificados; falta el flujo verificable de recepción y entrega, no se marca resuelto")
             elif dif < Decimal("0.00"):
                 # La prenda de reemplazo cuesta menos: la tienda devuelve el sobrante como SALDO o REEMBOLSO (jamás ambos)
                 if destino not in ("SALDO", "REEMBOLSO"):
@@ -632,6 +702,7 @@ class CambioService:
         cambio = await self.db.get(Cambio, cambio_id)
         if cambio is None or cambio.empresa_id != usuario.empresa_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cambio no encontrado")
+        self._autorizar(usuario, cambio)
         if rol_de(usuario) == "CLIENTE" and cambio.cliente_id != usuario.id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cambio no encontrado")
 
@@ -670,9 +741,13 @@ class CambioService:
     async def evaluar(
         self, usuario: Usuario, cambio_id: uuid.UUID, aprobado: bool, clave: Optional[uuid.UUID] = None
     ) -> CambioDTO:
-        cambio = await self.db.get(Cambio, cambio_id)
+        cambio = (await self.db.execute(
+            select(Cambio).where(Cambio.id == cambio_id, Cambio.empresa_id == usuario.empresa_id)
+            .with_for_update().execution_options(populate_existing=True)
+        )).scalars().first()
         if cambio is None or cambio.empresa_id != usuario.empresa_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cambio no encontrado")
+        self._autorizar(usuario, cambio)
 
         rol = (usuario.rol.nombre if usuario.rol else "").upper()
         if not (es_admin(usuario) or rol in ("ENCARGADO", "ADMINISTRADOR")):

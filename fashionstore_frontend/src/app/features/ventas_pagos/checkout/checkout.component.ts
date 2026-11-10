@@ -955,11 +955,14 @@ export class CheckoutComponent implements OnInit, OnDestroy {
     }
     // Si la firma es idéntica (reintento técnico por red/timeout), se preserva la misma clave
 
+    const importeVisto = this.totalVisible.toFixed(2);
     this.carritoService.checkout(dto, this.checkoutKey)
       .subscribe({
         next: resp => {
           this.procesando = false;
-          this.router.navigate(['/pago', resp.venta_id]);
+          this.router.navigate(['/pago', resp.venta_id], {
+            queryParams: { importe_visto_bob: importeVisto }
+          });
         },
         error: e => {
           this.error = formatearErrorApi(e, 'No se pudo confirmar la compra. Puedes reintentar.');

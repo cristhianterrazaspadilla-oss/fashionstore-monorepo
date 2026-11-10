@@ -13,7 +13,7 @@ import secrets
 import string
 import uuid
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException, status
@@ -317,10 +317,17 @@ class PedidoService:
                     selectinload(VarianteProducto.talla),
                     selectinload(VarianteProducto.color),
                 )
-                .where(VarianteProducto.id == l.variante_id)
+                .where(VarianteProducto.id == l.variante_id, VarianteProducto.empresa_id == carrito.empresa_id)
             )
             var = (await self.db.execute(stmt_v)).scalars().first()
-            precio = Decimal(str(var.precio or 0)) if var else Decimal("0.00")
+            if var is None or var.precio is None:
+                raise HTTPException(status_code=409, detail="PRECIO_NO_DISPONIBLE: no se pudo recuperar el precio autorizado de una prenda del carrito")
+            try:
+                precio = Decimal(str(var.precio))
+            except (InvalidOperation, ValueError, TypeError):
+                raise HTTPException(status_code=409, detail="PRECIO_NO_DISPONIBLE: precio de catálogo inválido")
+            if not precio.is_finite() or precio < 0 or l.cantidad <= 0:
+                raise HTTPException(status_code=409, detail="PRECIO_NO_DISPONIBLE: precio o cantidad inválidos")
             subtotal = precio * l.cantidad
             total_estimado += subtotal
 

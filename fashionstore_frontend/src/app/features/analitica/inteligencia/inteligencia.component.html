@@ -70,6 +70,19 @@
 
     <!-- SUB-VISTA A: REPORTES INTERPRETADOS (CU24 Y RETROCOMPATIBILIDAD) -->
     <div *ngIf="subTab === 'reportes'" class="subtab-view">
+      <div class="ia-input-card">
+        <label for="reporteSucursal">Sucursal</label>
+        <select id="reporteSucursal" [(ngModel)]="sucursalReporte" [disabled]="generando">
+          <option value="">Todas las sucursales de mi empresa</option>
+          <option *ngFor="let sucursal of sucursalesReporte" [value]="sucursal.id">{{ sucursal.nombre }}</option>
+        </select>
+        <label for="reporteDesde">Desde (hora boliviana)</label>
+        <input id="reporteDesde" type="datetime-local" [(ngModel)]="desdeReporte" [disabled]="generando">
+        <label for="reporteHasta">Hasta (hora boliviana)</label>
+        <input id="reporteHasta" type="datetime-local" [(ngModel)]="hastaReporte" [disabled]="generando">
+        <p>Selecciona aquí la sucursal y el período para aplicar filtros explícitos al reporte.</p>
+        <p *ngIf="errorSucursales" class="cycle-alert danger" role="alert">{{ errorSucursales }}</p>
+      </div>
       <!-- Accesos directos a los 4 reportes interpretados autorizados (CU24) -->
       <div class="tipos-reporte-grid" aria-label="Reportes tipados estándar preconfigurados">
         <button
@@ -134,6 +147,8 @@
               {{ nombreProveedor }}
             </span>
             <span class="report-origin-badge">Origen: {{ reporteTipado.origen }}</span>
+            <span class="report-origin-badge">Ámbito: {{ reporteTipado.filtros_efectivos['sucursal_nombre'] || 'Todas las sucursales autorizadas' }}</span>
+            <span class="report-origin-badge">Período: {{ reporteTipado.filtros_efectivos['desde'] || 'Sin inicio' }} / {{ reporteTipado.filtros_efectivos['hasta'] || 'Sin fin' }}</span>
           </div>
           <div class="header-actions">
             <button type="button" class="cycle-secondary small" (click)="exportarCsv()">
@@ -144,7 +159,7 @@
 
         <!-- Narrativa ejecutiva protagonista -->
         <div class="report-narrativa-card">
-          <span class="narrativa-lead-label">Resumen ejecutivo del reporte:</span>
+          <span class="narrativa-lead-label">Explicación del cálculo ({{ reporteTipado.filtros_efectivos['narrativa_origen'] || 'DETERMINISTA' }}):</span>
           <blockquote class="narrativa-quote">
             {{ reporteTipado.narrativa }}
           </blockquote>
@@ -395,7 +410,7 @@
         </div>
 
         <!-- Tarjetas de métricas del modelo -->
-        <div class="metrics-grid">
+        <div class="metrics-grid" *ngIf="pronostico.metricas.estado === 'ENTRENADO'">
           <div class="metric-card">
             <span class="metric-kicker">Error medio absoluto</span>
             <span class="metric-val">{{ pronostico.metricas.mae | number:'1.2-4' }}</span>
@@ -532,23 +547,30 @@
       <div *ngIf="!consultandoSegmentacion && segmentacion" class="ml-result-sheet">
         <div class="ml-meta-header">
           <div class="ml-badges">
-            <span class="ml-status-badge badge-optimizado">
+            <span class="ml-status-badge" *ngIf="segmentacion.metricas.estado !== 'ENTRENADO'">
+              Estado: {{ segmentacion.metricas.estado }}
+            </span>
+            <span class="ml-status-badge badge-optimizado" *ngIf="segmentacion.metricas.estado === 'ENTRENADO'">
               Modelo: K-Means ({{ segmentacion.metricas.num_clusters }} grupos)
             </span>
             <span class="ml-origin-badge">
               Origen: {{ segmentacion.origen_datos }}
             </span>
-            <span class="ml-model-badge">
-              Calidad de partición: {{ (segmentacion.metricas.silhouette_score ?? 0) > 0.4 ? 'ALTA' : 'MODERADA' }}
+            <span class="ml-model-badge" *ngIf="segmentacion.metricas.estado === 'ENTRENADO'">
+              Calidad de partición: {{ segmentacion.metricas.silhouette_score == null ? 'NO DISPONIBLE' : (segmentacion.metricas.silhouette_score ?? 0) > 0.4 ? 'ALTA' : 'MODERADA' }}
             </span>
           </div>
-          <span class="ml-samples-tag">
+          <span class="ml-samples-tag" *ngIf="segmentacion.metricas.num_productos !== undefined">
             {{ segmentacion.metricas.num_productos }} prendas analizadas
           </span>
         </div>
 
+        <div *ngIf="segmentacion.metricas.estado === 'DATOS_INSUFICIENTES'" class="cycle-alert warning">
+          <strong>Segmentación no disponible:</strong> {{ segmentacion.metricas.razon }}
+        </div>
+
         <!-- Métricas del clustering -->
-        <div class="metrics-grid">
+        <div class="metrics-grid" *ngIf="segmentacion.metricas.estado === 'ENTRENADO'">
           <div class="metric-card">
             <span class="metric-kicker">Inercia intra-clúster</span>
             <span class="metric-val">{{ segmentacion.metricas.inercia | number:'1.1-1' }}</span>
@@ -557,7 +579,7 @@
           <div class="metric-card highlight">
             <span class="metric-kicker">Silhouette Score</span>
             <span class="metric-val" [class.text-success]="(segmentacion.metricas.silhouette_score ?? 0) > 0.4">
-              {{ (segmentacion.metricas.silhouette_score ?? 0) | number:'1.3-3' }}
+              {{ segmentacion.metricas.silhouette_score == null ? 'No disponible' : (segmentacion.metricas.silhouette_score | number:'1.3-3') }}
             </span>
             <span class="metric-sub">Separabilidad de clústeres (-1 a +1)</span>
           </div>
@@ -577,7 +599,7 @@
         <div class="clusters-grid">
           <article *ngFor="let g of segmentacion.grupos" class="cluster-card">
             <header class="cluster-card-header">
-              <span class="cluster-id-badge">Grupo #{{ g.grupo_id + 1 }}</span>
+              <span class="cluster-id-badge">Grupo #{{ g.grupo_id }}</span>
               <h4 class="cluster-label">{{ g.nombre_grupo }}</h4>
             </header>
 
@@ -588,17 +610,17 @@
                 <span class="cstat-label">Prendas en grupo: </span>
                 <strong class="cstat-val">{{ g.cantidad_productos }}</strong>
               </div>
-              <div class="cstat-item" *ngIf="g.centroide['unidades'] !== undefined">
+              <div class="cstat-item" *ngIf="g.centroide['unidades_promedio'] !== undefined">
                 <span class="cstat-label">Unidades centroide</span>
-                <strong class="cstat-val">{{ g.centroide['unidades'] | number:'1.1-1' }} un.</strong>
+                <strong class="cstat-val">{{ g.centroide['unidades_promedio'] | number:'1.1-1' }} un.</strong>
               </div>
-              <div class="cstat-item" *ngIf="g.centroide['ingresos'] !== undefined">
+              <div class="cstat-item" *ngIf="g.centroide['ingresos_promedio'] !== undefined">
                 <span class="cstat-label">Ingresos centroide</span>
-                <strong class="cstat-val">Bs {{ g.centroide['ingresos'] | number:'1.2-2' }}</strong>
+                <strong class="cstat-val">Bs {{ g.centroide['ingresos_promedio'] | number:'1.2-2' }}</strong>
               </div>
-              <div class="cstat-item" *ngIf="g.centroide['rotacion'] !== undefined">
+              <div class="cstat-item" *ngIf="g.centroide['rotacion_promedio'] !== undefined">
                 <span class="cstat-label">Rotación centroide</span>
-                <strong class="cstat-val">{{ g.centroide['rotacion'] | number:'1.2-2' }}x</strong>
+                <strong class="cstat-val">{{ g.centroide['rotacion_promedio'] | number:'1.2-2' }}x</strong>
               </div>
             </div>
 

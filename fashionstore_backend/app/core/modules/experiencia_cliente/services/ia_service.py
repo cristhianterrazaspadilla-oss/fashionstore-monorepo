@@ -12,10 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.integraciones import ia_proveedor as ia
 from backend.app.core.integraciones.ia_proveedor import FiltrosBusqueda, proveedor_activo, rechazar_inyeccion
 from backend.app.core.permisos import es_admin, rol_de
+from backend.app.core.ambito_comercial import empresa_comercial
 from backend.app.core.reloj import RelojSistema
 from backend.app.core.modules.catalogo.models import Producto, VarianteProducto
 from backend.app.core.modules.experiencia_cliente.models import HistorialNavegacion, SolicitudIA
 from backend.app.core.modules.inventario.models import InventarioSucursal
+from backend.app.core.modules.organizacion.models import Sucursal
 from backend.app.core.modules.identidad_empresas.models import Usuario
 from backend.app.core.modules.experiencia_cliente.repositories.navegacion_repository import NavegacionRepository
 from backend.app.core.modules.experiencia_cliente.repositories.solicitud_ia_repository import SolicitudIaRepository
@@ -51,15 +53,17 @@ class IAService:
     async def _auditar(
         self, usuario: Usuario, tipo: str, entrada: str, funcion: Optional[str],
         parametros: dict, respuesta: str, datos: dict, latencia_ms: int,
+        proveedor_usado: Optional[str] = None,
     ) -> None:
         self.db.add(
             SolicitudIA(
+                empresa_id=empresa_comercial(usuario),
                 usuario_id=usuario.id,
                 cliente_id=usuario.id if rol_de(usuario) == "CLIENTE" else None,
                 tipo=tipo, entrada=_sanitizar(entrada),
                 funcion_usada=funcion, parametros=parametros or {},
                 respuesta=_sanitizar(respuesta, 2000), datos=datos or {},
-                proveedor=getattr(self.proveedor, "nombre", "DETERMINISTA"),
+                proveedor=proveedor_usado or getattr(self.proveedor, "nombre", "DETERMINISTA"),
                 latencia_ms=max(latencia_ms, 0),
             )
         )
@@ -74,8 +78,9 @@ class IAService:
 
     async def _disponibles(
         self, filtros: Optional[FiltrosBusqueda] = None, limite: int = 20,
+        *, empresa_id: uuid.UUID,
     ) -> List[tuple]:
-        from backend.app.core.modules.catalogo.models import Categoria
+        from backend.app.core.modules.catalogo.models import Categoria, Color, Talla, Temporada, ProductoTemporada
 
         q = (
             select(
@@ -85,8 +90,28 @@ class IAService:
             .join(Producto, Producto.id == VarianteProducto.producto_id)
             .outerjoin(Categoria, Categoria.id == Producto.categoria_id)
             .join(InventarioSucursal, InventarioSucursal.variante_id == VarianteProducto.id)
-            .where(VarianteProducto.activa.is_(True), Producto.activo.is_(True))
+            .join(Sucursal, Sucursal.id == InventarioSucursal.sucursal_id)
+            .where(
+                VarianteProducto.activa.is_(True), Producto.activo.is_(True),
+                VarianteProducto.empresa_id == empresa_id, Producto.empresa_id == empresa_id,
+                Sucursal.empresa_id == empresa_id,
+            )
         )
+        if filtros is not None and filtros.talla:
+            q = q.join(Talla, Talla.id == VarianteProducto.talla_id).where(
+                Talla.empresa_id == empresa_id, func.upper(Talla.nombre) == filtros.talla.strip().upper()
+            )
+        if filtros is not None and filtros.color:
+            q = q.join(Color, Color.id == VarianteProducto.color_id).where(
+                Color.empresa_id == empresa_id, func.upper(Color.nombre) == filtros.color.strip().upper()
+            )
+        if filtros is not None and filtros.temporada:
+            q = q.where(Producto.id.in_(
+                select(ProductoTemporada.producto_id)
+                .join(Temporada, Temporada.id == ProductoTemporada.temporada_id)
+                .where(Temporada.empresa_id == empresa_id,
+                       func.upper(Temporada.nombre) == filtros.temporada.strip().upper())
+            ))
         if filtros is not None and filtros.categoria:
             patron = (
                 filtros.categoria.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -139,7 +164,7 @@ class IAService:
             categoria=(categoria or "").upper() or None,
             talla=(talla or "").upper() or None, texto="",
         )
-        filas = await self._disponibles(filtros, limite=limite)
+        filas = await self._disponibles(filtros, limite=limite, empresa_id=empresa_comercial(usuario))
         prefs = ""
         try:
             from backend.app.core.modules.identidad_empresas.models import Cliente
@@ -167,18 +192,20 @@ class IAService:
                 usuario, "RECOMENDACION", f"categoria={categoria} talla={talla}",
                 "disponibles", {"limite": limite},
                 f"{len(items)} sugerencias", {"total": len(items)}, latencia,
+                proveedor_usado="DETERMINISTA",
             )
             await self.db.commit()
         except Exception:
             await self.db.rollback()
-        return RecomendacionRespuestaDTO(items=items, proveedor=getattr(self.proveedor, "nombre", "DETERMINISTA"))
+        return RecomendacionRespuestaDTO(items=items, proveedor="DETERMINISTA")
 
     async def responderChat(self, usuario: Usuario, mensaje: str) -> RecomendacionRespuestaDTO:
+        empresa_id = empresa_comercial(usuario)
         motivo = rechazar_inyeccion(mensaje)
         if motivo:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=motivo)
         filtros = await self.proveedor.interpretar_busqueda(_sanitizar(mensaje))
-        filas = await self._disponibles(filtros, limite=5)
+        filas = await self._disponibles(filtros, limite=5, empresa_id=empresa_id)
         items = [self._a_item(v, p, d, "Coincide con tu mensaje") for v, p, d in filas]
         try:
             await self._auditar(
@@ -193,12 +220,13 @@ class IAService:
 
     # ---------------- CU20 búsqueda por voz/texto ----------------
     async def interpretarBusqueda(self, usuario: Usuario, texto: str) -> BusquedaRespuestaDTO:
+        empresa_id = empresa_comercial(usuario)
         motivo = rechazar_inyeccion(texto)
         if motivo:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=motivo)
         inicio = time.monotonic()
         filtros = await self.proveedor.interpretar_busqueda(_sanitizar(texto))
-        filas = await self._disponibles(filtros, limite=20)
+        filas = await self._disponibles(filtros, limite=20, empresa_id=empresa_id)
         items = [self._a_item(v, p, d, "Resultado de tu búsqueda") for v, p, d in filas]
         latencia = int((time.monotonic() - inicio) * 1000)
         try:
@@ -268,8 +296,21 @@ class IAService:
     # ---------------- navegación sanitizada ----------------
     async def registrarNavegacion(self, usuario: Usuario, evento: str,
                                   variante_id=None, producto_id=None) -> dict:
+        empresa_id = empresa_comercial(usuario)
         if evento not in ("VISTA", "PRUEBA_VIRTUAL", "CARRITO", "COMPRA", "BUSQUEDA"):
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Evento no permitido")
+        if variante_id is not None:
+            variante = (await self.db.execute(select(VarianteProducto).where(
+                VarianteProducto.id == variante_id, VarianteProducto.empresa_id == empresa_id
+            ))).scalars().first()
+            if variante is None or (producto_id is not None and variante.producto_id != producto_id):
+                raise HTTPException(status_code=404, detail="Variante no encontrada en el producto y empresa indicados")
+        if producto_id is not None:
+            producto = (await self.db.execute(select(Producto.id).where(
+                Producto.id == producto_id, Producto.empresa_id == empresa_id
+            ))).scalar()
+            if producto is None:
+                raise HTTPException(status_code=404, detail="Producto no encontrado en la empresa")
         try:
             self.db.add(HistorialNavegacion(
                 empresa_id=usuario.empresa_id,

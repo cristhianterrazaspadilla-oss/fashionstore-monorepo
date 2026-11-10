@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:http/http.dart' as http;
 import '../models/catalogo_model.dart';
 import '../models/catalogo_snapshot_model.dart';
 import '../../ventas_pagos/models/caja_model.dart';
@@ -5,6 +7,7 @@ import '../../../core/config/api_config.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/storage/local_database_service.dart';
+import '../../../core/session/session_manager.dart';
 
 /// Catálogo del cliente (contrato real del backend).
 ///
@@ -15,6 +18,19 @@ import '../../../core/storage/local_database_service.dart';
 class CatalogoService {
   final ApiClient _api;
   final LocalDatabaseService _storage;
+  bool usandoSnapshot = false;
+  final Map<String, String> _etiquetasLocales = {};
+  String etiquetaVariante(Variante variante) => _etiquetasLocales[variante.id] ?? variante.sku;
+
+  Future<String> _ambitoLocal() async {
+    final sesion = await SessionManager().leerValida();
+    if (sesion == null) return ApiConfig.empresaCodigoDefecto;
+    final empresa = sesion.usuario.empresaId;
+    if (empresa == null || empresa.isEmpty) throw StateError('La sesión no identifica una empresa.');
+    return empresa;
+  }
+
+  bool _falloRed(Object e) => e is http.ClientException || e is TimeoutException;
 
   CatalogoService({ApiClient? api, LocalDatabaseService? storage})
       : _api = api ?? ApiClient(),
@@ -50,15 +66,40 @@ class CatalogoService {
     );
   }
 
-  Future<List<Variante>> variantesPorProducto(String productoId) {
-    return _api.get<List<Variante>>(
+  Future<List<Variante>> variantesPorProducto(String productoId) async {
+    usandoSnapshot = false;
+    _etiquetasLocales.clear();
+    try {
+      return await _api.get<List<Variante>>(
       '/variantes',
       query: {'producto_id': productoId, 'limit': '100', 'offset': '0'},
       convertir: (j) => ((j as List?) ?? [])
           .whereType<Map>()
           .map((e) => Variante.fromJson(e.cast<String, dynamic>()))
           .toList(),
-    );
+      );
+    } catch (e) {
+      if (!_falloRed(e)) rethrow;
+      final ambito = await _ambitoLocal();
+      final rows = await _storage.variantesProductoLocal(productoId, ambito);
+      if (rows.isEmpty) throw StateError('Esta prenda o sus variantes no están descargadas para la empresa actual. Conéctate y descarga el catálogo.');
+      final variantes = <Variante>[];
+      for (final row in rows) {
+        final precio = double.tryParse('${row['precio_bob'] ?? ''}');
+        if (precio == null || !precio.isFinite || precio < 0 ||
+            '${row['id'] ?? ''}'.isEmpty || '${row['talla_id'] ?? ''}'.isEmpty ||
+            '${row['color_id'] ?? ''}'.isEmpty || '${row['talla'] ?? ''}'.isEmpty || '${row['color'] ?? ''}'.isEmpty) {
+          throw StateError('La descarga no contiene precio, talla y color completos. Actualiza el catálogo al reconectar.');
+        }
+        final id = row['id'].toString();
+        variantes.add(Variante(id: id, productoId: productoId, tallaId: row['talla_id'].toString(),
+          colorId: row['color_id'].toString(), sku: '${row['sku'] ?? ''}', precio: precio, activa: true));
+        _etiquetasLocales[id] = '${row['talla']} · ${row['color']}';
+      }
+      if (await _ambitoLocal() != ambito) throw StateError('Cambió la empresa de la sesión. Vuelve a abrir la prenda.');
+      usandoSnapshot = true;
+      return variantes;
+    }
   }
 
   Future<Variante> obtenerVariante(String id) {
@@ -80,11 +121,15 @@ class CatalogoService {
       );
     } on ApiException {
       rethrow;
-    } catch (_) {
+    } catch (e) {
+      if (!_falloRed(e)) rethrow;
       // Fallback a SQLite local si no hay conexión
-      final local = await _storage.disponibilidadVarianteLocal(varianteId);
+      final ambito = await _ambitoLocal();
+      final local = await _storage.disponibilidadVarianteLocal(varianteId, empresaCodigoOId: ambito);
+      if (await _ambitoLocal() != ambito) throw StateError('Cambió la empresa de la sesión. Vuelve a abrir la prenda.');
+      usandoSnapshot = true;
       if (local.isNotEmpty) return local;
-      rethrow;
+      throw StateError('No hay disponibilidad descargada para esta variante. Requiere consulta al reconectar.');
     }
   }
 

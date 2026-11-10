@@ -129,7 +129,7 @@
         <span class="exec-kicker">Existencias</span>
         <p class="exec-label">Valorización de inventario</p>
         <p class="exec-val-secondary">{{ bs(dashboard.valorizacion_total) }}</p>
-        <p class="exec-sub">Suma de existencia total × costo promedio de cada prenda</p>
+        <p class="exec-sub">Existencia actual × costo promedio. El período filtra actividad, no reconstruye inventario histórico.</p>
       </article>
     </section>
 
@@ -166,9 +166,9 @@
 
         <article class="flow-metric-card" *ngIf="pedidosPendientesCumplimiento > 0">
           <span class="flow-kicker">Compromisos</span>
-          <p class="flow-label">En preparación / despacho</p>
+          <p class="flow-label">Pendientes de cumplimiento</p>
           <p class="flow-value">{{ pedidosPendientesCumplimiento }} pedidos</p>
-          <p class="flow-hint">Monto retenido: {{ montoPedidosPendientes }}</p>
+          <p class="flow-hint">Costo de entrega asociado: {{ montoPedidosPendientes }}</p>
         </article>
       </div>
     </section>
@@ -304,7 +304,7 @@
       <div class="panel-header">
         <div>
           <h2 class="panel-title">Inventario en umbral crítico</h2>
-          <p class="panel-subtitle">Artículos con inventario disponible ≤ 5 unidades que requieren atención de reposición</p>
+          <p class="panel-subtitle">Inventario actual disponible ≤ 5 unidades en las sucursales autorizadas</p>
         </div>
         <span class="badge-critical" *ngIf="stockCriticoVM.length > 0">
           {{ stockCriticoVM.length }} {{ stockCriticoVM.length === 1 ? 'artículo en riesgo' : 'artículos en riesgo' }}
@@ -315,7 +315,7 @@
         <!-- Caso sin registros críticos -->
         <div *ngIf="stockCriticoVM.length === 0" class="dash-empty-note text-success">
           <span class="empty-icon" aria-hidden="true">✓</span>
-          <p>Todos los artículos cuentan con inventario suficiente (> 5 unidades disponibles).</p>
+          <p>No hay artículos bajo el umbral en los datos consultados.</p>
         </div>
 
         <!-- Tabla en pantallas medianas y grandes -->

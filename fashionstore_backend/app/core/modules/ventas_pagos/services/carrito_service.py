@@ -3,7 +3,7 @@ import secrets
 import string
 import uuid
 from datetime import timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import HTTPException, status
@@ -89,7 +89,14 @@ class CarritoService:
         dto_desc = Decimal("0")
         for lin in lineas:
             variante = await self.variante_repo.buscarPorId(lin.variante_id)
-            precio = Decimal(str(variante.precio or 0)) if variante else Decimal("0")
+            if variante is None or variante.empresa_id != carrito.empresa_id or variante.precio is None:
+                raise HTTPException(status_code=409, detail="PRECIO_NO_DISPONIBLE: no se pudo recuperar el precio autorizado del carrito")
+            try:
+                precio = Decimal(str(variante.precio))
+            except (InvalidOperation, ValueError, TypeError):
+                raise HTTPException(status_code=409, detail="PRECIO_NO_DISPONIBLE: precio de catálogo inválido")
+            if not precio.is_finite() or precio < 0 or lin.cantidad <= 0:
+                raise HTTPException(status_code=409, detail="PRECIO_NO_DISPONIBLE: precio o cantidad inválidos")
             desc, promo_id = await self.promo.mejorDescuento(lin.variante_id, precio, lin.cantidad)
             sub = (precio * lin.cantidad).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             subtotal += sub

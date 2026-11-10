@@ -98,8 +98,9 @@ class VentaRepository:
         offset: int = 0,
         empresa_id=None,
     ) -> Tuple[List[Venta], int]:
-        base = select(Venta).where(Venta.sucursal_id == sucursal_id)
-        conteo = select(func.count()).select_from(Venta).where(Venta.sucursal_id == sucursal_id)
+        estados = ("PAGADA", "PARCIALMENTE_DEVUELTA", "DEVUELTA")
+        base = select(Venta).where(Venta.sucursal_id == sucursal_id, Venta.estado.in_(estados))
+        conteo = select(func.count()).select_from(Venta).where(Venta.sucursal_id == sucursal_id, Venta.estado.in_(estados))
         if empresa_id is not None:
             base = base.where(Venta.empresa_id == empresa_id)
             conteo = conteo.where(Venta.empresa_id == empresa_id)
@@ -146,3 +147,42 @@ class DetalleVentaRepository:
             )
         )
         return int(result.scalar() or 0)
+
+    async def cantidadesPosventaComprometidas(self, detalle_venta_id: uuid.UUID) -> Tuple[int, int]:
+        """Devueltas/comprometidas y cambiadas, sin contar dos veces su Kardex.
+
+        El llamador bloquea DetalleVenta antes de consultar y mantiene el
+        bloqueo hasta confirmar la solicitud o devolución física.
+        """
+        from backend.app.core.modules.inventario.models import MovimientoInventario
+        from backend.app.core.modules.posventa.services.devolucion_service import Devolucion, DetalleDevolucion
+        from backend.app.core.modules.posventa.services.cambio_service import Cambio, DetalleCambio
+
+        devueltas = await self.db.execute(
+            select(func.coalesce(func.sum(DetalleDevolucion.cantidad_solicitada), 0))
+            .join(Devolucion, Devolucion.id == DetalleDevolucion.devolucion_id)
+            .where(DetalleDevolucion.detalle_venta_id == detalle_venta_id, Devolucion.estado != "RECHAZADA")
+        )
+        cambiadas = await self.db.execute(
+            select(func.coalesce(func.sum(DetalleCambio.cantidad), 0))
+            .join(Cambio, Cambio.id == DetalleCambio.cambio_id)
+            .where(
+                DetalleCambio.detalle_venta_id == detalle_venta_id,
+                DetalleCambio.tipo_linea == "ORIGINAL", Cambio.estado != "RECHAZADO",
+            )
+        )
+        # La inspección CU20 ya está contabilizada en DetalleDevolucion.
+        # Solo añadir aquí las devoluciones físicas del adaptador heredado.
+        tiene_detalle = select(DetalleDevolucion.id).where(
+            DetalleDevolucion.id == MovimientoInventario.linea_referencia_id,
+            DetalleDevolucion.detalle_venta_id == detalle_venta_id,
+        ).exists()
+        heredadas = await self.db.execute(
+            select(func.coalesce(func.sum(MovimientoInventario.cantidad), 0)).where(
+                MovimientoInventario.tipo == "DEVOLUCION",
+                MovimientoInventario.referencia_tipo == "DETALLE_VENTA",
+                MovimientoInventario.referencia_id == detalle_venta_id,
+                ~tiene_detalle,
+            )
+        )
+        return int(devueltas.scalar() or 0) + int(heredadas.scalar() or 0), int(cambiadas.scalar() or 0)

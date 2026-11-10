@@ -5,13 +5,14 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from backend.app.core.ambito_comercial import empresa_comercial, sucursal_autorizada
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.permisos import es_admin, exigir_sucursal
 from backend.app.core.reloj import a_hora_bolivia, entrada_local_a_utc
 from backend.app.core.modules.identidad_empresas.models import Usuario
+from backend.app.core.modules.ventas_pagos.models import DetalleVenta, Venta
 from backend.app.core.modules.organizacion.repositories.sucursal_repository import SucursalRepository
 from backend.app.core.modules.ventas_pagos.repositories.venta_repository import VentaRepository
 from backend.app.core.modules.analitica.schemas import (
@@ -48,6 +49,8 @@ class ReporteService:
         con_costos = rol in ("ADMINISTRADOR", "ENCARGADO")
         desde = entrada_local_a_utc(desde) if desde is not None else None
         hasta = entrada_local_a_utc(hasta) if hasta is not None else None
+        if desde is not None and hasta is not None and desde > hasta:
+            raise HTTPException(status_code=400, detail="Rango inválido: desde debe ser menor o igual a hasta")
         ventas, total = await self.venta_repo.porSucursal(
             sucursal_id, desde=desde, hasta=hasta, limit=limit, offset=offset, empresa_id=empresa_id
         )
@@ -88,13 +91,37 @@ class ReporteService:
                 )
             )
 
+        # El resumen cubre el período completo, no solo la página visible.
+        periodo = select(Venta).where(
+            Venta.empresa_id == empresa_id, Venta.sucursal_id == sucursal_id,
+            Venta.estado.in_(("PAGADA", "PARCIALMENTE_DEVUELTA", "DEVUELTA")),
+        )
+        if desde is not None:
+            periodo = periodo.where(Venta.creada_en >= desde)
+        if hasta is not None:
+            periodo = periodo.where(Venta.creada_en <= hasta)
+        periodo = periodo.subquery()
+        detalles = select(
+            DetalleVenta.venta_id,
+            func.sum(DetalleVenta.cantidad).label("unidades"),
+            func.sum(DetalleVenta.costo_promedio * DetalleVenta.cantidad).label("costo"),
+        ).group_by(DetalleVenta.venta_id).subquery()
+        agregado = (await self.db.execute(select(
+            func.coalesce(func.sum(detalles.c.unidades), 0),
+            func.coalesce(func.sum(periodo.c.total), 0),
+            func.coalesce(func.sum(periodo.c.subtotal), 0),
+            func.coalesce(func.sum(periodo.c.descuento), 0),
+            func.coalesce(func.sum(detalles.c.costo), 0),
+        ).select_from(periodo).outerjoin(detalles, detalles.c.venta_id == periodo.c.id))).one()
+        unidades = int(agregado[0])
+        monto, subtotal_bruto, total_descuentos, costo = [Decimal(str(v)) for v in agregado[1:]]
+
         total_devoluciones = Decimal("0.00")
         total_reembolsos = Decimal("0.00")
-        if ventas:
-            v_ids = [v.id for v in ventas]
+        if total:
+            v_ids = select(periodo.c.id)
             try:
                 from backend.app.core.modules.posventa.services.devolucion_service import Devolucion, DetalleDevolucion
-                from backend.app.core.modules.ventas_pagos.models import DetalleVenta
                 dev_q = (
                     select(
                         func.coalesce(
@@ -111,24 +138,34 @@ class ReporteService:
                     .where(
                         Devolucion.venta_id.in_(v_ids),
                         Devolucion.empresa_id == empresa_id,
+                        DetalleDevolucion.empresa_id == empresa_id,
                         Devolucion.estado != "RECHAZADA",
                         DetalleDevolucion.cantidad_aceptada > 0,
                     )
                 )
                 total_devoluciones = Decimal(str((await self.db.execute(dev_q)).scalar() or 0)).quantize(Decimal("0.01"))
             except Exception:
-                total_devoluciones = Decimal("0.00")
+                raise
 
             try:
                 from backend.app.core.modules.posventa.models import ObligacionReembolso
+                from backend.app.core.modules.posventa.services.cambio_service import Cambio
                 reemb_q = select(func.coalesce(func.sum(ObligacionReembolso.monto_bob), 0)).where(
                     ObligacionReembolso.empresa_id == empresa_id,
-                    ObligacionReembolso.origen_id.in_(v_ids),
-                    ObligacionReembolso.estado.in_(["AUTORIZADA", "COMPLETADA"]),
+                    or_(
+                        (ObligacionReembolso.origen_tipo == "VENTA") & ObligacionReembolso.origen_id.in_(v_ids),
+                        (ObligacionReembolso.origen_tipo == "DEVOLUCION") & ObligacionReembolso.origen_id.in_(
+                            select(Devolucion.id).where(Devolucion.empresa_id == empresa_id, Devolucion.venta_id.in_(v_ids))
+                        ),
+                        (ObligacionReembolso.origen_tipo == "CAMBIO") & ObligacionReembolso.origen_id.in_(
+                            select(Cambio.id).where(Cambio.empresa_id == empresa_id, Cambio.venta_id.in_(v_ids))
+                        ),
+                    ),
+                    ObligacionReembolso.estado.in_(("COMPLETADO", "COMPLETADA")),
                 )
                 total_reembolsos = Decimal(str((await self.db.execute(reemb_q)).scalar() or 0)).quantize(Decimal("0.01"))
             except Exception:
-                total_reembolsos = Decimal("0.00")
+                raise
 
         neto_comercial = max(Decimal("0.00"), subtotal_bruto - total_descuentos - total_devoluciones)
         resumen = VentasSucursalResumenDTO(

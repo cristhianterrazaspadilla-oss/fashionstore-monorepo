@@ -4,7 +4,7 @@ import json
 import re
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -24,6 +24,7 @@ from backend.app.core.modules.inventario.models import InventarioSucursal
 from backend.app.core.modules.organizacion.models import Sucursal
 from backend.app.core.modules.ventas_pagos.models import DetalleVenta, Venta
 from backend.app.core.modules.identidad_empresas.models import Usuario
+from backend.app.core.modules.reservas_traslados.models import Reserva
 from backend.app.core.modules.analitica.schemas import (
     DecisionItemDTO,
     DecisionRespuestaDTO,
@@ -180,12 +181,15 @@ class IAAnaliticaService:
                         hasta_dt = None
                         if parsed.get("desde"):
                             try:
-                                desde_dt = datetime.fromisoformat(str(parsed["desde"])).replace(tzinfo=timezone.utc)
+                                desde_dt = datetime.fromisoformat(str(parsed["desde"]))
                             except Exception:
                                 pass
                         if parsed.get("hasta"):
                             try:
-                                hasta_dt = datetime.fromisoformat(str(parsed["hasta"])).replace(tzinfo=timezone.utc)
+                                fecha_hasta = str(parsed["hasta"])
+                                hasta_dt = datetime.fromisoformat(fecha_hasta)
+                                if len(fecha_hasta) == 10:
+                                    hasta_dt += timedelta(days=1, microseconds=-1)
                             except Exception:
                                 pass
                         return tipo_candidato, "GEMINI", desde_dt, hasta_dt
@@ -233,8 +237,9 @@ class IAAnaliticaService:
         self, usuario: Usuario, datos: ReporteInterpretadoPeticionDTO
     ) -> ReporteInterpretadoResultadoDTO:
         empresa_id = await self._autorizar_reporte(usuario)
+        sucursal = None
         if datos.sucursal_id:
-            await sucursal_autorizada(self.db, usuario, datos.sucursal_id)
+            sucursal = await sucursal_autorizada(self.db, usuario, datos.sucursal_id)
 
         motivo = rechazar_inyeccion(datos.consulta)
         if motivo:
@@ -259,6 +264,8 @@ class IAAnaliticaService:
             datos.desde = entrada_local_a_utc(datos.desde)
         if datos.hasta is not None:
             datos.hasta = entrada_local_a_utc(datos.hasta)
+        if datos.desde is not None and datos.hasta is not None and datos.desde > datos.hasta:
+            raise HTTPException(status_code=400, detail="Rango inválido: desde debe ser menor o igual a hasta")
 
         consulta_id = uuid.uuid4()
 
@@ -270,16 +277,20 @@ class IAAnaliticaService:
         if tipo_final == "VENTAS_POR_SUCURSAL":
             grafico_sugerido = "BARRA_HORIZONTAL"
             columnas = ["sucursal_nombre", "total_ventas", "unidades_vendidas", "total_ingresos_bob"]
+            unidades_por_venta = (
+                select(DetalleVenta.venta_id, func.sum(DetalleVenta.cantidad).label("unidades"))
+                .group_by(DetalleVenta.venta_id).subquery()
+            )
             q = (
                 select(
                     Sucursal.nombre,
                     func.count(Venta.id).label("total_ventas"),
-                    func.coalesce(func.sum(DetalleVenta.cantidad), 0).label("unidades_vendidas"),
+                    func.coalesce(func.sum(unidades_por_venta.c.unidades), 0).label("unidades_vendidas"),
                     func.coalesce(func.sum(Venta.total), 0).label("total_ingresos"),
                 )
                 .join(Venta, Venta.sucursal_id == Sucursal.id)
-                .outerjoin(DetalleVenta, DetalleVenta.venta_id == Venta.id)
-                .where(Venta.empresa_id == empresa_id, Venta.estado == "PAGADA")
+                .outerjoin(unidades_por_venta, unidades_por_venta.c.venta_id == Venta.id)
+                .where(Venta.empresa_id == empresa_id, Sucursal.empresa_id == empresa_id, Venta.estado == "PAGADA")
             )
             if datos.sucursal_id:
                 q = q.where(Venta.sucursal_id == datos.sucursal_id)
@@ -287,22 +298,25 @@ class IAAnaliticaService:
                 q = q.where(Venta.creada_en >= datos.desde)
             if datos.hasta:
                 q = q.where(Venta.creada_en <= datos.hasta)
-            q = q.group_by(Sucursal.nombre).order_by(Sucursal.nombre)
+            q = q.group_by(Sucursal.id, Sucursal.nombre).order_by(Sucursal.nombre)
             res = (await self.db.execute(q)).all()
             total_ing = Decimal("0")
             total_uds = 0
+            total_ventas = 0
             for r in res:
                 ing = Decimal(str(r[3] or 0))
                 uds = int(r[2] or 0)
                 total_ing += ing
                 total_uds += uds
+                total_ventas += int(r[1] or 0)
                 filas.append({
                     "sucursal_nombre": r[0],
                     "total_ventas": int(r[1] or 0),
                     "unidades_vendidas": uds,
                     "total_ingresos_bob": float(ing),
                 })
-            totales = {"total_general_ingresos_bob": float(total_ing), "total_unidades": total_uds}
+            totales = {"total_general_ingresos_bob": float(total_ing), "total_ingresos_bob": float(total_ing),
+                       "total_unidades": total_uds, "total_ventas": total_ventas}
 
         elif tipo_final == "RANKING_PRODUCTOS":
             grafico_sugerido = "BARRA_VERTICAL"
@@ -316,7 +330,8 @@ class IAAnaliticaService:
                 .join(VarianteProducto, VarianteProducto.producto_id == Producto.id)
                 .join(DetalleVenta, DetalleVenta.variante_id == VarianteProducto.id)
                 .join(Venta, Venta.id == DetalleVenta.venta_id)
-                .where(Venta.empresa_id == empresa_id, Venta.estado == "PAGADA")
+                .where(Venta.empresa_id == empresa_id, Producto.empresa_id == empresa_id,
+                       VarianteProducto.empresa_id == empresa_id, Venta.estado == "PAGADA")
             )
             if datos.sucursal_id:
                 q = q.where(Venta.sucursal_id == datos.sucursal_id)
@@ -324,7 +339,7 @@ class IAAnaliticaService:
                 q = q.where(Venta.creada_en >= datos.desde)
             if datos.hasta:
                 q = q.where(Venta.creada_en <= datos.hasta)
-            q = q.group_by(Producto.nombre).order_by(func.sum(DetalleVenta.cantidad).desc()).limit(15)
+            q = q.group_by(Producto.id, Producto.nombre).order_by(func.sum(DetalleVenta.cantidad).desc()).limit(15)
             res = (await self.db.execute(q)).all()
             total_ing = Decimal("0")
             total_uds = 0
@@ -386,7 +401,9 @@ class IAAnaliticaService:
                 .join(VarianteProducto, VarianteProducto.producto_id == Producto.id)
                 .join(DetalleVenta, DetalleVenta.variante_id == VarianteProducto.id)
                 .join(Venta, Venta.id == DetalleVenta.venta_id)
-                .where(Venta.empresa_id == empresa_id, Venta.estado == "PAGADA")
+                .where(Venta.empresa_id == empresa_id, Producto.empresa_id == empresa_id,
+                       VarianteProducto.empresa_id == empresa_id, Categoria.empresa_id == empresa_id,
+                       Venta.estado == "PAGADA")
             )
             if datos.sucursal_id:
                 q = q.where(Venta.sucursal_id == datos.sucursal_id)
@@ -394,7 +411,7 @@ class IAAnaliticaService:
                 q = q.where(Venta.creada_en >= datos.desde)
             if datos.hasta:
                 q = q.where(Venta.creada_en <= datos.hasta)
-            q = q.group_by(Categoria.nombre).order_by(func.sum(DetalleVenta.cantidad).desc())
+            q = q.group_by(Categoria.id, Categoria.nombre).order_by(func.sum(DetalleVenta.cantidad).desc())
             res = (await self.db.execute(q)).all()
             total_ing = Decimal("0")
             total_uds = 0
@@ -411,9 +428,11 @@ class IAAnaliticaService:
             totales = {"total_unidades": total_uds, "total_ingresos_bob": float(total_ing)}
 
         latencia = int((time.monotonic() - inicio) * 1000)
+        narrativa_origen = "DETERMINISTA"
         if proveedor_usado.startswith("GEMINI"):
             narrativa_ia = await self._generar_narrativa_gemini(tipo_final, filas, totales)
-            narrativa = narrativa_ia or f"Reporte tipado de {tipo_final.lower().replace('_', ' ')} interpretado con Gemini sobre datos reales ({len(filas)} registros consolidados)."
+            narrativa_origen = "GEMINI" if narrativa_ia else "FALLBACK_DETERMINISTA"
+            narrativa = narrativa_ia or f"Explicación IA no disponible. El cálculo con datos reales produjo {len(filas)} registros consolidados."
         else:
             narrativa = f"Reporte tipado de {tipo_final.lower().replace('_', ' ')} generado con datos reales de la empresa. Se consolidaron {len(filas)} registros."
         snapshot_hash = hashlib.sha256(json.dumps(filas, default=str).encode()).hexdigest()[:16]
@@ -423,7 +442,9 @@ class IAAnaliticaService:
             tipo="REPORTE",
             entrada=datos.consulta,
             funcion=tipo_final,
-            parametros={"tipo": tipo_final, "sucursal_id": str(datos.sucursal_id) if datos.sucursal_id else None},
+            parametros={"tipo": tipo_final, "sucursal_id": str(datos.sucursal_id) if datos.sucursal_id else None,
+                        "desde": datos.desde.isoformat() if datos.desde else None,
+                        "hasta": datos.hasta.isoformat() if datos.hasta else None},
             respuesta=narrativa,
             datos={"filas": filas, "totales": totales},
             latencia_ms=latencia,
@@ -440,7 +461,11 @@ class IAAnaliticaService:
                 "empresa_id": str(empresa_id),
                 "tipo": tipo_final,
                 "sucursal_id": str(datos.sucursal_id) if datos.sucursal_id else None,
+                "sucursal_nombre": sucursal.nombre if sucursal else None,
                 "proveedor": proveedor_usado,
+                "narrativa_origen": narrativa_origen,
+                "desde": datos.desde.isoformat() if datos.desde else None,
+                "hasta": datos.hasta.isoformat() if datos.hasta else None,
             },
             columnas=columnas,
             filas=filas,
@@ -454,10 +479,18 @@ class IAAnaliticaService:
     # ---------------- CU21 legacy ----------------
     def _elegir_funcion(self, consulta: str) -> tuple[str, dict]:
         bajo = (consulta or "").lower()
+        if any(p in bajo for p in ("stock crítico", "stock critico", "inventario bajo", "agot")):
+            return "stockCritico", {}
         if any(p in bajo for p in ("inventario", "stock", "existencia")):
             return "inventarioPorSucursal", {}
         if any(p in bajo for p in ("top", "más vend", "mas vend")):
             return "topVendidos", {}
+        if "reserva" in bajo:
+            return "efectividadReservas", {}
+        if any(p in bajo for p in ("rotaci", "lenta", "dead", "baja rot")):
+            return "rotacionPorTemporada", {}
+        if "temporada" in bajo:
+            return "ventasPorTemporada", {}
         return "ventasPorSucursal", {}
 
     async def generarReporte(self, usuario: Usuario, consulta: str) -> ReporteRespuestaDTO:
@@ -468,7 +501,8 @@ class IAAnaliticaService:
         inicio = time.monotonic()
         funcion, params = self._elegir_funcion(consulta)
         datos = await self._ejecutar_funcion(funcion, params, empresa_id)
-        narrativa = f"Reporte {funcion} generado con datos de la empresa."
+        ambito = "inventario actual" if funcion in ("inventarioPorSucursal", "stockCritico") else "histórico completo"
+        narrativa = f"Reporte {funcion} del {ambito} de la empresa. Esta ruta heredada no interpreta filtros de período o sucursal del texto."
         latencia = int((time.monotonic() - inicio) * 1000)
         await self._auditar(
             usuario, "REPORTE", consulta, funcion, params, narrativa, datos, latencia
@@ -495,9 +529,49 @@ class IAAnaliticaService:
                 "por_sucursal": [{"sucursal": n, "ventas": int(c), "ingresos": str(t)} for n, c, t in filas],
                 "total": len(filas),
             }
-        return {}
+        if funcion == "inventarioPorSucursal":
+            q = (select(Sucursal.nombre, func.count(InventarioSucursal.id),
+                        func.coalesce(func.sum(InventarioSucursal.disponible), 0),
+                        func.coalesce(func.sum(InventarioSucursal.reservado), 0),
+                        func.coalesce(func.sum(InventarioSucursal.en_transito), 0))
+                 .join(InventarioSucursal, InventarioSucursal.sucursal_id == Sucursal.id)
+                 .join(VarianteProducto, VarianteProducto.id == InventarioSucursal.variante_id)
+                 .where(Sucursal.empresa_id == empresa_id, VarianteProducto.empresa_id == empresa_id)
+                 .group_by(Sucursal.id, Sucursal.nombre).order_by(Sucursal.nombre))
+            filas = (await self.db.execute(q)).all()
+            return {"inventario_por_sucursal": [dict(sucursal=n, variantes=int(c), disponible=int(d),
+                    reservado=int(r), en_transito=int(t)) for n, c, d, r, t in filas], "total": len(filas)}
+        if funcion == "stockCritico":
+            filas = (await self.db.execute(
+                select(VarianteProducto.sku, Sucursal.nombre, InventarioSucursal.disponible)
+                .join(InventarioSucursal, InventarioSucursal.variante_id == VarianteProducto.id)
+                .join(Sucursal, Sucursal.id == InventarioSucursal.sucursal_id)
+                .where(Sucursal.empresa_id == empresa_id, VarianteProducto.empresa_id == empresa_id,
+                       InventarioSucursal.disponible <= 5)
+                .order_by(InventarioSucursal.disponible, VarianteProducto.sku, Sucursal.id).limit(50)
+            )).all()
+            return {"criticos": [dict(sku=s, sucursal=n, disponible=int(d)) for s, n, d in filas], "total": len(filas)}
+        if funcion == "topVendidos":
+            filas = (await self.db.execute(
+                select(VarianteProducto.sku, func.sum(DetalleVenta.cantidad))
+                .join(DetalleVenta, DetalleVenta.variante_id == VarianteProducto.id)
+                .join(Venta, Venta.id == DetalleVenta.venta_id)
+                .where(Venta.empresa_id == empresa_id, VarianteProducto.empresa_id == empresa_id, Venta.estado == "PAGADA")
+                .group_by(VarianteProducto.id, VarianteProducto.sku)
+                .order_by(func.sum(DetalleVenta.cantidad).desc(), VarianteProducto.sku).limit(10)
+            )).all()
+            return {"top": [dict(sku=s, unidades=int(c)) for s, c in filas], "total": len(filas)}
+        if funcion == "efectividadReservas":
+            total = int((await self.db.execute(select(func.count(Reserva.id)).where(Reserva.empresa_id == empresa_id))).scalar() or 0)
+            completadas = int((await self.db.execute(select(func.count(Reserva.id)).where(
+                Reserva.empresa_id == empresa_id, Reserva.estado == "COMPLETADA"))).scalar() or 0)
+            return {"total": total, "completadas": completadas, "conversion": completadas / total if total else 0}
+        raise HTTPException(status_code=501, detail="Reporte por temporada pendiente: falta una regla de atribución de ventas a temporadas históricas; no se inventa esa asociación")
 
     async def decisionesInventario(
         self, usuario: Usuario, dias_ventana: int = 30, umbral_rotacion: int = 2
     ) -> DecisionRespuestaDTO:
-        return DecisionRespuestaDTO(items=[], proveedor="DETERMINISTA")
+        empresa_comercial(usuario)
+        if not es_admin(usuario):
+            raise HTTPException(status_code=403, detail="Solo Administrador empresarial autorizado")
+        raise HTTPException(status_code=501, detail="Decisiones pendientes: faltan reglas aprobadas para seleccionar promoción, liquidación, traslado o reposición y sus cantidades")

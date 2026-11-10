@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.idempotencia import hash_payload, resolver_idempotencia
+from backend.app.core.ambito_comercial import empresa_comercial, exigir_empresa_recurso
 from backend.app.core.permisos import es_admin, exigir_sucursal
 from backend.app.core.reloj import RelojSistema
 from backend.app.core.modules.reservas_traslados.models import DetalleReserva
@@ -49,6 +50,23 @@ class TrasladoService:
         self.sucursal_repo = SucursalRepository(db)
 
     # ---------------- helpers ----------------
+    async def _bloquear_traslado(self, usuario: Usuario, traslado_id: uuid.UUID):
+        # El mismo orden que cancelación/vencimiento: reserva, traslado, stock.
+        empresa_id = empresa_comercial(usuario)
+        fila = (await self.db.execute(
+            select(Traslado.reserva_id).where(Traslado.id == traslado_id, Traslado.empresa_id == empresa_id)
+        )).first()
+        if fila is None:
+            raise HTTPException(status_code=404, detail="Traslado no encontrado")
+        if fila[0] is not None:
+            reserva = await self.reserva_repo.buscarPorId(fila[0], empresa_id=empresa_id, bloquear=True)
+            if reserva is None:
+                raise HTTPException(status_code=409, detail="El traslado no corresponde a una reserva de la empresa")
+        return (await self.db.execute(
+            select(Traslado).where(Traslado.id == traslado_id, Traslado.empresa_id == empresa_id)
+            .with_for_update().execution_options(populate_existing=True)
+        )).scalars().first()
+
     async def _a_dto(self, traslado_id: uuid.UUID) -> TrasladoDTO:
         from backend.app.core.modules.reservas_traslados.schemas import DetalleTrasladoDTO
 
@@ -103,6 +121,8 @@ class TrasladoService:
     async def _derivar_estado_reserva(self, reserva) -> None:
         """Deriva la cabecera desde sus lineas (decision de dominio cerrada)."""
         recargada = await self.reserva_repo.buscarPorId(reserva.id)
+        if recargada.estado not in ESTADOS_NO_TERMINALES_RESERVA:
+            return
         estados = {d.estado_linea for d in recargada.detalles}
         if "PENDIENTE_TRASLADO" in estados:
             nuevo = "PENDIENTE_TRASLADO"
@@ -153,7 +173,7 @@ class TrasladoService:
         try:
             reintento = await resolver_idempotencia(self.db, Traslado, clave, digest)
             if reintento is not None:
-                return await self._a_dto(reintento.id), False
+                return await self.obtener(usuario, reintento.id), False
             traslado = await self._solicitar_en_tx(usuario, dto, clave, digest)
             salida = await self._a_dto(traslado.id)
             await self.db.commit()
@@ -165,7 +185,7 @@ class TrasladoService:
                 if existente is not None:
                     if existente.hash_solicitud != digest:
                         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Idempotency-Key ya usada con otra solicitud")
-                    return await self._a_dto(existente.id), False
+                    return await self.obtener(usuario, existente.id), False
             raise
         except HTTPException:
             await self.db.rollback()
@@ -178,10 +198,14 @@ class TrasladoService:
         detalle = await self.db.get(DetalleReserva, dto.detalle_reserva_id)
         if detalle is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linea de reserva no encontrada")
-        reserva = await self.reserva_repo.buscarPorId(detalle.reserva_id)
+        reserva = await self.reserva_repo.buscarPorId(
+            detalle.reserva_id, empresa_id=empresa_comercial(usuario), bloquear=True
+        )
         if reserva is None:  # pragma: no cover
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
         self._autorizar_solicitud(usuario, reserva)
+        if not es_admin(usuario) and (usuario.rol.nombre or "").upper() == "ENCARGADO":
+            exigir_sucursal(usuario, reserva.sucursal_destino_id)
         if detalle.estado_linea != "RECHAZADA":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -196,7 +220,7 @@ class TrasladoService:
         if dto.sucursal_origen_id == reserva.sucursal_destino_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Origen y destino deben ser distintos")
         origen = await self.sucursal_repo.buscarPorId(dto.sucursal_origen_id)
-        if origen is None:
+        if origen is None or origen.empresa_id != reserva.empresa_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sucursal origen no encontrada")
         if not origen.activa:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sucursal origen inactiva")
@@ -232,7 +256,7 @@ class TrasladoService:
     # ---------------- aprobar ----------------
     async def aprobar(self, usuario: Usuario, traslado_id: uuid.UUID) -> TrasladoDTO:
         try:
-            traslado = await self.traslado_repo.buscarPorId(traslado_id)
+            traslado = await self._bloquear_traslado(usuario, traslado_id)
             if traslado is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Traslado no encontrado")
             self._autorizar_origen(usuario, traslado.sucursal_origen_id)
@@ -289,7 +313,7 @@ class TrasladoService:
     # ---------------- rechazar ----------------
     async def rechazar(self, usuario: Usuario, traslado_id: uuid.UUID, dto: TrasladoRechazarDTO) -> TrasladoDTO:
         try:
-            traslado = await self.traslado_repo.buscarPorId(traslado_id)
+            traslado = await self._bloquear_traslado(usuario, traslado_id)
             if traslado is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Traslado no encontrado")
             self._autorizar_origen(usuario, traslado.sucursal_origen_id)
@@ -328,7 +352,7 @@ class TrasladoService:
     # ---------------- despachar ----------------
     async def despachar(self, usuario: Usuario, traslado_id: uuid.UUID) -> TrasladoDTO:
         try:
-            traslado = await self.traslado_repo.buscarPorId(traslado_id)
+            traslado = await self._bloquear_traslado(usuario, traslado_id)
             if traslado is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Traslado no encontrado")
             self._autorizar_origen(usuario, traslado.sucursal_origen_id)
@@ -381,7 +405,7 @@ class TrasladoService:
     # ---------------- recibir ----------------
     async def recibir(self, usuario: Usuario, traslado_id: uuid.UUID) -> TrasladoDTO:
         try:
-            traslado = await self.traslado_repo.buscarPorId(traslado_id)
+            traslado = await self._bloquear_traslado(usuario, traslado_id)
             if traslado is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Traslado no encontrado")
             self._autorizar_destino(usuario, traslado.sucursal_destino_id)
@@ -473,6 +497,11 @@ class TrasladoService:
         traslado = await self.traslado_repo.buscarPorId(traslado_id)
         if traslado is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Traslado no encontrado")
+        exigir_empresa_recurso(usuario, traslado)
+        if (usuario.rol.nombre if usuario.rol else "").upper() == "CLIENTE":
+            reserva = await self.reserva_repo.buscarPorId(traslado.reserva_id, empresa_id=usuario.empresa_id)
+            if reserva is None or reserva.cliente_id != usuario.id:
+                raise HTTPException(status_code=404, detail="Traslado no encontrado")
         self._autorizar_lectura(usuario, traslado)
         return await self._a_dto(traslado.id)
 
@@ -501,11 +530,12 @@ class TrasladoService:
         limit: int = 50,
         offset: int = 0,
     ) -> dict:
+        empresa_id = empresa_comercial(usuario)
         rol = (usuario.rol.nombre if usuario.rol else "").upper()
         if rol == "CLIENTE":
             if reserva_id is None:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Indique reserva_id de una reserva propia")
-            reserva = await self.reserva_repo.buscarPorId(reserva_id)
+            reserva = await self.reserva_repo.buscarPorId(reserva_id, empresa_id=empresa_id)
             if reserva is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
             if reserva.cliente_id != usuario.id:
@@ -528,7 +558,7 @@ class TrasladoService:
         items, total = await self.traslado_repo.listar(
             estado=estado, sucursal_origen_id=sucursal_origen_id,
             sucursal_destino_id=sucursal_destino_id, reserva_id=reserva_id,
-            limit=limit, offset=offset,
+            limit=limit, offset=offset, empresa_id=empresa_id,
         )
         return {
             "total": total, "limit": limit, "offset": offset,

@@ -4,6 +4,7 @@ Requiere FASHIONSTORE_SQLITE_SECURITY_TESTS=1 y ejecutarse por separado.
 No importa database.py, no inicia lifespan y prohíbe conexiones de red.
 No valida DDL, concurrencia ni funciones específicas de PostgreSQL.
 """
+import ast
 import os
 import inspect
 import socket
@@ -15,6 +16,32 @@ import pytest
 
 if os.environ.get("FASHIONSTORE_SQLITE_SECURITY_TESTS") != "1":
     pytest.skip("Suite SQLite autónoma; requiere activación explícita", allow_module_level=True)
+
+# Antes de importar la aplicación: ninguna variable de configuración heredada
+# ni archivo dotenv/secretos debe aportar credenciales al proceso aislado.
+raiz = Path(__file__).resolve().parents[1]
+config_ast = ast.parse((raiz / "app/core/config.py").read_text(encoding="utf-8-sig"))
+for clase in config_ast.body:
+    if isinstance(clase, ast.ClassDef) and clase.name == "Settings":
+        for campo in clase.body:
+            if isinstance(campo, ast.AnnAssign) and isinstance(campo.target, ast.Name):
+                os.environ.pop(campo.target.id, None)
+
+
+def prohibir_archivos_env(evento, argumentos):
+    if evento == "open" and isinstance(argumentos[0], (str, bytes, os.PathLike)):
+        nombre = Path(os.fsdecode(argumentos[0])).name.lower()
+        if nombre == ".env" or nombre.startswith(".env."):
+            raise AssertionError("La suite aislada no permite leer archivos .env")
+
+
+sys.addaudithook(prohibir_archivos_env)
+from pydantic_settings import DotEnvSettingsSource
+
+DotEnvSettingsSource._read_env_files = lambda self: {}
+os.environ.update(DATABASE_URL="sqlite:///:memory:", SECRET_KEY="clave-ficticia-solo-pruebas",
+                  POSTGRES_DB="aislado_sin_conexion", STRIPE_ENABLED="false", DECART_ENABLED="false",
+                  GEMINI_API_KEY="", EXPIRACION_JOB_ACTIVO="false")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import app as paquete_app  # inicializa el alias backend
@@ -41,6 +68,9 @@ def conectar_solo_socketpair(self, direccion):
 
 socket.socket.connect = conectar_solo_socketpair
 socket.socket.connect_ex = prohibir_red
+socket.create_connection = prohibir_red
+socket.getaddrinfo = prohibir_red
+socket.socket.sendto = prohibir_red
 os.environ.update(STRIPE_ENABLED="false", DECART_ENABLED="false", GEMINI_API_KEY="",
                   EXPIRACION_JOB_ACTIVO="false")
 
@@ -89,6 +119,9 @@ class SesionAislada:
 
     def add(self, obj):
         self.session.add(obj)
+
+    async def delete(self, obj):
+        self.session.delete(obj)
 
     async def flush(self):
         self.session.flush()

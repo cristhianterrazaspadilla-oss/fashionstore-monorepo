@@ -31,9 +31,10 @@ export class HistorialComponent implements OnInit {
     if (!u) return;
     this.cargando = true;
     this.error = '';
+    this.items = [];
     this.api.historial(u.id, {
-      desde: this.desde ? new Date(this.desde).toISOString() : '',
-      hasta: this.hasta ? new Date(this.hasta).toISOString() : ''
+      desde: this.desde ? `${this.desde}T00:00:00-04:00` : '',
+      hasta: this.hasta ? `${this.hasta}T23:59:59.999-04:00` : ''
     }).subscribe({
       next: p => {
         this.items = p.items;

@@ -46,6 +46,7 @@ export class DashboardComponent implements OnInit {
   mostrarTablaSucursal = false;
 
   private readonly destroyRef = inject(DestroyRef);
+  private cargaActual = 0;
 
   constructor(
     private dashboardService: DashboardService,
@@ -103,8 +104,10 @@ export class DashboardComponent implements OnInit {
   }
 
   cargar(): void {
+    const carga = ++this.cargaActual;
     this.cargando = true;
     this.error = null;
+    this.dashboard = null;
 
     const payload = {
       desde: entradaLocalIso(this.desdeFiltro),
@@ -116,10 +119,12 @@ export class DashboardComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: d => {
+          if (carga !== this.cargaActual) return;
           this.dashboard = d;
           this.cargando = false;
         },
         error: e => {
+          if (carga !== this.cargaActual) return;
           this.error = formatearErrorApi(e, 'No se pudieron consultar los indicadores del dashboard.');
           this.cargando = false;
         }
@@ -251,7 +256,7 @@ export class DashboardComponent implements OnInit {
     if (this.sucursalFiltro) {
       return `Sucursal: ${this.sucursalNombre(this.sucursalFiltro)}`;
     }
-    return 'Consolidado global (todas las sucursales)';
+    return 'Consolidado de la empresa (todas sus sucursales)';
   }
 
   get conversionTasaPorcentaje(): number {
@@ -262,7 +267,7 @@ export class DashboardComponent implements OnInit {
   // --- Desglose comercial y dinero capturado E2 (CU23) ---
 
   get dineroCapturado(): string {
-    return this.bs(this.dashboard?.dinero_capturado ?? this.dashboard?.ingresos_total);
+    return this.dashboard?.dinero_capturado == null ? 'No disponible' : this.bs(this.dashboard.dinero_capturado);
   }
 
   get ventasBrutas(): string {

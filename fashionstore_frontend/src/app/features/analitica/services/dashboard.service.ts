@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, catchError } from 'rxjs';
+import { Observable, catchError, throwError } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { DashboardDTO } from '../models/analitica-ia.models';
 
@@ -18,12 +18,9 @@ export class DashboardService {
 
     // Endpoint canónico E2: /analitica/dashboard con fallback a /analitica/dashboard/indicadores o /reportes/dashboard
     return this.http.get<DashboardDTO>(`${this.api}/analitica/dashboard`, { params }).pipe(
-      catchError(() =>
-        this.http.get<DashboardDTO>(`${this.api}/analitica/dashboard/indicadores`, { params }).pipe(
-          catchError(() =>
-            this.http.get<DashboardDTO>(`${this.api}/reportes/dashboard`, { params })
-          )
-        )
+      catchError(error => error.status === 404
+        ? this.http.get<DashboardDTO>(`${this.api}/reportes/dashboard`, { params })
+        : throwError(() => error)
       )
     );
   }

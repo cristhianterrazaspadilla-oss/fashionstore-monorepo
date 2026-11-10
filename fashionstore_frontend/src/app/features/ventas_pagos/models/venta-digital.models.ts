@@ -31,8 +31,8 @@ export interface CarritoDTO {
   cliente_id: string;
   canal: CanalDigital;
   estado: EstadoCarrito;
-  creada_en: string;
-  actualizada_en: string;
+  creada_en?: string;
+  actualizada_en?: string;
   lineas: LineaCarritoDTO[];
   subtotal: DecimalApi;
   descuento_total: DecimalApi;

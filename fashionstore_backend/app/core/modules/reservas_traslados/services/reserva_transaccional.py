@@ -156,7 +156,7 @@ class ReservaTransaccional:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Variante {linea.variante_id} no encontrada",
                 )
-            if getattr(variante, "empresa_id", None) is not None and variante.empresa_id != empresa_id:
+            if variante.empresa_id != empresa_id:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Variante {linea.variante_id} no encontrada",

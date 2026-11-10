@@ -5,10 +5,11 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.permisos import es_admin, exigir_sucursal, rol_de
+from backend.app.core.ambito_comercial import empresa_comercial, sucursal_autorizada
 from backend.app.core.modules.catalogo.models import Producto, VarianteProducto
 from backend.app.core.modules.ventas_pagos.models import PedidoEntrega, DetalleVenta, Venta, Pago
 from backend.app.core.modules.reservas_traslados.models import Reserva
@@ -38,6 +39,7 @@ class DashboardService:
                 return None
             return entrada_local_a_utc(dt)
 
+        empresa_id = empresa_comercial(usuario)
         desde = _utc(desde)
         hasta = _utc(hasta)
         if desde is not None and hasta is not None and desde > hasta:
@@ -59,13 +61,14 @@ class DashboardService:
                 detail="Solo Encargado o Administrador",
             )
         if sucursal_id is not None:
-            sucursal = await self.sucursal_repo.buscarPorId(sucursal_id)
+            sucursal = await sucursal_autorizada(self.db, usuario, sucursal_id)
             if sucursal is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sucursal no encontrada")
 
-        base = select(Venta).where(Venta.estado.in_(["PAGADA", "PARCIALMENTE_DEVUELTA", "DEVUELTA"]))
-        if usuario.empresa_id:
-            base = base.where(Venta.empresa_id == usuario.empresa_id)
+        base = select(Venta).where(
+            Venta.empresa_id == empresa_id,
+            Venta.estado.in_(["PAGADA", "PARCIALMENTE_DEVUELTA", "DEVUELTA"]),
+        )
         if desde is not None:
             base = base.where(Venta.creada_en >= desde)
         if hasta is not None:
@@ -114,7 +117,8 @@ class DashboardService:
                 .join(VarianteProducto, VarianteProducto.producto_id == Producto.id)
                 .join(DetalleVenta, DetalleVenta.variante_id == VarianteProducto.id)
                 .where(DetalleVenta.venta_id.in_([v.id for v in ventas]))
-                .group_by(Producto.nombre)
+                .where(Producto.empresa_id == empresa_id, VarianteProducto.empresa_id == empresa_id)
+                .group_by(Producto.id, Producto.nombre)
                 .order_by(func.sum(DetalleVenta.cantidad).desc())
                 .limit(10)
             )).all()
@@ -122,13 +126,16 @@ class DashboardService:
 
         inv_q = select(InventarioSucursal, VarianteProducto.sku).join(
             VarianteProducto, VarianteProducto.id == InventarioSucursal.variante_id
+        ).join(Sucursal, Sucursal.id == InventarioSucursal.sucursal_id).where(
+            Sucursal.empresa_id == empresa_id, VarianteProducto.empresa_id == empresa_id
         )
         if sucursal_id is not None:
             inv_q = inv_q.where(InventarioSucursal.sucursal_id == sucursal_id)
         inv = (await self.db.execute(inv_q)).all()
         critico, valorizacion = [], Decimal("0")
         for fila, sku in inv:
-            existencia = fila.disponible + fila.reservado + fila.comprometido_traslado + fila.en_transito
+            existencia = (fila.disponible + fila.reservado + fila.comprometido_traslado + fila.en_transito
+                          + fila.comprometido_caja + fila.comprometido_digital + fila.comprometido_cambio)
             variante = await self.db.get(VarianteProducto, fila.variante_id)
             costo = Decimal(str(variante.costo_promedio or 0)) if variante else Decimal("0")
             valorizacion += existencia * costo
@@ -143,9 +150,8 @@ class DashboardService:
 
         res_q = select(func.count()).select_from(Reserva)
         comp_q = select(func.count()).select_from(Reserva).where(Reserva.estado == "COMPLETADA")
-        if usuario.empresa_id:
-            res_q = res_q.where(Reserva.empresa_id == usuario.empresa_id)
-            comp_q = comp_q.where(Reserva.empresa_id == usuario.empresa_id)
+        res_q = res_q.where(Reserva.empresa_id == empresa_id)
+        comp_q = comp_q.where(Reserva.empresa_id == empresa_id)
         if desde is not None:
             res_q = res_q.where(Reserva.fecha_creacion >= desde)
             comp_q = comp_q.where(Reserva.fecha_creacion >= desde)
@@ -158,7 +164,9 @@ class DashboardService:
         total_res = int((await self.db.execute(res_q)).scalar() or 0)
         comp_res = int((await self.db.execute(comp_q)).scalar() or 0)
 
-        ped_q = select(PedidoEntrega.estado, func.count()).group_by(PedidoEntrega.estado)
+        ped_q = select(PedidoEntrega.estado, func.count()).where(
+            PedidoEntrega.empresa_id == empresa_id
+        ).group_by(PedidoEntrega.estado)
         if desde is not None:
             ped_q = ped_q.where(PedidoEntrega.creada_en >= desde)
         if hasta is not None:
@@ -182,8 +190,7 @@ class DashboardService:
 
         # Dinero capturado (Pagos confirmados / APROBADO)
         pago_q = select(func.coalesce(func.sum(Pago.monto), 0)).where(Pago.estado.in_(["APROBADO", "PAGADO"]))
-        if usuario.empresa_id:
-            pago_q = pago_q.where(Pago.empresa_id == usuario.empresa_id)
+        pago_q = pago_q.where(Pago.empresa_id == empresa_id)
         if desde is not None:
             pago_q = pago_q.where(Pago.pagado_en >= desde)
         if hasta is not None:
@@ -214,31 +221,47 @@ class DashboardService:
                     .join(Devolucion, Devolucion.id == DetalleDevolucion.devolucion_id)
                     .where(
                         Devolucion.venta_id.in_(ids),
+                        Devolucion.empresa_id == empresa_id,
+                        DetalleDevolucion.empresa_id == empresa_id,
                         Devolucion.estado != "RECHAZADA",
                         DetalleDevolucion.cantidad_aceptada > 0,
                     )
                 )
                 total_devoluciones = Decimal(str((await self.db.execute(dev_q)).scalar() or 0)).quantize(Decimal("0.01"))
             except Exception:
-                total_devoluciones = Decimal("0.00")
+                raise
 
             try:
                 from backend.app.core.modules.posventa.models import ObligacionReembolso
+                from backend.app.core.modules.posventa.services.cambio_service import Cambio
                 reemb_q = select(func.coalesce(func.sum(ObligacionReembolso.monto_bob), 0)).where(
-                    ObligacionReembolso.empresa_id == (usuario.empresa_id or ventas[0].empresa_id),
-                    ObligacionReembolso.origen_id.in_(ids),
-                    ObligacionReembolso.estado.in_(["AUTORIZADA", "COMPLETADA"]),
+                    ObligacionReembolso.empresa_id == empresa_id,
+                    or_(
+                        (ObligacionReembolso.origen_tipo == "VENTA") & ObligacionReembolso.origen_id.in_(ids),
+                        (ObligacionReembolso.origen_tipo == "DEVOLUCION") & ObligacionReembolso.origen_id.in_(
+                            select(Devolucion.id).where(Devolucion.empresa_id == empresa_id, Devolucion.venta_id.in_(ids))
+                        ),
+                        (ObligacionReembolso.origen_tipo == "CAMBIO") & ObligacionReembolso.origen_id.in_(
+                            select(Cambio.id).where(Cambio.empresa_id == empresa_id, Cambio.venta_id.in_(ids))
+                        ),
+                    ),
+                    ObligacionReembolso.estado.in_(("COMPLETADO", "COMPLETADA")),
                 )
                 total_reembolsos = Decimal(str((await self.db.execute(reemb_q)).scalar() or 0)).quantize(Decimal("0.01"))
             except Exception:
-                total_reembolsos = Decimal("0.00")
+                raise
 
         neto_comercial = max(Decimal("0.00"), subtotal_bruto - total_descuentos - total_devoluciones)
 
         # Pedidos pendientes de cumplimiento
         ped_pend_q = select(func.count(PedidoEntrega.id), func.coalesce(func.sum(PedidoEntrega.costo_entrega), 0)).where(
-            PedidoEntrega.estado.in_(["EN_PREPARACION", "EN_CAMINO"])
+            PedidoEntrega.empresa_id == empresa_id,
+            PedidoEntrega.estado.in_(["SOLICITADO", "PREPARADO", "LISTO_RECOJO", "EN_REPARTO"])
         )
+        if desde is not None:
+            ped_pend_q = ped_pend_q.where(PedidoEntrega.creada_en >= desde)
+        if hasta is not None:
+            ped_pend_q = ped_pend_q.where(PedidoEntrega.creada_en <= hasta)
         if sucursal_id is not None:
             ped_pend_q = ped_pend_q.where(PedidoEntrega.sucursal_id == sucursal_id)
         ped_pend_row = (await self.db.execute(ped_pend_q)).one()
@@ -257,7 +280,7 @@ class DashboardService:
             devoluciones=total_devoluciones,
             reembolsos=total_reembolsos,
             neto_comercial=neto_comercial,
-            dinero_capturado=dinero_capturado if dinero_capturado > Decimal("0") else ingresos,
+            dinero_capturado=dinero_capturado,
             pedidos_pendientes_cumplimiento=ped_pend_count,
             monto_pedidos_pendientes=ped_pend_monto,
             por_sucursal=por_sucursal,

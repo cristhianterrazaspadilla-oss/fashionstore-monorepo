@@ -54,6 +54,7 @@ class InventarioRepository:
             )
             .order_by(InventarioSucursal.sucursal_id, InventarioSucursal.variante_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         result = await self.db.execute(query)
         filas = {(r.sucursal_id, r.variante_id): r for r in result.scalars().all()}
