@@ -111,6 +111,11 @@ class CajaService {
     if (r.operacionId != registro['operacion_id'] || !['REGISTRADA_CENTRAL', 'CONCILIACION_REQUERIDA'].contains(r.resultado)) {
       throw StateError('Respuesta no confirmada; se conserva la venta original');
     }
+    final totalOriginal = double.tryParse('${cuerpo['total_bob']}');
+    if (r.resultado == 'REGISTRADA_CENTRAL' && (totalOriginal == null || !totalOriginal.isFinite ||
+        (r.totalBob * 100).round() != (totalOriginal * 100).round())) {
+      throw StateError('El total central no coincide con la venta original; se conserva el pendiente.');
+    }
     await _storage.marcarVentaOfflineSincronizada(r.operacionId, empresaId: origen['empresa_id'], usuarioId: origen['usuario_id'], dispositivoId: origen['dispositivo_id'],
       resultadoJson: respuesta);
     return r;

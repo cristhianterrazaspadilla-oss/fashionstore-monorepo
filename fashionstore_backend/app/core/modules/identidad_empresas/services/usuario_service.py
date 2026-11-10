@@ -70,14 +70,14 @@ class UsuarioService:
             suc = await self.sucursal_repo.buscarPorId(dto.sucursal_id)
             if not suc:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="La sucursal especificada no existe")
-            if target_empresa_id is not None and suc.empresa_id != target_empresa_id:
+            if suc.empresa_id != target_empresa_id:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="La sucursal no pertenece a su empresa")
         else:
             if dto.sucursal_id:
                 suc_check = await self.sucursal_repo.buscarPorId(dto.sucursal_id)
                 if not suc_check:
                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="La sucursal especificada no existe")
-                if target_empresa_id is not None and suc_check.empresa_id != target_empresa_id:
+                if suc_check.empresa_id != target_empresa_id:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="La sucursal no pertenece a su empresa")
 
         # 3. Hashear contraseña y crear usuario con tenant y revisión inicial 1
@@ -224,7 +224,7 @@ class UsuarioService:
         q = (
             select(Usuario)
             .options(selectinload(Usuario.rol), selectinload(Usuario.empleado))
-            .where(Usuario.id == usuario_id)
+            .where(Usuario.id == usuario_id, Usuario.empresa_id == admin.empresa_id)
             .with_for_update()
         )
         res = await self.db.execute(q)
@@ -233,7 +233,7 @@ class UsuarioService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
 
         # Aislamiento tenant: un admin de empresa solo modifica usuarios de su empresa
-        if admin.empresa_id is not None and usuario.empresa_id != admin.empresa_id:
+        if usuario.empresa_id != admin.empresa_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Usuario no encontrado en su empresa",
@@ -306,7 +306,7 @@ class UsuarioService:
             suc_val = await self.sucursal_repo.buscarPorId(dto.sucursal_id)
             if not suc_val:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="La sucursal asignada no existe")
-            if usuario.empresa_id is not None and suc_val.empresa_id != usuario.empresa_id:
+            if suc_val.empresa_id != usuario.empresa_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="La sucursal no pertenece a la empresa del usuario administrado",

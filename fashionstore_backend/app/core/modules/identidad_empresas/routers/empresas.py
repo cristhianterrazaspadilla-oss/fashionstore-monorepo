@@ -50,6 +50,8 @@ async def obtenerEmpresa(
     db: AsyncSession = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_actual),
 ) -> EmpresaDetalleDTO:
+    if usuario.empresa_id is None:
+        await require_administrador_plataforma()(usuario)
     # Si el usuario es de empresa, sólo puede consultar la suya propia
     if usuario.empresa_id is not None and usuario.empresa_id != empresa_id:
         raise HTTPException(

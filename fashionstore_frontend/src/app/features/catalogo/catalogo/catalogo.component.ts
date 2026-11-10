@@ -126,6 +126,24 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    let identidad = JSON.stringify(this.authService.obtenerUsuarioActual());
+    this.authService.usuario$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(u => {
+      const nueva = JSON.stringify(u);
+      if (nueva === identidad) return;
+      identidad = nueva;
+      this.cerrarModal();
+      this.productos = []; this.snapshotLocal = null; this.comprasLocales = [];
+      this.tallas = []; this.colores = []; this.categorias = []; this.temporadas = []; this.colecciones = [];
+      this.recomendaciones = []; this.resultadoBusquedaIA = [];
+      this.esModoCopiaLocal = false; this.sinCopiaLocal = false;
+      this.cargandoRecomendaciones = false; this.cargandoIA = false;
+      if (this.syncOfflineService.estaEnLinea) this.cargarMaestros();
+      this.filtrar();
+    });
+    this.authService.privacidadExpirada$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.comprasLocales = []; this.recomendaciones = []; this.resultadoBusquedaIA = [];
+      this.cerrarModal();
+    });
     if (this.syncOfflineService.estaEnLinea) this.cargarMaestros();
     this.cargarMetadataSnapshotLocal();
     void this.cargarComprasLocales();
@@ -185,31 +203,33 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   }
 
   cargarMaestros(): void {
+    const identidad = JSON.stringify(this.authService.obtenerUsuarioActual());
     this.maestroService.gestionarTallas().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: d => this.tallas = d,
+      next: d => { if (identidad === JSON.stringify(this.authService.obtenerUsuarioActual())) this.tallas = d; },
       error: () => {}
     });
     this.maestroService.gestionarColores().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: d => this.colores = d,
+      next: d => { if (identidad === JSON.stringify(this.authService.obtenerUsuarioActual())) this.colores = d; },
       error: () => {}
     });
     this.maestroService.gestionarCategorias().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: d => this.categorias = d,
+      next: d => { if (identidad === JSON.stringify(this.authService.obtenerUsuarioActual())) this.categorias = d; },
       error: () => {}
     });
     this.maestroService.gestionarTemporadas().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: d => this.temporadas = d,
+      next: d => { if (identidad === JSON.stringify(this.authService.obtenerUsuarioActual())) this.temporadas = d; },
       error: () => {}
     });
     this.maestroService.gestionarColecciones().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: d => this.colecciones = d,
+      next: d => { if (identidad === JSON.stringify(this.authService.obtenerUsuarioActual())) this.colecciones = d; },
       error: () => {}
     });
   }
 
   async cargarMetadataSnapshotLocal(): Promise<void> {
     const empresaId = this.authService.obtenerEmpresaId();
-    this.snapshotLocal = await this.offlineStore.obtenerSnapshot(empresaId);
+    const snapshot = await this.offlineStore.obtenerSnapshot(empresaId);
+    if (empresaId === this.authService.obtenerEmpresaId()) this.snapshotLocal = snapshot;
   }
 
   // ==========================================
@@ -237,14 +257,17 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     if (this.filtros.precio_max) params['precio_max'] = Number(this.filtros.precio_max);
     if (this.filtros.genero) params['genero'] = this.filtros.genero;
 
+    const identidadConsulta = JSON.stringify(this.authService.obtenerUsuarioActual());
     this.catalogoService.consultarCatalogo(params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (d) => {
+        if (identidadConsulta !== JSON.stringify(this.authService.obtenerUsuarioActual())) return;
         this.productos = d;
         this.esModoCopiaLocal = false;
         this.sinCopiaLocal = false;
         this.cargando = false;
       },
       error: (err) => {
+        if (identidadConsulta !== JSON.stringify(this.authService.obtenerUsuarioActual())) return;
         // Si la conexión falla (0 o desconexión), consultar la copia local en IndexedDB
         if (err.status === 0 || !navigator.onLine) {
           this.filtrarLocalmente();
@@ -275,7 +298,9 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     const empresaId = this.authService.obtenerEmpresaId();
 
     try {
+      const identidadConsulta = JSON.stringify(this.authService.obtenerUsuarioActual());
       const res = await this.catalogoService.consultarCatalogoLocal(params, empresaId);
+      if (empresaId !== this.authService.obtenerEmpresaId() || identidadConsulta !== JSON.stringify(this.authService.obtenerUsuarioActual())) return;
       this.cargando = false;
 
       if (res.snapshot && res.snapshot.valido) {
@@ -284,7 +309,9 @@ export class CatalogoComponent implements OnInit, OnDestroy {
         this.esModoCopiaLocal = true;
         this.sinCopiaLocal = false;
         // Si no se habían cargado los maestros por falta de red, recuperarlos desde el snapshot
-        if (this.colores.length === 0 && res.snapshot.colores) {
+        this.tallas = Array.from(new Map(res.snapshot.productos.flatMap(p => p.variantes)
+          .map(v => [v.talla_id, { id: v.talla_id, nombre: v.talla || v.talla_id, orden: 0, activo: true }] as const)).values());
+        if (res.snapshot.colores) {
           this.colores = res.snapshot.colores.map(c => ({ id: c.id, nombre: c.nombre, codigo_hex: c.codigo_hex, activo: true }));
         }
       } else {
@@ -458,6 +485,11 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       }
     }, 50);
 
+    if (!this.syncOfflineService.estaEnLinea && (!producto.es_copia_local || !producto.variantes_locales?.length)) {
+      this.cargandoVariantes = false;
+      this.mensajeCarritoError = 'Producto o variantes no descargados. Conéctate para consultar su detalle.';
+      return;
+    }
     // Si el producto proviene de la copia local, usar las variantes locales directamente
     if (producto.es_copia_local && producto.variantes_locales && producto.variantes_locales.length > 0) {
       this.variantesProducto = producto.variantes_locales;
@@ -467,8 +499,10 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     }
 
     // Consulta en línea de variantes
+    const identidadDetalle = JSON.stringify(this.authService.obtenerUsuarioActual());
     this.productoService.gestionarVariantes(producto.id, true).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (vars) => {
+        if (this.productoSeleccionado !== producto || identidadDetalle !== JSON.stringify(this.authService.obtenerUsuarioActual())) return;
         this.variantesProducto = vars;
         this.cargandoVariantes = false;
         if (vars.length > 0) {
@@ -476,6 +510,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
         }
       },
       error: (err) => {
+        if (this.productoSeleccionado !== producto || identidadDetalle !== JSON.stringify(this.authService.obtenerUsuarioActual())) return;
         this.cargandoVariantes = false;
         this.mensajeCarritoError = formatearErrorApi(err, 'No se pudieron cargar las opciones de la prenda.');
       }
@@ -585,7 +620,9 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       return;
     }
     try {
-      this.comprasLocales = await this.syncOfflineService.listarComprasLocales();
+      const identidad = JSON.stringify(this.authService.obtenerUsuarioActual());
+      const operaciones = await this.syncOfflineService.listarComprasLocales();
+      if (this.esCliente() && identidad === JSON.stringify(this.authService.obtenerUsuarioActual())) this.comprasLocales = operaciones;
     } catch {
       this.comprasLocales = [];
     }
@@ -707,14 +744,17 @@ export class CatalogoComponent implements OnInit, OnDestroy {
 
   // ─── Recomendaciones IA ───
   cargarRecomendaciones(): void {
+    const identidad = JSON.stringify(this.authService.obtenerUsuarioActual());
     this.cargandoRecomendaciones = true;
     this.errorRecomendaciones = null;
     this.iaService.recomendaciones({ limite: 4 }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
+        if (!this.esCliente() || identidad !== JSON.stringify(this.authService.obtenerUsuarioActual())) return;
         this.recomendaciones = res.items || [];
         this.cargandoRecomendaciones = false;
       },
       error: (err) => {
+        if (!this.esCliente() || identidad !== JSON.stringify(this.authService.obtenerUsuarioActual())) return;
         this.cargandoRecomendaciones = false;
         this.recomendaciones = [];
         this.errorRecomendaciones = formatearErrorApi(err, 'No se pudieron cargar recomendaciones personalizadas.');

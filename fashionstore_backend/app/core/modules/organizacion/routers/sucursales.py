@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.database import get_db
-from backend.app.core.dependencias import require_roles, get_usuario_actual
+from backend.app.core.dependencias import require_rol_empresarial, get_usuario_actual
 from backend.app.core.modules.identidad_empresas.models import Usuario
 from backend.app.core.modules.organizacion.schemas import (
     SucursalCrearDTO,
@@ -28,7 +28,7 @@ router = APIRouter()
 async def registrarSucursal(
     datos_sucursal: SucursalCrearDTO,
     db: AsyncSession = Depends(get_db),
-    _admin: Usuario = Depends(require_roles("ADMINISTRADOR", "ADMINISTRADOR_SISTEMA", "ADMINISTRADOR_PLATAFORMA")),
+    _admin: Usuario = Depends(require_rol_empresarial("ADMINISTRADOR")),
 ) -> SucursalDTO:
     servicio = SucursalService(db)
     return await servicio.crear(datos_sucursal, _admin)
@@ -45,7 +45,7 @@ async def actualizarSucursal(
     sucursal_id: uuid.UUID,
     datos_sucursal: SucursalActualizarDTO,
     db: AsyncSession = Depends(get_db),
-    _admin: Usuario = Depends(require_roles("ADMINISTRADOR", "ADMINISTRADOR_SISTEMA", "ADMINISTRADOR_PLATAFORMA")),
+    _admin: Usuario = Depends(require_rol_empresarial("ADMINISTRADOR")),
 ) -> SucursalDTO:
     servicio = SucursalService(db)
     return await servicio.actualizar(sucursal_id, datos_sucursal, _admin)
@@ -94,7 +94,7 @@ async def configurarTarifasDelivery(
     sucursal_id: uuid.UUID,
     datos_tarifas: ConfigurarTarifasDeliveryDTO,
     db: AsyncSession = Depends(get_db),
-    _admin: Usuario = Depends(require_roles("ADMINISTRADOR", "ADMINISTRADOR_SISTEMA", "ADMINISTRADOR_PLATAFORMA")),
+    _admin: Usuario = Depends(require_rol_empresarial("ADMINISTRADOR")),
 ) -> SucursalDTO:
     servicio = SucursalService(db)
     return await servicio.actualizarTarifas(sucursal_id, datos_tarifas, _admin)
@@ -111,7 +111,7 @@ async def configurarAdelanto(
     sucursal_id: uuid.UUID,
     datos_adelanto: ConfigurarAdelantoDTO,
     db: AsyncSession = Depends(get_db),
-    _admin: Usuario = Depends(require_roles("ADMINISTRADOR", "ADMINISTRADOR_SISTEMA", "ADMINISTRADOR_PLATAFORMA")),
+    _admin: Usuario = Depends(require_rol_empresarial("ADMINISTRADOR")),
 ) -> SucursalDTO:
     servicio = SucursalService(db)
     return await servicio.actualizarAdelanto(sucursal_id, datos_adelanto, _admin)

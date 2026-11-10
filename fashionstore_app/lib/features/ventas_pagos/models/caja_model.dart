@@ -245,8 +245,9 @@ class VentaOfflineCrearModel {
         if (clienteId != null) 'cliente_id': clienteId,
       };
 
-  factory VentaOfflineCrearModel.fromJson(Map<String, dynamic> json) =>
+  factory VentaOfflineCrearModel.fromJson(Map<String, dynamic> json, {String? turnoIdOrigen}) =>
       VentaOfflineCrearModel(
+        turnoIdOrigen: turnoIdOrigen,
         operacionId: json['operacion_id'] as String,
         secuenciaLocal: (json['secuencia_local'] as num).toInt(),
         vendidaLocalEn: json['vendida_local_en'] as String,
@@ -284,8 +285,21 @@ class VentaOfflineResultadoModel {
     required this.recibidaCentralEn,
   });
 
-  factory VentaOfflineResultadoModel.fromJson(Map<String, dynamic> json) =>
-      VentaOfflineResultadoModel(
+  factory VentaOfflineResultadoModel.fromJson(Map<String, dynamic> json) {
+    if (json['resultado'] == 'REGISTRADA_CENTRAL') {
+      final uuid = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+      final total = double.tryParse('${json['total_bob']}');
+      final fecha = json['recibida_central_en'];
+      if (!uuid.hasMatch(json['venta_id']?.toString() ?? '') ||
+          !uuid.hasMatch(json['comprobante_id']?.toString() ?? '') ||
+          json['numero'] is! String || (json['numero'] as String).trim().isEmpty ||
+          fecha is! String || DateTime.tryParse(fecha) == null ||
+          !RegExp(r'(Z|[+-]\d{2}:\d{2})$', caseSensitive: false).hasMatch(fecha) ||
+          total == null || !total.isFinite || total < 0) {
+        throw const FormatException('Confirmacion central incompleta; la venta sigue pendiente.');
+      }
+    }
+    return VentaOfflineResultadoModel(
         resultado: json['resultado'] as String? ?? 'RESPUESTA_NO_CONFIRMADA',
         operacionId: json['operacion_id'] as String,
         ventaId: json['venta_id'] as String,
@@ -294,6 +308,7 @@ class VentaOfflineResultadoModel {
         comprobanteId: json['comprobante_id'] as String,
         recibidaCentralEn: json['recibida_central_en'] as String,
       );
+  }
 }
 
 class TurnoCerrarModel {

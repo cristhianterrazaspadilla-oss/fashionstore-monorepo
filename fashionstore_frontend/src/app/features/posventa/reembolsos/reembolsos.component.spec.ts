@@ -1,135 +1,96 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of } from 'rxjs';
 import { provideRouter } from '@angular/router';
 import { ReembolsosComponent } from './reembolsos.component';
 import { ReembolsoService } from '../services/reembolso.service';
 import { AuthService } from '../../identidad_empresas/services/auth.service';
 import { ReembolsoDetalleDTO } from '../models/reembolso.models';
 
-describe('ReembolsosComponent (Solicitud y Seguimiento de Reembolsos por Medio Original)', () => {
+describe('Reembolsos: contrato real y ambitos de consulta', () => {
   let component: ReembolsosComponent;
   let fixture: ComponentFixture<ReembolsosComponent>;
-  let reembolsoServiceSpy: jasmine.SpyObj<ReembolsoService>;
-  let authServiceSpy: jasmine.SpyObj<AuthService>;
-
-  const mockReembolsos: ReembolsoDetalleDTO[] = [
-    {
-      reembolso_id: 'rem-1',
-      estado: 'SOLICITADO',
-      monto_bob: '180.00',
-      medio_original: 'STRIPE',
-      motivo_codigo: 'DEFECTO_FABRICA',
-      motivo_descripcion: 'Costura descosida en manga',
-      creado_en: '2026-11-04T09:00:00-04:00'
-    },
-    {
-      reembolso_id: 'rem-2',
-      estado: 'AUTORIZADO',
-      monto_bob: '120.00',
-      medio_original: 'SALDO',
-      motivo_codigo: 'DIFERENCIA_CAMBIO',
-      motivo_descripcion: 'Diferencia a favor por cambio de prenda',
-      creado_en: '2026-11-04T10:00:00-04:00'
-    },
-    {
-      reembolso_id: 'rem-3',
-      estado: 'COMPLETADO',
-      monto_bob: '90.00',
-      medio_original: 'EFECTIVO',
-      motivo_codigo: 'DISCONFORMIDAD_TALLA',
-      motivo_descripcion: 'Devolución física en caja',
-      creado_en: '2026-11-04T11:00:00-04:00'
-    }
-  ];
+  let servicio: jasmine.SpyObj<ReembolsoService>;
+  let auth: jasmine.SpyObj<AuthService>;
+  const id = '10000000-0000-4000-8000-000000000001';
+  const respuesta: ReembolsoDetalleDTO = {
+    id, empresa_id: '10000000-0000-4000-8000-000000000002',
+    cliente_id: '10000000-0000-4000-8000-000000000003',
+    origen_tipo: 'VENTA', origen_id: '10000000-0000-4000-8000-000000000004',
+    estado: 'PENDIENTE_AUTORIZACION', monto_bob: '180.00', revision: 1,
+    motivo_codigo: 'DEFECTO_FABRICA', creada_en: '2026-11-04T13:00:00Z',
+    componentes: [
+      { id, medio: 'STRIPE', monto_bob: '100.00', estado: 'PENDIENTE' },
+      { id: '10000000-0000-4000-8000-000000000005', medio: 'SALDO', monto_bob: '80.00', estado: 'PENDIENTE' }
+    ]
+  };
 
   beforeEach(async () => {
-    reembolsoServiceSpy = jasmine.createSpyObj<ReembolsoService>('ReembolsoService', [
-      'listar',
-      'solicitar',
-      'autorizar',
-      'ejecutar',
-      'conciliar'
-    ]);
-    authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['obtenerUsuarioActual']);
-
+    servicio = jasmine.createSpyObj('ReembolsoService', ['listarMios', 'consultar', 'solicitar', 'autorizar', 'ejecutar']);
+    auth = jasmine.createSpyObj('AuthService', ['obtenerUsuarioActual']);
+    auth.obtenerUsuarioActual.and.returnValue({ rol: 'CLIENTE' } as any);
+    servicio.listarMios.and.returnValue(of([respuesta]));
+    servicio.consultar.and.returnValue(of(respuesta));
     await TestBed.configureTestingModule({
       imports: [ReembolsosComponent],
-      providers: [
-        provideRouter([]),
-        { provide: ReembolsoService, useValue: reembolsoServiceSpy },
-        { provide: AuthService, useValue: authServiceSpy }
-      ]
+      providers: [provideRouter([]),
+        { provide: ReembolsoService, useValue: servicio }, { provide: AuthService, useValue: auth }]
     }).compileComponents();
-  });
-
-  it('debe listar reembolsos y mostrar la tarjeta con el medio original', () => {
-    authServiceSpy.obtenerUsuarioActual.and.returnValue({ rol: 'CLIENTE' } as any);
-    reembolsoServiceSpy.listar.and.returnValue(of(mockReembolsos));
-
     fixture = TestBed.createComponent(ReembolsosComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-
-    expect(component).toBeTruthy();
-    expect(component.cargando).toBeFalse();
-    expect(component.reembolsosFiltrados.length).toBe(3);
-    expect(component.reembolsosFiltrados[0].medio_original).toBe('STRIPE');
   });
 
-  it('debe filtrar por estado y medio original', () => {
-    authServiceSpy.obtenerUsuarioActual.and.returnValue({ rol: 'CLIENTE' } as any);
-    reembolsoServiceSpy.listar.and.returnValue(of(mockReembolsos));
-
-    fixture = TestBed.createComponent(ReembolsosComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-
-    component.filtroEstado = 'SOLICITADO';
-    expect(component.reembolsosFiltrados.length).toBe(1);
-    expect(component.reembolsosFiltrados[0].reembolso_id).toBe('rem-1');
-
-    component.filtroEstado = 'TODOS';
+  it('renderiza id/fecha y todos los medios reales; filtra por cualquiera de ellos', () => {
+    expect(servicio.listarMios).toHaveBeenCalled();
+    const texto = fixture.nativeElement.textContent;
+    expect(texto).toContain(component.bs('100.00'));
+    expect(texto).toContain(component.bs('80.00'));
     component.filtroMedio = 'SALDO';
+    expect(component.reembolsosFiltrados[0].id).toBe(id);
+    component.filtroEstado = 'PENDIENTE_AUTORIZACION';
     expect(component.reembolsosFiltrados.length).toBe(1);
-    expect(component.reembolsosFiltrados[0].reembolso_id).toBe('rem-2');
   });
 
-  it('debe permitir solicitar un nuevo reembolso con validación', () => {
-    authServiceSpy.obtenerUsuarioActual.and.returnValue({ rol: 'CLIENTE' } as any);
-    reembolsoServiceSpy.listar.and.returnValue(of(mockReembolsos));
-    reembolsoServiceSpy.solicitar.and.returnValue(of(mockReembolsos[0]));
+  it('consulta administrativa individual separada del listado personal', () => {
+    auth.obtenerUsuarioActual.and.returnValue({ rol: 'ADMINISTRADOR' } as any);
+    component.idConsulta = id;
+    component.consultarAdministrativo();
+    expect(servicio.consultar).toHaveBeenCalledWith(id);
+    expect(component.consultaAdministrativa).toBeTrue();
+    component.verMisReembolsos();
+    expect(component.consultaAdministrativa).toBeFalse();
+  });
 
-    fixture = TestBed.createComponent(ReembolsosComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
+  it('no habilita acciones comerciales de plataforma ni consulta administrativa para cliente', () => {
+    component.idConsulta = id;
+    component.consultarAdministrativo();
+    expect(servicio.consultar).not.toHaveBeenCalled();
+    auth.obtenerUsuarioActual.and.returnValue({ rol: 'SUPERADMIN' } as any);
+    component.iniciarAutorizacion(respuesta);
+    expect(component.esPersonal).toBeFalse();
+    expect(component.dialogoConfirmarVisible).toBeFalse();
+  });
 
-    component.abrirModalSolicitud('VNT-0001');
-    expect(component.modalSolicitudAbierto).toBeTrue();
-    expect(component.solicitud.origen_id).toBe('VNT-0001');
-
+  it('rechaza numeros de pedido sin UUID y acepta un numero de VENTA para resolverlo en el servicio', () => {
+    component.abrirModalSolicitud('PED-0001', 'PEDIDO');
     component.enviarSolicitud();
-    expect(reembolsoServiceSpy.solicitar).toHaveBeenCalled();
-    expect(component.modalSolicitudAbierto).toBeFalse();
-    expect(component.exito).toBeTruthy();
+    expect(servicio.solicitar).not.toHaveBeenCalled();
+    servicio.solicitar.and.returnValue(of(respuesta));
+    component.abrirModalSolicitud('VNT-0001', 'VENTA');
+    component.enviarSolicitud();
+    expect(servicio.solicitar).toHaveBeenCalledWith(jasmine.objectContaining({ origen_id: 'VNT-0001', origen_tipo: 'VENTA' }));
   });
 
-  it('debe permitir a personal administrativo autorizar y ejecutar un reembolso', () => {
-    authServiceSpy.obtenerUsuarioActual.and.returnValue({ rol: 'ADMINISTRADOR' } as any);
-    reembolsoServiceSpy.listar.and.returnValue(of(mockReembolsos));
-    reembolsoServiceSpy.autorizar.and.returnValue(of({ ...mockReembolsos[0], estado: 'AUTORIZADO' }));
-
-    fixture = TestBed.createComponent(ReembolsosComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-
-    expect(component.esPersonal).toBeTrue();
-
-    // Iniciar autorización
-    component.iniciarAutorizacion(mockReembolsos[0]);
-    expect(component.dialogoConfirmarVisible).toBeTrue();
-    expect(component.accionPendiente).toBe('AUTORIZAR');
-
+  it('utiliza id real para autorizar y no comunica completado si la ejecucion sigue EN_PROCESO', () => {
+    auth.obtenerUsuarioActual.and.returnValue({ rol: 'ENCARGADO' } as any);
+    servicio.autorizar.and.returnValue(of({ ...respuesta, estado: 'AUTORIZADO' }));
+    component.iniciarAutorizacion(respuesta);
     component.confirmarAccion();
-    expect(reembolsoServiceSpy.autorizar).toHaveBeenCalledWith('rem-1', jasmine.any(Object));
+    expect(servicio.autorizar).toHaveBeenCalledWith(id, jasmine.any(Object));
+    servicio.ejecutar.and.returnValue(of({ ...respuesta, estado: 'EN_PROCESO' }));
+    component.iniciarEjecucion({ ...respuesta, estado: 'AUTORIZADO' });
+    component.confirmarAccion();
+    expect(servicio.ejecutar).toHaveBeenCalledWith(id);
+    expect(component.exito).toContain('Consulta el estado');
   });
 });

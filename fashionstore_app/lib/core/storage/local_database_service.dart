@@ -974,6 +974,8 @@ class LocalDatabaseService {
 
     return TurnoHabilitacionModel(
       empresaId: r['empresa_id']?.toString(),
+      horaCentralEn: r['hora_central_ms'] == null ? null : DateTime.fromMillisecondsSinceEpoch(
+        (r['hora_central_ms'] as num).toInt(), isUtc: true).toIso8601String(),
       desfaseMs: (r['desfase_ms'] as num?)?.toInt(),
       ultimoRelojMs: (r['ultimo_reloj_ms'] as num?)?.toInt(),
       turnoId: turnoId,
@@ -1152,28 +1154,15 @@ class LocalDatabaseService {
     );
 
     return rows.map((r) {
-      List<VentaOfflineLineaModel> lineas = [];
-      final lineasStr = r['lineas_json']?.toString();
-      if (lineasStr != null && lineasStr.isNotEmpty) {
-        try {
-          final decoded = jsonDecode(lineasStr) as List;
-          lineas = decoded.map((e) => VentaOfflineLineaModel.fromJson(e as Map<String, dynamic>)).toList();
-        } catch (_) {}
+      final turnoOriginal = r['turno_id']?.toString();
+      if (turnoOriginal == null || turnoOriginal.isEmpty || r['cuerpo_json'] == null) {
+        throw StateError('Pendiente sin turno o cuerpo original verificable; se conserva para conciliacion.');
       }
-
-      return VentaOfflineCrearModel(
-        turnoIdOrigen: r['turno_id']?.toString(),
-        operacionId: '${r['operacion_id']}',
-        secuenciaLocal: (r['secuencia_local'] as num).toInt(),
-        vendidaLocalEn: '${r['vendida_local_en']}',
-        entregadaLocalEn: '${r['entregada_local_en']}',
-        versionPrecios: '${r['version_precios']}',
-        lineas: lineas,
-        totalBob: double.tryParse('${r['total_bob']}') ?? 0.0,
-        efectivoRecibidoBob: double.tryParse('${r['efectivo_recibido_bob']}') ?? 0.0,
-        cambioEntregadoBob: double.tryParse('${r['cambio_entregado_bob']}') ?? 0.0,
-        clienteId: r['cliente_id']?.toString(),
-      );
+      final cuerpo = (jsonDecode(r['cuerpo_json'] as String) as Map).cast<String, dynamic>();
+      if (cuerpo['operacion_id'] != r['operacion_id']) {
+        throw StateError('UUID del cuerpo distinto al registro durable; se conserva para conciliacion.');
+      }
+      return VentaOfflineCrearModel.fromJson(cuerpo, turnoIdOrigen: turnoOriginal);
     }).toList();
   }
 
@@ -1214,12 +1203,13 @@ class LocalDatabaseService {
     if (resultadoJson != null) {
       values['resultado_json'] = jsonEncode(resultadoJson);
     }
-    await db.update(
+    final actualizadas = await db.update(
       'caja_ventas_offline',
       values,
       where: 'operacion_id = ? AND empresa_id = ? AND usuario_id = ? AND dispositivo_id = ?',
       whereArgs: [operacionId, empresaId, usuarioId, dispositivoId],
     );
+    if (actualizadas != 1) throw StateError('No se pudo guardar la confirmacion en la venta original.');
   }
 
   Future<ComprobanteLocalModel?> obtenerComprobanteLocalPorOperacion(String operacionId, {String? empresaId, String? usuarioId, String? dispositivoId}) async {

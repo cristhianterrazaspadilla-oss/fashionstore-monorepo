@@ -15,6 +15,16 @@
     </div>
   </div>
 
+  <section class="filters-card" aria-label="Ámbito de consulta">
+    <button type="button" class="btn-secondary" (click)="verMisReembolsos()" [disabled]="cargando">Mis reembolsos</button>
+    <div *ngIf="esPersonal">
+      <label for="consulta-reembolso">Consultar un reembolso por UUID:</label>
+      <input id="consulta-reembolso" [(ngModel)]="idConsulta" placeholder="UUID del reembolso" />
+      <button type="button" class="btn-secondary" (click)="consultarAdministrativo()" [disabled]="cargando">Consultar</button>
+    </div>
+    <p>{{ consultaAdministrativa ? 'Consulta individual autorizada' : 'Mis reembolsos personales' }}</p>
+  </section>
+
   <!-- Alerta de éxito -->
   <div *ngIf="exito" class="alert-box alert-success" role="status">
     <div class="alert-content">
@@ -38,10 +48,11 @@
       <label for="filtro-estado" class="filter-label">Estado:</label>
       <select id="filtro-estado" [(ngModel)]="filtroEstado" class="filter-select">
         <option value="TODOS">Todos los estados</option>
-        <option value="SOLICITADO">Pendiente de aprobación</option>
+        <option value="PENDIENTE_AUTORIZACION">Pendiente de aprobación</option>
         <option value="AUTORIZADO">Aprobado para devolución</option>
         <option value="EN_PROCESO">En proceso bancario</option>
         <option value="COMPLETADO">Completado</option>
+        <option value="FALLIDO">Fallido</option>
         <option value="RECHAZADO">Rechazado</option>
       </select>
     </div>
@@ -82,9 +93,9 @@
           <span [class]="'status-badge ' + claseEstado(r.estado)">
             {{ etiquetaEstado(r.estado) }}
           </span>
-          <span class="medio-tag">
-            <span aria-hidden="true">{{ iconoMedio(r.medio_original) }}</span>
-            <span>{{ etiquetaMedio(r.medio_original) }}</span>
+          <span class="medio-tag" *ngFor="let componente of r.componentes">
+            <span aria-hidden="true">{{ iconoMedio(componente.medio) }}</span>
+            <span>{{ etiquetaMedio(componente.medio) }}: {{ bs(componente.monto_bob) }}</span>
           </span>
         </div>
         <strong class="reembolso-amount">{{ bs(r.monto_bob) }}</strong>
@@ -92,16 +103,20 @@
 
       <div class="card-details">
         <div class="detail-row">
+          <span class="detail-label">Identificador:</span>
+          <span class="detail-value">{{ r.id }}</span>
+        </div>
+        <div class="detail-row">
           <span class="detail-label">Concepto:</span>
-          <span class="detail-value">{{ r.motivo_descripcion || r.motivo_codigo }}</span>
+          <span class="detail-value">{{ r.motivo_codigo }}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">Fecha solicitud:</span>
-          <span class="detail-value">{{ fechaHora(r.creado_en) }}</span>
+          <span class="detail-value">{{ fechaHora(r.creada_en) }}</span>
         </div>
-        <div *ngIf="r.actualizado_en" class="detail-row">
+        <div *ngIf="(r.completada_en || r.autorizada_en)" class="detail-row">
           <span class="detail-label">Último cambio:</span>
-          <span class="detail-value">{{ fechaHora(r.actualizado_en) }}</span>
+          <span class="detail-value">{{ fechaHora((r.completada_en || r.autorizada_en)) }}</span>
         </div>
       </div>
 
@@ -126,9 +141,9 @@
       </div>
 
       <!-- Acciones operativas para personal autorizado -->
-      <div *ngIf="esPersonal && (r.estado === 'SOLICITADO' || r.estado === 'PENDIENTE_AUTORIZACION' || r.estado === 'AUTORIZADO')" class="card-actions">
+      <div *ngIf="esPersonal && (r.estado === 'PENDIENTE_AUTORIZACION' || r.estado === 'AUTORIZADO' || r.estado === 'EN_PROCESO')" class="card-actions">
         <button
-          *ngIf="r.estado === 'SOLICITADO' || r.estado === 'PENDIENTE_AUTORIZACION'"
+          *ngIf="r.estado === 'PENDIENTE_AUTORIZACION'"
           type="button"
           class="btn-action-primary"
           (click)="iniciarAutorizacion(r)"
@@ -137,12 +152,12 @@
         </button>
 
         <button
-          *ngIf="r.estado === 'AUTORIZADO'"
+          *ngIf="r.estado === 'AUTORIZADO' || r.estado === 'EN_PROCESO'"
           type="button"
           class="btn-action-execute"
           (click)="iniciarEjecucion(r)"
         >
-          Ejecutar reembolso a {{ etiquetaMedio(r.medio_original) }}
+          {{ r.estado === 'EN_PROCESO' ? 'Reintentar ejecución pendiente' : 'Ejecutar reembolso a los medios originales' }}
         </button>
       </div>
     </article>
@@ -182,12 +197,12 @@
         </div>
 
         <div class="form-group">
-          <label for="origen-id" class="form-label">Número o código del comprobante:</label>
+          <label for="origen-id" class="form-label">UUID de la operación original (o número de venta):</label>
           <input
             id="origen-id"
             type="text"
             [(ngModel)]="solicitud.origen_id"
-            placeholder="Ej: VNT-0001 o identificador de compra"
+            placeholder="UUID; solo para VENTA se admite su número"
             class="form-control"
           />
         </div>
@@ -229,7 +244,7 @@
   <app-confirm-dialog
     [visible]="dialogoConfirmarVisible"
     [titulo]="accionPendiente === 'AUTORIZAR' ? '¿Aprobar reintegro del importe?' : '¿Ejecutar reintegro hacia el medio original?'"
-    [descripcion]="accionPendiente === 'AUTORIZAR' ? 'El reembolso quedará listo para ejecución hacia el medio original (tarjeta, saldo o caja).' : 'Se enviará la orden de reintegro definitiva al procesador de pagos o libro de saldo.' + (reembolsoSeleccionado ? ' Importe: ' + bs(reembolsoSeleccionado.monto_bob) : '')"
+    [descripcion]="accionPendiente === 'AUTORIZAR' ? 'El reembolso quedará listo para ejecución hacia los medios originales.' : 'Se solicitará la ejecución de los componentes originales. El efectivo requiere entrega manual en caja; confirma solo después de realizarla.' + (reembolsoSeleccionado ? ' Importe: ' + bs(reembolsoSeleccionado.monto_bob) : '')"
     [textoConfirmar]="accionPendiente === 'AUTORIZAR' ? 'Aprobar reintegro' : 'Ejecutar reintegro'"
     [variante]="accionPendiente === 'AUTORIZAR' ? 'primary' : 'warning'"
     [procesando]="procesandoAccion"

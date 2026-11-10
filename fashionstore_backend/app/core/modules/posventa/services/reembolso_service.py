@@ -10,7 +10,7 @@ Reglas de negocio:
 - No muta stock (el inventario lo controla CU20 Devoluciones).
 """
 import uuid
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import List, Optional
 
 from fastapi import HTTPException, status
@@ -34,6 +34,7 @@ from backend.app.core.modules.posventa.schemas import (
 from backend.app.core.modules.ventas_pagos.integraciones import stripe_gateway as gw
 from backend.app.core.modules.ventas_pagos.models import Pago, Venta
 from backend.app.core.modules.ventas_pagos.models_ordenes import OrdenPago
+from backend.app.core.modules.organizacion.models import TasaCambio
 from backend.app.core.permisos import es_admin, rol_de
 from backend.app.core.reloj import RelojSistema
 
@@ -93,6 +94,59 @@ class ReembolsoService:
         filas = (await self.db.execute(stmt)).scalars().all()
         return [self._a_detalle_dto(fila) for fila in filas]
 
+    async def _cargo_original_total(self, pago: Pago, venta: Venta):
+        """Paso A: cargo completo de VENTA; no calcula ni prorratea parciales."""
+        def rechazar(motivo):
+            raise HTTPException(409, detail="CONCILIACION_REQUERIDA: " + motivo)
+
+        if (pago.empresa_id != venta.empresa_id or pago.venta_id != venta.id or
+                pago.contexto != "VENTA" or pago.metodo != "STRIPE_TEST" or
+                pago.estado not in ("APROBADO", "PAGADO") or
+                not pago.referencia_externa or not pago.referencia_externa.startswith("pi_")):
+            rechazar("pago sin referencia o recurso original verificables")
+        ordenes = (await self.db.execute(select(OrdenPago).where(
+            OrdenPago.empresa_id == pago.empresa_id,
+            OrdenPago.referencia_externa == pago.referencia_externa))).scalars().all()
+        if len(ordenes) != 1:
+            rechazar("asociacion Pago/OrdenPago ausente o ambigua")
+        pagos_asociados = (await self.db.execute(select(Pago.id).where(
+            Pago.empresa_id == pago.empresa_id, Pago.referencia_externa == pago.referencia_externa,
+            Pago.metodo == "STRIPE_TEST"))).scalars().all()
+        if len(pagos_asociados) != 1 or pagos_asociados[0] != pago.id:
+            rechazar("varios pagos asociados a la misma referencia Stripe")
+        orden = ordenes[0]
+        if (orden.proveedor != "STRIPE" or orden.contexto != "VENTA" or
+                orden.venta_id != venta.id or orden.pedido_id is not None or
+                orden.reserva_id is not None or orden.cambio_id is not None or
+                orden.estado != "CAPTURADO"):
+            rechazar("la orden no corresponde al cargo capturado de esta venta")
+        tasa_original = await self.db.get(TasaCambio, orden.tasa_id) if orden.tasa_id else None
+        if tasa_original is None or type(orden.centavos_usd) is not int or orden.centavos_usd <= 0:
+            rechazar("faltan cotizacion historica o unidades minimas originales")
+        try:
+            monto_pago = Decimal(str(pago.monto))
+            monto_bob = Decimal(str(orden.monto_bob))
+            monto_usd = Decimal(str(orden.monto_usd))
+            tasa = Decimal(str(tasa_original.tasa_bob_por_usd))
+            total_venta = Decimal(str(venta.total))
+            if not all(d.is_finite() and d > 0 for d in (monto_pago, monto_bob, monto_usd, tasa, total_venta)):
+                rechazar("importes originales ausentes o invalidos")
+            if (monto_pago != monto_bob or monto_bob > total_venta or
+                    monto_bob != monto_bob.quantize(Decimal("0.01")) or
+                    monto_usd * 100 != orden.centavos_usd or
+                    (monto_bob / tasa).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) != monto_usd):
+                rechazar("importes del pago y de la cotizacion guardada contradictorios")
+        except (InvalidOperation, ValueError, TypeError, ArithmeticError):
+            rechazar("importes originales no verificables")
+        # No utilizar el total del cargo para un saldo ya parcialmente devuelto.
+        # El calculo del disponible y de parciales corresponde al paso B.
+        previo = (await self.db.execute(select(ComponenteReembolso.id).where(
+            ComponenteReembolso.empresa_id == pago.empresa_id,
+            ComponenteReembolso.pago_id == pago.id).limit(1))).scalar()
+        if previo is not None or venta.estado in ("PARCIALMENTE_DEVUELTA", "DEVUELTA"):
+            rechazar("cargo con devolucion o reintegro previo; requiere conciliacion de parciales")
+        return tasa, monto_usd, orden.centavos_usd
+
     async def solicitar_reembolso(
         self, usuario: Usuario, datos: ReembolsoSolicitudDTO, clave_idempotencia: uuid.UUID,
     ) -> ReembolsoDetalleDTO:
@@ -136,7 +190,8 @@ class ReembolsoService:
 
             # Pagos capturados de la venta
             r_pagos = await self.db.execute(
-                select(Pago).where(Pago.venta_id == venta.id, Pago.estado.in_(("APROBADO", "PAGADO")))
+                select(Pago).where(Pago.empresa_id == empresa_id,
+                    Pago.venta_id == venta.id, Pago.estado.in_(("APROBADO", "PAGADO")))
             )
             pagos = list(r_pagos.scalars().all())
 
@@ -144,9 +199,7 @@ class ReembolsoService:
                 monto_p = Decimal(str(p.monto))
                 monto_total_bob += monto_p
                 if p.metodo == "STRIPE_TEST":
-                    tasa = Decimal("6.96")
-                    m_usd = (monto_p / tasa).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                    c_usd = int(m_usd * 100)
+                    tasa, m_usd, c_usd = await self._cargo_original_total(p, venta)
                     componentes_a_crear.append({
                         "medio": "STRIPE",
                         "pago_id": p.id,
@@ -561,19 +614,28 @@ class ReembolsoService:
 
             if comp.medio == "STRIPE":
                 # Reembolso de centavos USD originales vía pasarela
-                centavos = comp.centavos_usd or int(Decimal(str(comp.monto_bob)) * 100 / Decimal("6.96"))
-                pi_ref = "pi_mock_captured"
+                if comp.centavos_usd is None or comp.centavos_usd <= 0:
+                    raise HTTPException(409, detail="CONCILIACION_REQUERIDA: faltan unidades minimas originales")
+                centavos = comp.centavos_usd
+                pi_ref = None
                 if comp.pago_id:
-                    pago_r = await self.db.execute(select(Pago).where(Pago.id == comp.pago_id))
+                    pago_r = await self.db.execute(select(Pago).where(
+                        Pago.id == comp.pago_id, Pago.empresa_id == usuario.empresa_id))
                     pago_obj = pago_r.scalars().first()
                     if pago_obj and pago_obj.referencia_externa:
                         pi_ref = pago_obj.referencia_externa
+                if not pi_ref or not pi_ref.startswith("pi_"):
+                    raise HTTPException(409, detail="CONCILIACION_REQUERIDA: falta vinculo con la referencia del pago capturado")
 
                 reemb_info = await gateway.crear_reembolso(
                     payment_intent_id=pi_ref,
                     centavos_usd=centavos,
                     idempotency_key=str(clave_comp),
                 )
+                if (not reemb_info.id.startswith("re_") or reemb_info.moneda != "usd" or
+                        reemb_info.payment_intent_id != pi_ref or reemb_info.centavos_usd != centavos):
+                    raise HTTPException(409, detail="CONCILIACION_REQUERIDA: respuesta del reintegro no coincide con el cargo")
+                estado_confirmado = self._estado_stripe(reemb_info.estado)
 
                 ejec = EjecucionReembolso(
                     id=uuid.uuid4(),
@@ -582,13 +644,13 @@ class ReembolsoService:
                     clave_ejecucion=clave_comp,
                     proveedor="STRIPE",
                     referencia_externa=reemb_info.id,
-                    estado="COMPLETADO",
+                    estado=estado_confirmado,
                     intento=1,
                     creada_en=self.reloj.ahora(),
-                    resuelta_en=self.reloj.ahora(),
+                    resuelta_en=self.reloj.ahora() if estado_confirmado != "EN_PROCESO" else None,
                 )
                 self.db.add(ejec)
-                comp.estado = "COMPLETADO"
+                comp.estado = estado_confirmado
                 await self.db.flush()
 
             elif comp.medio == "SALDO":
@@ -641,14 +703,26 @@ class ReembolsoService:
                 comp.estado = "COMPLETADO"
                 await self.db.flush()
 
-        # Completar la obligación
-        obl.estado = "COMPLETADO"
-        obl.completada_en = self.reloj.ahora()
+        self._actualizar_estado(obl)
         obl.revision += 1
         await self.db.flush()
         await self.db.commit()
 
         return self._a_detalle_dto(obl)
+
+    @staticmethod
+    def _estado_stripe(estado):
+        if estado == "succeeded":
+            return "COMPLETADO"
+        if estado in ("failed", "canceled"):
+            return "FALLIDO"
+        return "EN_PROCESO"
+
+    def _actualizar_estado(self, obl):
+        estados = [c.estado for c in obl.componentes]
+        obl.estado = ("COMPLETADO" if estados and all(e == "COMPLETADO" for e in estados)
+                      else "FALLIDO" if "FALLIDO" in estados else "EN_PROCESO")
+        obl.completada_en = self.reloj.ahora() if obl.estado == "COMPLETADO" else None
 
     async def conciliar_reembolso(
         self, usuario: Usuario, reembolso_id: uuid.UUID, clave_idempotencia: uuid.UUID,
@@ -673,15 +747,32 @@ class ReembolsoService:
         if not obl:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reembolso no encontrado")
 
-        if obl.estado in ("COMPLETADO", "FALLIDO"):
+        if obl.estado == "COMPLETADO":
             return self._a_detalle_dto(obl)
 
-        # Si estaba en proceso o autorizado, concilia los componentes
+        # Conciliar solo resultados identificados: nunca fabricar un exito.
         for comp in obl.componentes:
-            comp.estado = "COMPLETADO"
+            if comp.medio != "STRIPE" or comp.estado == "COMPLETADO":
+                continue
+            ejecuciones = (await self.db.execute(select(EjecucionReembolso).where(
+                EjecucionReembolso.empresa_id == usuario.empresa_id,
+                EjecucionReembolso.componente_id == comp.id))).scalars().all()
+            pago = await self.db.get(Pago, comp.pago_id) if comp.pago_id else None
+            if (len(ejecuciones) != 1 or not ejecuciones[0].referencia_externa or
+                    not ejecuciones[0].referencia_externa.startswith("re_") or
+                    pago is None or pago.empresa_id != usuario.empresa_id or
+                    comp.centavos_usd is None):
+                raise HTTPException(409, detail="CONCILIACION_REQUERIDA: falta un cargo y reintegro originales vinculados")
+            ejec = ejecuciones[0]
+            resultado = await gw.obtener_gateway().consultar_reembolso(ejec.referencia_externa)
+            if (resultado.id != ejec.referencia_externa or resultado.moneda != "usd" or
+                    resultado.payment_intent_id != pago.referencia_externa or
+                    resultado.centavos_usd != comp.centavos_usd):
+                raise HTTPException(409, detail="CONCILIACION_REQUERIDA: el reintegro no corresponde al cargo original")
+            ejec.estado = comp.estado = self._estado_stripe(resultado.estado)
+            ejec.resuelta_en = self.reloj.ahora() if ejec.estado != "EN_PROCESO" else None
 
-        obl.estado = "COMPLETADO"
-        obl.completada_en = self.reloj.ahora()
+        self._actualizar_estado(obl)
         obl.revision += 1
         await self.db.flush()
         await self.db.commit()

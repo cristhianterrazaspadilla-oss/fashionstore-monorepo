@@ -8,6 +8,7 @@ from sqlalchemy import select, func, text
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.ambito_comercial import empresa_comercial
 from backend.app.core.modules.identidad_empresas.models import Empresa, Usuario
 from backend.app.core.modules.identidad_empresas.services.plan_service import PlanService
 from backend.app.core.modules.organizacion.models import Ciudad, Sucursal
@@ -59,11 +60,11 @@ class SucursalService:
         )
 
     async def crear(self, dto: SucursalCrearDTO, usuario: Usuario) -> SucursalDTO:
-        empresa_id = usuario.empresa_id or dto.empresa_id
-        if not empresa_id:
+        empresa_id = empresa_comercial(usuario)
+        if dto.empresa_id is not None and dto.empresa_id != empresa_id:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="empresa_id es requerido para registrar la sucursal",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No autorizado para registrar sucursales de otra empresa",
             )
 
         # 1. Validar que la ciudad exista
@@ -78,13 +79,12 @@ class SucursalService:
         await self.db.execute(select(Empresa.id).where(Empresa.id == empresa_id).with_for_update())
 
         # 3. Validar suscripción activa y límite de sucursales activas (CU02 / CU15)
-        par = await self.plan_service.consultar_suscripcion_efectiva(empresa_id)
-        if not par:
+        plan = await self.plan_service.validar_capacidad(empresa_id)
+        if not plan.habilitado:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="La empresa no cuenta con una suscripción activa para operar sucursales",
+                detail=plan.motivo_rechazo or "La suscripción no habilita nuevas sucursales",
             )
-        _, plan = par
 
         q_activas = select(func.count(Sucursal.id)).where(
             Sucursal.empresa_id == empresa_id,
@@ -97,7 +97,7 @@ class SucursalService:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
-                    f"Límite de sucursales activas alcanzado para el plan '{plan.nombre}' "
+                    f"Límite de sucursales activas alcanzado para el plan '{plan.plan_nombre}' "
                     f"(máximo {plan.max_sucursales_activas}). Actualmente cuenta con {activas_actuales} activas."
                 ),
             )
@@ -154,7 +154,10 @@ class SucursalService:
 
     async def actualizar(self, sucursal_id: uuid.UUID, dto: SucursalActualizarDTO, usuario: Usuario) -> SucursalDTO:
         # 1. Obtener con bloqueo de fila
-        q = select(Sucursal).options(selectinload(Sucursal.ciudad)).where(Sucursal.id == sucursal_id).with_for_update()
+        empresa_id = empresa_comercial(usuario)
+        q = select(Sucursal).options(selectinload(Sucursal.ciudad)).where(
+            Sucursal.id == sucursal_id, Sucursal.empresa_id == empresa_id
+        ).with_for_update()
         res = await self.db.execute(q)
         sucursal = res.scalars().first()
         if not sucursal:
@@ -180,13 +183,12 @@ class SucursalService:
         # 4. Si se activa, verificar límite contra plan bajo bloqueo
         if dto.activa is True and not sucursal.activa:
             await self.db.execute(select(Empresa.id).where(Empresa.id == sucursal.empresa_id).with_for_update())
-            par = await self.plan_service.consultar_suscripcion_efectiva(sucursal.empresa_id)
-            if not par:
+            plan = await self.plan_service.validar_capacidad(sucursal.empresa_id)
+            if not plan.habilitado:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="La empresa no cuenta con una suscripción activa",
+                    detail=plan.motivo_rechazo or "La suscripción no habilita activar sucursales",
                 )
-            _, plan = par
             q_activas = select(func.count(Sucursal.id)).where(
                 Sucursal.empresa_id == sucursal.empresa_id,
                 Sucursal.activa == True,
@@ -197,7 +199,7 @@ class SucursalService:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=(
-                        f"Límite de sucursales activas alcanzado para el plan '{plan.nombre}' "
+                        f"Límite de sucursales activas alcanzado para el plan '{plan.plan_nombre}' "
                         f"(máximo {plan.max_sucursales_activas})."
                     ),
                 )
@@ -305,13 +307,16 @@ class SucursalService:
         empresa_id: Optional[uuid.UUID] = None,
         solo_activas: bool = True,
     ) -> List[SucursalDTO]:
-        eid = usuario.empresa_id or empresa_id
+        eid = empresa_comercial(usuario)
+        if empresa_id is not None and empresa_id != eid:
+            raise HTTPException(status_code=403, detail="No autorizado para consultar otra empresa")
         sucursales = await self.sucursal_repo.listar(ciudad_id=ciudad_id, empresa_id=eid, solo_activas=solo_activas)
         return [await self._construir_dto(s) for s in sucursales]
 
     async def obtenerPorId(self, sucursal_id: uuid.UUID, usuario: Usuario) -> SucursalDTO:
+        empresa_id = empresa_comercial(usuario)
         s = await self.sucursal_repo.buscarPorId(sucursal_id)
-        if not s:
+        if not s or s.empresa_id != empresa_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Sucursal no encontrada",
@@ -326,7 +331,9 @@ class SucursalService:
     async def actualizarTarifas(
         self, sucursal_id: uuid.UUID, dto: ConfigurarTarifasDeliveryDTO, usuario: Usuario
     ) -> SucursalDTO:
-        q = select(Sucursal).where(Sucursal.id == sucursal_id).with_for_update()
+        q = select(Sucursal).where(
+            Sucursal.id == sucursal_id, Sucursal.empresa_id == empresa_comercial(usuario)
+        ).with_for_update()
         res = await self.db.execute(q)
         sucursal = res.scalars().first()
         if not sucursal:
@@ -356,7 +363,9 @@ class SucursalService:
     async def actualizarAdelanto(
         self, sucursal_id: uuid.UUID, dto: ConfigurarAdelantoDTO, usuario: Usuario
     ) -> SucursalDTO:
-        q = select(Sucursal).where(Sucursal.id == sucursal_id).with_for_update()
+        q = select(Sucursal).where(
+            Sucursal.id == sucursal_id, Sucursal.empresa_id == empresa_comercial(usuario)
+        ).with_for_update()
         res = await self.db.execute(q)
         sucursal = res.scalars().first()
         if not sucursal:

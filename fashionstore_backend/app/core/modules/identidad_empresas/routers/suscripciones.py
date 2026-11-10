@@ -68,6 +68,10 @@ async def consultar_mi_plan(
     db: AsyncSession = Depends(get_db),
     usuario_actual: Usuario = Depends(get_usuario_actual),
 ) -> SuscripcionRespuestaDTO:
+    if usuario_actual.empresa_id is None:
+        await require_administrador_plataforma()(usuario_actual)
+    elif empresa_id is not None and empresa_id != usuario_actual.empresa_id:
+        raise HTTPException(status_code=403, detail="No autorizado para consultar el plan de otra empresa")
     eid = usuario_actual.empresa_id or empresa_id
     if not eid:
         raise HTTPException(
@@ -95,6 +99,8 @@ async def listar_historial_suscripciones(
     db: AsyncSession = Depends(get_db),
     usuario_actual: Usuario = Depends(get_usuario_actual),
 ) -> List[SuscripcionRespuestaDTO]:
+    if usuario_actual.empresa_id is None:
+        await require_administrador_plataforma()(usuario_actual)
     if usuario_actual.empresa_id is not None and usuario_actual.empresa_id != empresa_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
