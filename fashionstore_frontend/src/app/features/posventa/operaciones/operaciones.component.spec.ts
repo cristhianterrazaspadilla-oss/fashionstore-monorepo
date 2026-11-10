@@ -129,7 +129,7 @@ describe('OperacionesComponent (Devoluciones, Inspecciones Técnicas y Cambios d
 
     component.realizarInspeccion = true;
     component.dictamenInspeccion = 'APROBADA_REPOSICION';
-    component.condicionFisica = 'EXCELENTE_SIN_USO';
+    component.condicionFisica = 'EXCELENTE';
     component.observacionesInspeccion = 'Prenda en perfecto estado';
 
     component.devolver();

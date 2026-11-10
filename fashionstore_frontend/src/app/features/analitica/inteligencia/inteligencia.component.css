@@ -102,11 +102,14 @@
 
 .ia-input-group {
   display: flex;
+  flex-wrap: wrap;
   flex-direction: column;
   gap: 0.75rem;
   width: 100%;
   min-width: 0;
 }
+
+.header-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 
 .ia-input-group input {
   width: 100%;

@@ -46,6 +46,7 @@ export class CajaComponent implements OnInit, OnDestroy {
   cargando = false;
   procesando = false;
   error = '';
+  avisoCatalogo = '';
   diagnosticoLegado = '';
   turnoRecuperacionId = '';
   mensajeExito = '';
@@ -137,8 +138,13 @@ export class CajaComponent implements OnInit, OnDestroy {
 
   cargarVariantes() {
     this.productos.gestionarVariantes().subscribe({
-      next: v => this.variantes = v,
-      error: e => this.error = this.msg(e)
+      next: v => { this.variantes = v; this.avisoCatalogo = ''; },
+      error: e => {
+        if (e?.status === 502 || e?.status === 504) {
+          this.avisoCatalogo = 'No se pudo actualizar el catálogo. Los datos locales pueden estar desactualizados.';
+          console.warn('Actualización del catálogo de Caja no disponible', { estado: e.status });
+        } else { this.error = this.msg(e); }
+      }
     });
   }
 

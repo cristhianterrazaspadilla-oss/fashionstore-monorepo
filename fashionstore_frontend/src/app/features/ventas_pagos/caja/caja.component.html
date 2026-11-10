@@ -30,6 +30,7 @@
   </header>
 
   <!-- Mensajes de Estado y Alertas -->
+  <div *ngIf="avisoCatalogo" class="cycle-alert warning" role="status">{{ avisoCatalogo }}</div>
   <div *ngIf="error" class="cycle-alert danger" role="alert">
     {{ error }}
   </div>

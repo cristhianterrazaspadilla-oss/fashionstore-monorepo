@@ -81,6 +81,9 @@
     <div *ngIf="detalle" #modalDetalleBox class="cycle-dialog" (click)="$event.stopPropagation()">
       <button type="button" class="dialog-close" (click)="cerrarDetalle()" aria-label="Cerrar">&times;</button>
       <h2 id="detalle-pedido-title">Detalle del pedido</h2>
+      <p>UUID pedido: <code>{{detalle.id}}</code></p>
+      <p *ngIf="detalle.venta_id">UUID venta original: <code>{{detalle.venta_id}}</code>. <a [routerLink]="['/historial']" [queryParams]="{venta: detalle.venta_id}">Solicitar devolución desde la venta original</a></p>
+      <p *ngIf="!detalle.venta_id">Este pedido no entrega un vínculo verificable con una venta para devolución. Consulta al encargado; no uses el UUID del pedido o del pago como venta.</p>
       <span class="status" [class]="clase(detalle.estado)">{{ etiqueta(detalle.estado) }}</span>
       <dl class="cycle-facts facts-spacing">
         <div><dt>Modalidad</dt><dd>{{ etiqueta(detalle.modalidad) }}</dd></div>

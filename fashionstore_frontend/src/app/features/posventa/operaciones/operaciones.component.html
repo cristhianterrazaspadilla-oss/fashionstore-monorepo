@@ -104,7 +104,16 @@
   <!-- DEVOLUCION E INSPECCION (CU20) -->
   <section class="cycle-card form-card" *ngIf="tab==='devolucion'">
     <h2>Registrar devolución e inspección técnica</h2>
-    <p>Busca la venta por comprobante. El plazo voluntario cuenta 15 días desde la entrega real (<code>entregada_en</code>). Casos posteriores por defecto o incumplimiento pasan a evaluación autorizada sin rechazo automático.</p>
+    <p>Desde Ventas usa «Devolver» para pasar el UUID correcto. También puedes buscar el número comercial exacto de la venta o su UUID, nunca un pago o código de recojo. El servidor valida titular, empresa, sucursal, plazo y cantidades pendientes.</p>
+    <label>UUID de devolución registrada por el cliente <input [(ngModel)]="idConsultaDevolucion" placeholder="UUID recibido al solicitar la devolución"></label>
+    <button type="button" class="cycle-secondary" [disabled]="procesando" (click)="consultarDevolucionRegistrada()">Consultar devolución</button>
+    <div *ngIf="devolucionRegistrada" class="cycle-alert" role="status">
+      Devolución {{ devolucionRegistrada.devolucion_id || devolucionRegistrada.id }} — {{ devolucionRegistrada.estado }}.
+      Venta original: {{ devolucionRegistrada.venta_id }}. No indica que el dinero se haya reintegrado.
+      <button type="button" (click)="copiarId(devolucionRegistrada.devolucion_id || devolucionRegistrada.id || '')">Copiar UUID devolución</button>
+      <div *ngFor="let linea of devolucionRegistrada.detalles">Línea {{ linea.detalle_venta_id }}: solicitadas {{ linea.cantidad_solicitada }}, recibidas {{ linea.cantidad_recibida }}, aceptadas {{ linea.cantidad_aceptada }}.</div>
+      <button type="button" class="cycle-secondary" [disabled]="procesando" (click)="inspeccionarRegistrada()">Registrar inspección con los datos del formulario</button>
+    </div>
 
     <!-- Búsqueda de Comprobante -->
     <div class="search-box">
@@ -133,6 +142,7 @@
     <div *ngIf="comprobanteDev" class="comprobante-preview">
       <div class="preview-header">
         <div><strong>Venta:</strong> {{ comprobanteDev.numero }}</div>
+        <div><strong>UUID venta:</strong> {{ comprobanteDev.id }} <button type="button" (click)="copiarId(comprobanteDev.id)">Copiar UUID venta</button></div>
         <div><strong>Fecha:</strong> {{ fechaHoraBO(comprobanteDev.creada_en) }}</div>
         <div><strong>Total:</strong> {{ bs(comprobanteDev.total) }}</div>
         <div><strong>Sucursal:</strong> {{ comprobanteDev.sucursal_nombre || comprobanteDev.sucursal_id }}</div>
@@ -248,10 +258,11 @@
           <label>
             <span>Condición física inspeccionada</span>
             <select [(ngModel)]="condicionFisica">
-              <option value="EXCELENTE_SIN_USO">Sin uso, con etiquetas originales</option>
-              <option value="BUEN_ESTADO">Buen estado general</option>
-              <option value="DEFECTO_FABRICA">Falla o defecto de confección evidente</option>
-              <option value="DETERIORO_USO">Deterioro por uso indebido</option>
+              <option value="EXCELENTE">Sin uso, con etiquetas originales</option>
+              <option value="BUENA">Buen estado general</option>
+              <option value="DEFECTUOSA">Falla o defecto de confección</option>
+              <option value="DANADA">Dañada</option>
+              <option value="USADA">Usada</option>
             </select>
           </label>
 

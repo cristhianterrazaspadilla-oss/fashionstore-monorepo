@@ -21,6 +21,9 @@ import { formatearErrorApi } from '../../../core/utils/error-handler.util';
 import { RadialProgressComponent } from '../../../shared/data-viz/radial-progress/radial-progress.component';
 import { HorizontalBarsComponent, HorizontalBarItem } from '../../../shared/data-viz/horizontal-bars/horizontal-bars.component';
 import { SegmentedBarComponent, SegmentoItem } from '../../../shared/data-viz/segmented-bar/segmented-bar.component';
+import { AuthService } from '../../identidad_empresas/services/auth.service';
+import { DictadoReporte } from './dictado-reporte';
+import { archivoReporte, descargarReporte, FormatoReporte } from './exportar-reporte';
 
 export interface InventarioSucursalReporteVM {
   sucursal: string;
@@ -68,6 +71,15 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
   reporteTipado: ReporteInterpretadoResultadoDTO | null = null;
   generando = false;
   errorReporte: string | null = null;
+  escuchando = false;
+  errorVoz = '';
+  errorExportacion = '';
+  exportando = false;
+  private propietarioReporte = '';
+  private secuenciaReporte = 0;
+  private readonly auth = inject(AuthService);
+  readonly dictado = new DictadoReporte(texto => this.consulta = texto,
+    (escuchando, error) => { this.escuchando = escuchando; this.errorVoz = error; });
   tipoSeleccionado?: TipoReportePermitido;
   sucursalesReporte: SucursalDTO[] = [];
   sucursalReporte = '';
@@ -121,6 +133,11 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
   constructor(private iaService: IAAnaliticaService) {}
 
   ngOnInit(): void {
+    let identidad = this.identidadActual();
+    this.auth.usuario$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      const actual = this.identidadActual();
+      if (actual !== identidad) { this.invalidarReporte(); this.dictado.destruir(); identidad = actual; }
+    });
     this.organizacionService.gestionarSucursales(undefined, false)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -130,7 +147,23 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.invalidarReporte();
+    this.dictado.destruir();
     this.limpiarIntervaloCarga();
+  }
+
+  private identidadActual(): string {
+    const u = this.auth.obtenerUsuarioActual();
+    return u?.empresa_id && u.id ? `${u.empresa_id}:${u.id}` : '';
+  }
+  private invalidarReporte(): void {
+    this.secuenciaReporte++; this.propietarioReporte = ''; this.reporte = null; this.reporteTipado = null;
+    this.errorExportacion = ''; this.generando = false; this.limpiarIntervaloCarga();
+  }
+  alternarDictado(): void { if (this.escuchando) this.dictado.detener(); else this.dictado.iniciar(this.consulta); }
+  get exportacionDisponible(): boolean {
+    return !!this.reporteTipado && !this.generando && !this.errorReporte &&
+      !!this.propietarioReporte && this.propietarioReporte === this.identidadActual();
   }
 
   get tituloReporte(): string {
@@ -170,6 +203,10 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
 
   // --- CU24: Ejecutar reporte tipado o generativo ---
   ejecutarReporteTipado(tipo?: TipoReportePermitido): void {
+    this.dictado.detener();
+    this.invalidarReporte();
+    const secuencia = this.secuenciaReporte, propietario = this.identidadActual();
+    if (!propietario) { this.errorReporte = 'Se requiere una sesión empresarial vigente.'; return; }
     const textoConsulta = this.consulta.trim() || (tipo ? `Reporte de ${tipo.toLowerCase().replace(/_/g, ' ')}` : 'ventas por sucursal');
     this.generando = true;
     this.errorReporte = null;
@@ -187,11 +224,15 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: r => {
+          if (secuencia !== this.secuenciaReporte || propietario !== this.identidadActual()) return;
           this.reporteTipado = r;
+          this.propietarioReporte = propietario;
           this.generando = false;
           this.limpiarIntervaloCarga();
         },
         error: e => {
+          if (secuencia !== this.secuenciaReporte) return;
+          this.reporteTipado = null; this.propietarioReporte = '';
           this.errorReporte = formatearErrorApi(e, 'No se pudo generar el reporte solicitado.');
           this.generando = false;
           this.limpiarIntervaloCarga();
@@ -200,9 +241,12 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
   }
 
   generarReporte(): void {
+    if (this.escuchando) { this.dictado.detener(); return; }
     if (!this.consulta.trim() || this.generando) return;
     const consulta = this.consulta.trim();
     if (/(inventario|stock|existencia|agot|reserva)/i.test(consulta)) {
+      this.invalidarReporte();
+      const secuencia = this.secuenciaReporte, propietario = this.identidadActual();
       if (this.sucursalReporte || this.desdeReporte || this.hastaReporte) {
         this.errorReporte = 'Los reportes legados de inventario y reservas consultan el ámbito completo de la empresa. Usa el dashboard para filtros de sucursal o período.';
         return;
@@ -213,8 +257,9 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
       this.reporteTipado = null;
       this.iniciarSecuenciaCarga();
       this.iaService.generarReporte(consulta).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: r => { this.reporte = r; this.generando = false; this.limpiarIntervaloCarga(); },
+        next: r => { if (secuencia !== this.secuenciaReporte || propietario !== this.identidadActual()) return; this.reporte = r; this.generando = false; this.limpiarIntervaloCarga(); },
         error: e => {
+          if (secuencia !== this.secuenciaReporte) return;
           this.errorReporte = formatearErrorApi(e, 'No se pudo consultar el reporte legado.');
           this.generando = false;
           this.limpiarIntervaloCarga();
@@ -225,27 +270,19 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
     this.ejecutarReporteTipado();
   }
 
-  exportarCsv(): void {
-    if (!this.reporteTipado || !this.reporteTipado.filas.length) return;
-    const cols = this.reporteTipado.columnas;
-    const lineas: string[] = [cols.join(',')];
-    for (const fila of this.reporteTipado.filas) {
-      const valores = cols.map(c => {
-        const val = fila[c];
-        const str = val !== null && val !== undefined ? String(val).replace(/"/g, '""') : '';
-        return `"${str}"`;
-      });
-      lineas.push(valores.join(','));
-    }
-    const contenido = lineas.join('\n');
-    const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `reporte_${this.reporteTipado.tipo_reporte.toLowerCase()}_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  exportarCsv(): void { void this.exportar('csv'); }
+  async exportar(formato: FormatoReporte): Promise<void> {
+    if (!this.exportacionDisponible || this.exportando || !this.reporteTipado) return;
+    this.exportando = true; this.errorExportacion = '';
+    const propietario = this.propietarioReporte, secuencia = this.secuenciaReporte;
+    const resultado = JSON.parse(JSON.stringify(this.reporteTipado)) as ReporteInterpretadoResultadoDTO;
+    const titulo = this.tituloReporte;
+    try {
+      const blob = await archivoReporte(resultado, titulo, formato);
+      if (!this.exportacionDisponible || propietario !== this.identidadActual() || secuencia !== this.secuenciaReporte) return;
+      descargarReporte(blob, 'reporte_' + resultado.tipo_reporte.toLowerCase() + '.' + formato);
+    } catch { this.errorExportacion = 'No se pudo exportar este resultado. Vuelve a consultar o inténtalo de nuevo.'; }
+    finally { this.exportando = false; }
   }
 
   // --- CU10: Pronóstico Supervisado de Demanda ---

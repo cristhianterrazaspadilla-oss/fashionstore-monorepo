@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, defer, switchMap } from 'rxjs';
+import { AuthService } from '../../identidad_empresas/services/auth.service';
+import { IntentosReembolso, esUuid } from './reembolso-intentos';
 import { environment } from '../../../../environments/environment';
 import { cabeceraIdempotencia } from '../../../core/utils/solicitud-http.util';
 import {
@@ -20,7 +22,7 @@ import {
 export class PosventaService {
   private readonly api = environment.apiUrl;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private auth: AuthService) {}
 
   private idemHeaders(key?: string): { headers: HttpHeaders } {
     return {
@@ -49,11 +51,8 @@ export class PosventaService {
 
   // CU20: Devoluciones físicas e Inspecciones técnicas
   solicitarDevolucion(dto: DevolucionSolicitudDTO, idempotencyKey?: string): Observable<DevolucionDTO> {
-    return this.http.post<DevolucionDTO>(
-      `${this.api}/devoluciones/solicitudes`,
-      dto,
-      this.idemHeaders(idempotencyKey)
-    );
+    if (!esUuid(dto.venta_id)) throw new Error('Selecciona la venta original: se requiere su UUID, no el de pago o pedido.');
+    return this.mutarDevolucion('/devoluciones/solicitudes', dto, dto.venta_id, idempotencyKey);
   }
 
   registrarInspeccion(
@@ -61,11 +60,32 @@ export class PosventaService {
     dto: InspeccionDTO,
     idempotencyKey?: string
   ): Observable<DevolucionDTO> {
-    return this.http.post<DevolucionDTO>(
-      `${this.api}/devoluciones/${devolucionId}/inspecciones`,
-      dto,
-      this.idemHeaders(idempotencyKey)
-    );
+    if (!esUuid(devolucionId)) throw new Error('Se requiere el UUID de la devolución registrada.');
+    return this.mutarDevolucion(`/devoluciones/${devolucionId}/inspecciones`, dto, undefined, idempotencyKey, devolucionId);
+  }
+
+  private mutarDevolucion(ruta: string, datos: object, ventaId?: string, clave?: string, devolucionId?: string): Observable<DevolucionDTO> {
+    const cuerpo = structuredClone(datos);
+    const ambitoActual = () => { const u = this.auth.obtenerUsuarioActual(); const id = u?.usuario_id || u?.id;
+      if (!u?.empresa_id || !id) throw new Error('Se requiere una sesión empresarial.'); return JSON.stringify([u.empresa_id, id]); };
+    return defer(() => {
+      const ambito = ambitoActual(), intentos = new IntentosReembolso(localStorage, 'fs_devolucion_intento:');
+      return defer(() => intentos.obtener(ambito, ruta, cuerpo)).pipe(switchMap(intento => {
+        if (ambito !== ambitoActual()) throw new Error('La sesión cambió antes del envío.');
+        return this.http.post<DevolucionDTO>(`${this.api}${ruta}`, cuerpo, this.idemHeaders(clave || intento.clave));
+      }), switchMap(async r => {
+        const id = r?.devolucion_id || r?.id || '';
+        const usuario = this.auth.obtenerUsuarioActual();
+        if (ambito !== ambitoActual() || !esUuid(id) || !esUuid(r.venta_id || '') ||
+            !['SOLICITADA', 'PENDIENTE_EVALUACION', 'RECIBIDA', 'EN_INSPECCION', 'APROBADA_REPOSICION', 'APROBADA_REEMBOLSO', 'COMPLETADA', 'RECHAZADA'].includes(r.estado) ||
+            (usuario?.rol === 'CLIENTE' && r.cliente_id !== JSON.parse(ambito)[1]) ||
+            (r.empresa_id !== undefined && r.empresa_id !== JSON.parse(ambito)[0]) ||
+            (ventaId && r.venta_id !== ventaId) || (devolucionId && id !== devolucionId))
+          throw new Error('No se confirmó la devolución original. Se conserva el intento para consultar o reintentar.');
+        await intentos.confirmar(ambito, ruta, cuerpo);
+        return r;
+      }));
+    });
   }
 
   consultarDevolucion(devolucionId: string): Observable<DevolucionDTO> {
@@ -73,7 +93,7 @@ export class PosventaService {
   }
 
   listarDevoluciones(): Observable<DevolucionDTO[]> {
-    return this.http.get<DevolucionDTO[]>(`${this.api}/devoluciones`);
+    return this.http.get<DevolucionDTO[]>(`${this.api}/devoluciones/mias`);
   }
 
   registrarMermaAuditada(dto: MermaCrearDTO, idempotencyKey?: string): Observable<MermaDTO> {
