@@ -75,6 +75,38 @@ try {
       version_precios: 'v1', lineas: [{ variante_id: 'v', cantidad: 1, precio_autorizado_bob: 10 }], total_bob: 10, efectivo_recibido_bob: 20, cambio_entregado_bob: 10 });
     const nueva = async nombre => { reloj = Date.parse('2026-11-08T12:00:00Z'); const c = new CajaLocalStore('prueba-' + nombre, () => reloj); await c.guardarTurno(ctx, turno('t1')); return c; };
     async function prueba(nombre, fn) { await fn(); resultados.push('OK ' + nombre); }
+    await prueba('dos prendas: reapertura, consumo 2/1, sobrante 1/1 y confirmación durable', async () => {
+      const c = new CajaLocalStore('prueba-multilinea', () => reloj);
+      const t = turno('multi');
+      t.cupos = [{ variante_id: 'A', otorgado: 3, consumido: 0, liberado: 0, mermado: 0, precio_autorizado_bob: 10 },
+                 { variante_id: 'B', otorgado: 2, consumido: 0, liberado: 0, mermado: 0, precio_autorizado_bob: 20 }];
+      await c.guardarTurno(ctx, t); c.cerrar();
+      const r = new CajaLocalStore('prueba-multilinea', () => reloj);
+      assert((await r.turnos(ctx))[0].cupos.length === 2);
+      const v = { ...venta('multi-venta'), lineas: [{variante_id:'A', cantidad:2, precio_autorizado_bob:10}, {variante_id:'B', cantidad:1, precio_autorizado_bob:20}],
+                  total_bob:40, efectivo_recibido_bob:50, cambio_entregado_bob:10 };
+      const doc = {numero:'LOCAL-MULTI', lineas:v.lineas, total:40};
+      await r.registrar(ctx, 'multi', v, doc);
+      assert(await r.pendientesCierre(ctx, 'multi'), 'No puede cerrar antes de confirmación');
+      assert((await r.turnos(ctx))[0].cupos.every(c => c.otorgado - c.consumido === 1));
+      assert((await r.comprobantes(ctx))[0].lineas.length === 2);
+      const pendiente = (await r.pendientes(ctx))[0];
+      assert(pendiente.turno_id === 'multi' && pendiente.cuerpo.lineas.length === 2);
+      await rechaza(() => r.registrar(ctx, 'multi', {...v, operacion_id:'exceso'}, doc), 'Cupo');
+      assert((await r.pendientes(ctx)).length === 1);
+      await rechaza(() => r.resultado(ctx, v.operacion_id, {resultado:'REGISTRADA_CENTRAL', operacion_id:v.operacion_id}));
+      assert((await r.pendientes(ctx)).length === 1, 'La confirmación incompleta conserva el pendiente');
+      await r.registrar(ctx, 'multi', pendiente.cuerpo, doc);
+      assert((await r.turnos(ctx))[0].cupos.every(c => c.otorgado - c.consumido === 1));
+      await r.resultado(ctx, v.operacion_id, {resultado:'REGISTRADA_CENTRAL', operacion_id:v.operacion_id,
+        venta_id:'10000000-0000-4000-8000-000000000001', comprobante_id:'10000000-0000-4000-8000-000000000002',
+        numero:'CENTRAL-MULTI', total_bob:40, recibida_central_en:'2026-11-08T12:01:00Z'});
+      assert(!(await r.pendientesCierre(ctx, 'multi')));
+      r.cerrar();
+      const final = new CajaLocalStore('prueba-multilinea', () => reloj);
+      assert((await final.pendientes(ctx)).length === 0 && (await final.comprobantes(ctx)).length === 1);
+      final.cerrar();
+    });
     await prueba('aislamiento empresa, usuario y dispositivo', async () => {
       const c = await nueva('ambito'); await c.registrar(ctx, 't1', venta('o1'), { numero: 'local' });
       for (const cambio of [{ empresa_id: 'B' }, { usuario_id: 'uB' }, { dispositivo_id: 'dB' }]) {
@@ -140,7 +172,7 @@ try {
         if (!recibido.has(cuerpo.operacion_id)) { cobros++; recibido.set(cuerpo.operacion_id, canonicoCaja(cuerpo)); }
         assert(recibido.get(cuerpo.operacion_id) === canonicoCaja(cuerpo));
         if (perder) throw new Error('respuesta perdida');
-        return { resultado: 'REGISTRADA_CENTRAL', operacion_id: cuerpo.operacion_id, venta_id: 'central' };
+        return { resultado: 'REGISTRADA_CENTRAL', operacion_id: cuerpo.operacion_id, venta_id: '10000000-0000-4000-8000-000000000001', comprobante_id: '10000000-0000-4000-8000-000000000002', numero: 'PRUEBA-01', total_bob: cuerpo.total_bob, recibida_central_en: '2026-11-08T12:01:00Z' };
       }
       await rechaza(() => servidorSimulado(v.venta, true)); assert((await c.pendientes(ctx)).length === 1);
       await c.guardarTurno(ctx, turno('t1')); assert((await c.turnos(ctx))[0].cupos[0].consumido === 1);
@@ -221,7 +253,7 @@ try {
       llamadas.push({ url, cuerpo: JSON.stringify(cuerpo) });
       if (!aceptadas.has(cuerpo.operacion_id)) aceptadas.set(cuerpo.operacion_id, JSON.stringify(cuerpo));
       if (perder) { perder = false; throw new Error('respuesta perdida'); }
-      return { resultado: 'REGISTRADA_CENTRAL', operacion_id: cuerpo.operacion_id, venta_id: 'central' };
+      return { resultado: 'REGISTRADA_CENTRAL', operacion_id: cuerpo.operacion_id, venta_id: '10000000-0000-4000-8000-000000000001', comprobante_id: '10000000-0000-4000-8000-000000000002', numero: 'PRUEBA-01', total_bob: cuerpo.total_bob, recibida_central_en: '2026-11-08T12:01:00Z' };
     }};
     const servicio = new cajaServicioExports.CajaService(http, auth), dispositivo = servicio.obtenerDispositivoId();
     const ahora = Date.now();

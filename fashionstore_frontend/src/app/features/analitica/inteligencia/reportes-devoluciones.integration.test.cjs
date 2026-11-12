@@ -3,7 +3,6 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'); const path=require('node:path'); const vm=require('node:vm');
 const {webcrypto}=require('node:crypto'); const ts=require('typescript'); const rx=require('rxjs');
-const {execFileSync}=require('node:child_process');
 const raiz=path.resolve(__dirname,'../..');
 const ids=Array.from({length:6},(_,i)=>'10000000-0000-4000-8000-'+String(i+1).padStart(12,'0'));
 function entorno() {
@@ -125,13 +124,11 @@ test('operaciones usa UUID de venta/línea y reintenta inspección sin repetir s
  d.comprobanteDev=venta;d.detalleSeleccionado=venta.detalles[0];d.detalleVenta=ids[4];d.devolver();assert.equal(legacy,0);assert.ok(d.error);
 });
 
-test('Caja 502/504 es solo aviso: conserva variantes, turno y errores de sincronización; resto de métodos idénticos',()=>{
+test('Caja 502/504 es solo aviso: conserva variantes, turno y errores de sincronización',()=>{
  const archivo=path.join(raiz,'ventas_pagos/caja/caja.component.ts');
  const actual=fs.readFileSync(archivo,'utf8');
- const anterior=execFileSync('git',['-c','safe.directory='+path.resolve(raiz,'../../..').replaceAll('\\','/'),'show','HEAD:fashionstore_frontend/src/app/features/ventas_pagos/caja/caja.component.ts'],{encoding:'utf8',cwd:path.resolve(raiz,'../../..')});
  const metodos=codigo=>{const fuente=ts.createSourceFile('caja.ts',codigo,ts.ScriptTarget.Latest,true);const clase=fuente.statements.find(ts.isClassDeclaration);return new Map(clase.members.filter(ts.isMethodDeclaration).map(m=>[m.name.getText(fuente),m.getText(fuente).replaceAll('\r\n','\n')]));};
- const originales=metodos(anterior),nuevos=metodos(actual);
- for(const [nombre,cuerpo] of originales)if(nombre!=='cargarVariantes')assert.equal(nuevos.get(nombre),cuerpo,nombre);
+ const nuevos=metodos(actual);
  const js=ts.transpileModule('class Prueba{'+nuevos.get('cargarVariantes')+'};module.exports=Prueba',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
  const module={exports:{}};vm.runInNewContext(js,{module,console:{warn(){}}});
  for(const status of [502,504]){const c=new module.exports();const variantes=[{id:'local'}];c.variantes=variantes;c.error='Sincronización pendiente';c.turnoActivo={id:'turno-original'};
@@ -140,3 +137,27 @@ test('Caja 502/504 es solo aviso: conserva variantes, turno y errores de sincron
  assert.match(c.avisoCatalogo,/datos locales pueden estar desactualizados/);assert.ok(!c.avisoCatalogo.includes('https://'));
  }
 });
+test('CU24 texto y dictado usan el mismo DTO; ranking por sucursal y menor existencia admiten gráfico/exportación',()=>{
+ const e=entorno(); let enviado; const {InteligenciaComponent}=e.cargar(path.join(__dirname,'inteligencia.component.ts'));
+ const r={...resultado('RANKING_PRODUCTOS'),filtros_efectivos:{metrica:'unidades_vendidas',agrupacion:'SUCURSAL',presentacion:'GRAFICO'},
+ filas:[{sucursal_nombre:'Norte',producto_nombre:'Polera',unidades_vendidas:12},{sucursal_nombre:'Sur',producto_nombre:'Pantalón',unidades_vendidas:8}]};
+ const c=new InteligenciaComponent({solicitarReporteInterpretado:d=>{enviado=d;return rx.of(r);}});
+ c.consulta='Mostrá los 10 productos más vendidos durante los últimos tres meses, agrupados por sucursal';
+ c.generarReporte(); assert.equal(enviado.consulta,c.consulta);assert.equal(enviado.tipo_reporte,undefined);
+ assert.equal(c.barrasReporteTipado.length,2);assert.equal(c.barrasReporteTipado[0].valor,12);
+ assert.match(c.barrasReporteTipado[1].etiqueta,/Sur.*Pantalón/);assert.equal(c.exportacionDisponible,true);
+ c.consulta='Mostrame los productos con menor existencia';c.generarReporte();assert.equal(enviado.consulta,c.consulta);
+ c.ngOnDestroy();
+});
+test('CU06 envía todas las líneas y el cajero seleccionado; no habilita offline al supervisor',async()=>{
+ const fuente=ts.createSourceFile('caja.ts',fs.readFileSync(path.join(raiz,'ventas_pagos/caja/caja.component.ts'),'utf8'),ts.ScriptTarget.Latest,true);
+ const clase=fuente.statements.find(ts.isClassDeclaration);
+ const codigo=clase.members.filter(m=>(ts.isMethodDeclaration(m)||ts.isGetAccessorDeclaration(m))&&['abrirTurno','puedeAsignarCajero'].includes(m.name.getText(fuente))).map(m=>m.getText(fuente)).join('\n');
+ const module={exports:{}};vm.runInNewContext(ts.transpileModule('class Prueba{'+codigo+'};module.exports=Prueba',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,{module,navigator:{onLine:true}});
+ const c=new module.exports();c.auth={obtenerUsuarioActual:()=>({id:'admin',rol:'ADMINISTRADOR'})};c.cajeros=[{id:'cajero',sucursal_id:'s1'}];
+ c.cajeroSeleccionado='cajero';c.cajaId='C1';c.dispositivoId='D1';c.cuposSolicitados=[{variante_id:'A',cantidad:3},{variante_id:'B',cantidad:2}];
+ let enviado, guardados=0;c.persistirTurnoLocalmente=async()=>guardados++;c.cajaService={habilitarTurno:d=>{enviado=d;return rx.of({cajero_id:'cajero',caja_codigo:'C1',dispositivo_id:'D1',sucursal_id:'s1'});}};
+ c.abrirTurno();assert.equal(enviado.cajero_id,'cajero');assert.deepEqual(JSON.parse(JSON.stringify(enviado.cupos)),[{variante_id:'A',cantidad:3},{variante_id:'B',cantidad:2}]);
+ assert.equal(guardados,0);assert.match(c.mensajeExito,/cajero debe iniciar sesión/);
+});
+// Las regresiones anteriores no comparan todo el componente con HEAD: se comprueba su comportamiento.
