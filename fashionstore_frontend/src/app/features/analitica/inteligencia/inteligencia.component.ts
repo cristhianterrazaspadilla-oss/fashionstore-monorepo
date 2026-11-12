@@ -91,7 +91,8 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
     { id: 'VENTAS_POR_SUCURSAL', label: 'Ventas por sucursal', desc: 'Consolidado de ingresos y unidades por punto de venta' },
     { id: 'RANKING_PRODUCTOS', label: 'Ranking de productos', desc: 'Prendas más vendidas con ingresos totales' },
     { id: 'EVOLUCION_SEMANAL', label: 'Evolución semanal', desc: 'Serie temporal de transacciones e ingresos por semana' },
-    { id: 'INGRESOS_POR_CATEGORIA', label: 'Ingresos por categoría', desc: 'Distribución de ventas por familias del catálogo' }
+    { id: 'INGRESOS_POR_CATEGORIA', label: 'Ingresos por categoría', desc: 'Distribución de ventas por familias del catálogo' },
+    { id: 'MENOR_EXISTENCIA', label: 'Menor existencia', desc: 'Inventario disponible actual por variante y sucursal' }
   ];
 
   // Secuencia de carga textual intencional
@@ -172,7 +173,8 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
         VENTAS_POR_SUCURSAL: 'Ventas por sucursal',
         RANKING_PRODUCTOS: 'Ranking de prendas más vendidas',
         EVOLUCION_SEMANAL: 'Evolución semanal de ventas',
-        INGRESOS_POR_CATEGORIA: 'Ingresos por categoría'
+        INGRESOS_POR_CATEGORIA: 'Ingresos por categoría',
+        MENOR_EXISTENCIA: 'Menor existencia disponible'
       };
       return titulosTipados[this.reporteTipado.tipo_reporte] || 'Reporte interpretado';
     }
@@ -244,7 +246,7 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
     if (this.escuchando) { this.dictado.detener(); return; }
     if (!this.consulta.trim() || this.generando) return;
     const consulta = this.consulta.trim();
-    if (/(inventario|stock|existencia|agot|reserva)/i.test(consulta)) {
+    if (/reserva/i.test(consulta) || (/(inventario|stock|existencia)/i.test(consulta) && !/(menor|baj[oa]|cr[ií]tic|agot)/i.test(consulta))) {
       this.invalidarReporte();
       const secuencia = this.secuenciaReporte, propietario = this.identidadActual();
       if (this.sucursalReporte || this.desdeReporte || this.hastaReporte) {
@@ -271,6 +273,16 @@ export class InteligenciaComponent implements OnInit, OnDestroy {
   }
 
   exportarCsv(): void { void this.exportar('csv'); }
+  get barrasReporteTipado(): HorizontalBarItem[] {
+    const reporte = this.reporteTipado;
+    if (!reporte) return [];
+    const metrica = String(reporte.filtros_efectivos['metrica'] || 'total_ingresos_bob');
+    return reporte.filas.map(f => ({
+      etiqueta: ['sucursal_nombre', 'producto_nombre', 'categoria_nombre', 'periodo_semanal', 'sku'].map(k => f[k]).filter(Boolean).join(' · '),
+      valor: Number(f[metrica] || 0),
+      valorFormateado: metrica === 'total_ingresos_bob' ? `Bs ${this.formatearMonto(f[metrica])}` : `${f[metrica]} un.`
+    }));
+  }
   async exportar(formato: FormatoReporte): Promise<void> {
     if (!this.exportacionDisponible || this.exportando || !this.reporteTipado) return;
     this.exportando = true; this.errorExportacion = '';

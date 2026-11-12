@@ -78,6 +78,7 @@ TipoReportePermitido = Literal[
     "RANKING_PRODUCTOS",
     "EVOLUCION_SEMANAL",
     "INGRESOS_POR_CATEGORIA",
+    "MENOR_EXISTENCIA",
 ]
 
 
@@ -87,6 +88,12 @@ class ReporteInterpretadoPeticionDTO(BaseModel):
     sucursal_id: Optional[uuid.UUID] = None
     desde: Optional[datetime] = None
     hasta: Optional[datetime] = None
+    categoria_id: Optional[uuid.UUID] = None
+    producto_id: Optional[uuid.UUID] = None
+    agrupacion: Optional[Literal["GLOBAL", "SUCURSAL"]] = None
+    orden: Optional[Literal["ASC", "DESC"]] = None
+    limite: Optional[int] = Field(None, ge=1, le=100)
+    presentacion: Optional[Literal["TABLA", "GRAFICO"]] = None
 
 
 class ReporteInterpretadoResultadoDTO(BaseModel):

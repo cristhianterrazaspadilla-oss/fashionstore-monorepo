@@ -74,7 +74,8 @@ export type TipoReportePermitido =
   | 'VENTAS_POR_SUCURSAL'
   | 'RANKING_PRODUCTOS'
   | 'EVOLUCION_SEMANAL'
-  | 'INGRESOS_POR_CATEGORIA';
+  | 'INGRESOS_POR_CATEGORIA'
+  | 'MENOR_EXISTENCIA';
 
 export interface ReporteInterpretadoPeticionDTO {
   consulta: string;
@@ -82,6 +83,12 @@ export interface ReporteInterpretadoPeticionDTO {
   sucursal_id?: string;
   desde?: string;
   hasta?: string;
+  categoria_id?: string;
+  producto_id?: string;
+  agrupacion?: 'GLOBAL' | 'SUCURSAL';
+  limite?: number;
+  orden?: 'ASC' | 'DESC';
+  presentacion?: 'TABLA' | 'GRAFICO';
 }
 
 export interface ReporteInterpretadoResultadoDTO {

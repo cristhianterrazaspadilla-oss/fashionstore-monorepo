@@ -110,21 +110,18 @@ class IAAnaliticaService:
         )
         return empresa_id
 
-    # ---------------- CU24 Reporte Tipado Interpretado (Solo 4 tipos permitidos, nunca SQL IA) ----------------
+    # ---------------- CU24: tipos permitidos, nunca SQL IA ----------------
     def _clasificar_tipo_reporte(self, consulta: str) -> TipoReportePermitido:
-        c = (consulta or "").lower()
-        if any(w in c for w in ("categoria", "categoría", "rubro", "departamento", "línea")):
-            return "INGRESOS_POR_CATEGORIA"
-        if any(w in c for w in ("semana", "evolucion", "evolución", "tiempo", "mes", "temporal", "tendencia")):
-            return "EVOLUCION_SEMANAL"
-        if any(w in c for w in ("ranking", "top", "mas vendido", "más vendido", "mejores prendas", "productos")):
-            return "RANKING_PRODUCTOS"
-        return "VENTAS_POR_SUCURSAL"
+        from .interpretacion_reportes import tipo_texto, ADMITIDOS
+        tipo = tipo_texto(consulta)
+        if not tipo:
+            raise HTTPException(422, detail=f"FUERA_DE_ALCANCE: Se admiten {ADMITIDOS}.")
+        return tipo
 
     async def _clasificar_con_gemini_o_fallback(
         self, consulta: str
     ) -> Tuple[TipoReportePermitido, str, Optional[datetime], Optional[datetime]]:
-        """Invoca Gemini si está configurado para clasificar a exactamente 1 de 4 tipos.
+        """Invoca Gemini si está configurado para clasificar a exactamente 1 de 5 tipos.
 
         Si no hay API key o la llamada falla, recurre honestamente al clasificador
         determinista y reporta el proveedor efectivamente usado (DETERMINISTA o FALLBACK_DETERMINISTA),
@@ -138,6 +135,7 @@ class IAAnaliticaService:
             "RANKING_PRODUCTOS",
             "EVOLUCION_SEMANAL",
             "INGRESOS_POR_CATEGORIA",
+            "MENOR_EXISTENCIA",
         }
 
         if not settings.GEMINI_API_KEY:
@@ -146,11 +144,13 @@ class IAAnaliticaService:
 
         prompt_clasificacion = (
             "Eres el clasificador de consultas analíticas de FashionStore.\n"
-            "Tu tarea es clasificar la consulta del usuario en EXACTAMENTE UNO de estos 4 tipos permitidos:\n"
+            "Tu tarea es clasificar la consulta del usuario en EXACTAMENTE UNO de estos 5 tipos permitidos:\n"
             "1. VENTAS_POR_SUCURSAL\n"
             "2. RANKING_PRODUCTOS\n"
             "3. EVOLUCION_SEMANAL\n"
-            "4. INGRESOS_POR_CATEGORIA\n\n"
+            "4. INGRESOS_POR_CATEGORIA\n"
+            "5. MENOR_EXISTENCIA\n"
+            "Un ranking con meses sigue siendo RANKING_PRODUCTOS, no evolución semanal.\n\n"
             "Además, si el usuario menciona un rango o fecha, extrae 'desde' o 'hasta' en formato ISO YYYY-MM-DD (o null si no hay).\n"
             "Responde ÚNICAMENTE un JSON válido con esta estructura:\n"
             '{"tipo_reporte": "...", "desde": null, "hasta": null}\n\n'
@@ -237,199 +237,33 @@ class IAAnaliticaService:
         self, usuario: Usuario, datos: ReporteInterpretadoPeticionDTO
     ) -> ReporteInterpretadoResultadoDTO:
         empresa_id = await self._autorizar_reporte(usuario)
-        sucursal = None
-        if datos.sucursal_id:
-            sucursal = await sucursal_autorizada(self.db, usuario, datos.sucursal_id)
-
         motivo = rechazar_inyeccion(datos.consulta)
         if motivo:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Consulta rechazada por seguridad: {motivo}",
-            )
-
+            raise HTTPException(status_code=400, detail=f"Consulta rechazada por seguridad: {motivo}")
+        from .interpretacion_reportes import interpretar
+        from .consulta_reportes import resolver_filtros, consultar
+        from backend.app.core.config import settings
         inicio = time.monotonic()
-        if datos.tipo_reporte:
-            tipo_final: TipoReportePermitido = datos.tipo_reporte
-            proveedor_usado = "DETERMINISTA"
-        else:
-            tipo_final, proveedor_usado, gemini_desde, gemini_hasta = await self._clasificar_con_gemini_o_fallback(datos.consulta)
-            if datos.desde is None and gemini_desde is not None:
-                datos.desde = gemini_desde
-            if datos.hasta is None and gemini_hasta is not None:
-                datos.hasta = gemini_hasta
-
-        from backend.app.core.reloj import entrada_local_a_utc
-        if datos.desde is not None:
-            datos.desde = entrada_local_a_utc(datos.desde)
-        if datos.hasta is not None:
-            datos.hasta = entrada_local_a_utc(datos.hasta)
-        if datos.desde is not None and datos.hasta is not None and datos.desde > datos.hasta:
-            raise HTTPException(status_code=400, detail="Rango inválido: desde debe ser menor o igual a hasta")
-
+        datos = interpretar(datos, self.reloj.ahora())
+        sucursal = await resolver_filtros(self.db, usuario, datos, empresa_id)
+        tipo_final = datos.tipo_reporte
+        # El candidato Gemini se contrasta con el plan validado: nunca cambia el
+        # tenant, el período resuelto por reloj civil ni las consultas permitidas.
+        proveedor_usado = "DETERMINISTA"
+        if settings.GEMINI_API_KEY:
+            try:
+                candidato, motor, _, _ = await self._clasificar_con_gemini_o_fallback(datos.consulta)
+                proveedor_usado = motor if candidato == tipo_final else "FALLBACK_DETERMINISTA"
+            except HTTPException:
+                proveedor_usado = "FALLBACK_DETERMINISTA"  # El DTO explícito ya fue validado.
         consulta_id = uuid.uuid4()
-
-        columnas: List[str] = []
-        filas: List[Dict[str, Any]] = []
-        totales: Dict[str, Any] = {}
-        grafico_sugerido = "BARRA_HORIZONTAL"
-
-        if tipo_final == "VENTAS_POR_SUCURSAL":
-            grafico_sugerido = "BARRA_HORIZONTAL"
-            columnas = ["sucursal_nombre", "total_ventas", "unidades_vendidas", "total_ingresos_bob"]
-            unidades_por_venta = (
-                select(DetalleVenta.venta_id, func.sum(DetalleVenta.cantidad).label("unidades"))
-                .group_by(DetalleVenta.venta_id).subquery()
-            )
-            q = (
-                select(
-                    Sucursal.nombre,
-                    func.count(Venta.id).label("total_ventas"),
-                    func.coalesce(func.sum(unidades_por_venta.c.unidades), 0).label("unidades_vendidas"),
-                    func.coalesce(func.sum(Venta.total), 0).label("total_ingresos"),
-                )
-                .join(Venta, Venta.sucursal_id == Sucursal.id)
-                .outerjoin(unidades_por_venta, unidades_por_venta.c.venta_id == Venta.id)
-                .where(Venta.empresa_id == empresa_id, Sucursal.empresa_id == empresa_id, Venta.estado == "PAGADA")
-            )
-            if datos.sucursal_id:
-                q = q.where(Venta.sucursal_id == datos.sucursal_id)
-            if datos.desde:
-                q = q.where(Venta.creada_en >= datos.desde)
-            if datos.hasta:
-                q = q.where(Venta.creada_en <= datos.hasta)
-            q = q.group_by(Sucursal.id, Sucursal.nombre).order_by(Sucursal.nombre)
-            res = (await self.db.execute(q)).all()
-            total_ing = Decimal("0")
-            total_uds = 0
-            total_ventas = 0
-            for r in res:
-                ing = Decimal(str(r[3] or 0))
-                uds = int(r[2] or 0)
-                total_ing += ing
-                total_uds += uds
-                total_ventas += int(r[1] or 0)
-                filas.append({
-                    "sucursal_nombre": r[0],
-                    "total_ventas": int(r[1] or 0),
-                    "unidades_vendidas": uds,
-                    "total_ingresos_bob": float(ing),
-                })
-            totales = {"total_general_ingresos_bob": float(total_ing), "total_ingresos_bob": float(total_ing),
-                       "total_unidades": total_uds, "total_ventas": total_ventas}
-
-        elif tipo_final == "RANKING_PRODUCTOS":
-            grafico_sugerido = "BARRA_VERTICAL"
-            columnas = ["producto_nombre", "unidades_vendidas", "total_ingresos_bob"]
-            q = (
-                select(
-                    Producto.nombre,
-                    func.coalesce(func.sum(DetalleVenta.cantidad), 0).label("uds"),
-                    func.coalesce(func.sum(DetalleVenta.precio_unitario * DetalleVenta.cantidad), 0).label("ing"),
-                )
-                .join(VarianteProducto, VarianteProducto.producto_id == Producto.id)
-                .join(DetalleVenta, DetalleVenta.variante_id == VarianteProducto.id)
-                .join(Venta, Venta.id == DetalleVenta.venta_id)
-                .where(Venta.empresa_id == empresa_id, Producto.empresa_id == empresa_id,
-                       VarianteProducto.empresa_id == empresa_id, Venta.estado == "PAGADA")
-            )
-            if datos.sucursal_id:
-                q = q.where(Venta.sucursal_id == datos.sucursal_id)
-            if datos.desde:
-                q = q.where(Venta.creada_en >= datos.desde)
-            if datos.hasta:
-                q = q.where(Venta.creada_en <= datos.hasta)
-            q = q.group_by(Producto.id, Producto.nombre).order_by(func.sum(DetalleVenta.cantidad).desc()).limit(15)
-            res = (await self.db.execute(q)).all()
-            total_ing = Decimal("0")
-            total_uds = 0
-            for r in res:
-                ing = Decimal(str(r[2] or 0))
-                uds = int(r[1] or 0)
-                total_ing += ing
-                total_uds += uds
-                filas.append({
-                    "producto_nombre": r[0],
-                    "unidades_vendidas": uds,
-                    "total_ingresos_bob": float(ing),
-                })
-            totales = {"total_unidades": total_uds, "total_ingresos_bob": float(total_ing)}
-
-        elif tipo_final == "EVOLUCION_SEMANAL":
-            grafico_sugerido = "LINEA_TEMPORAL"
-            columnas = ["periodo_semanal", "cantidad_ventas", "total_ingresos_bob"]
-            q = (
-                select(
-                    func.to_char(func.timezone('America/La_Paz', Venta.creada_en), 'YYYY-WW').label("semana"),
-                    func.count(Venta.id).label("cnt"),
-                    func.coalesce(func.sum(Venta.total), 0).label("tot"),
-                )
-                .where(Venta.empresa_id == empresa_id, Venta.estado == "PAGADA")
-            )
-            if datos.sucursal_id:
-                q = q.where(Venta.sucursal_id == datos.sucursal_id)
-            if datos.desde:
-                q = q.where(Venta.creada_en >= datos.desde)
-            if datos.hasta:
-                q = q.where(Venta.creada_en <= datos.hasta)
-            q = q.group_by("semana").order_by("semana")
-            res = (await self.db.execute(q)).all()
-            total_ing = Decimal("0")
-            total_cnt = 0
-            for r in res:
-                ing = Decimal(str(r[2] or 0))
-                cnt = int(r[1] or 0)
-                total_ing += ing
-                total_cnt += cnt
-                filas.append({
-                    "periodo_semanal": f"Semana {r[0]}",
-                    "cantidad_ventas": cnt,
-                    "total_ingresos_bob": float(ing),
-                })
-            totales = {"total_ventas": total_cnt, "total_ingresos_bob": float(total_ing)}
-
-        elif tipo_final == "INGRESOS_POR_CATEGORIA":
-            grafico_sugerido = "DONA_CIRCULAR"
-            columnas = ["categoria_nombre", "unidades_vendidas", "total_ingresos_bob"]
-            q = (
-                select(
-                    Categoria.nombre,
-                    func.coalesce(func.sum(DetalleVenta.cantidad), 0).label("uds"),
-                    func.coalesce(func.sum(DetalleVenta.precio_unitario * DetalleVenta.cantidad), 0).label("ing"),
-                )
-                .join(Producto, Producto.categoria_id == Categoria.id)
-                .join(VarianteProducto, VarianteProducto.producto_id == Producto.id)
-                .join(DetalleVenta, DetalleVenta.variante_id == VarianteProducto.id)
-                .join(Venta, Venta.id == DetalleVenta.venta_id)
-                .where(Venta.empresa_id == empresa_id, Producto.empresa_id == empresa_id,
-                       VarianteProducto.empresa_id == empresa_id, Categoria.empresa_id == empresa_id,
-                       Venta.estado == "PAGADA")
-            )
-            if datos.sucursal_id:
-                q = q.where(Venta.sucursal_id == datos.sucursal_id)
-            if datos.desde:
-                q = q.where(Venta.creada_en >= datos.desde)
-            if datos.hasta:
-                q = q.where(Venta.creada_en <= datos.hasta)
-            q = q.group_by(Categoria.id, Categoria.nombre).order_by(func.sum(DetalleVenta.cantidad).desc())
-            res = (await self.db.execute(q)).all()
-            total_ing = Decimal("0")
-            total_uds = 0
-            for r in res:
-                ing = Decimal(str(r[2] or 0))
-                uds = int(r[1] or 0)
-                total_ing += ing
-                total_uds += uds
-                filas.append({
-                    "categoria_nombre": r[0],
-                    "unidades_vendidas": uds,
-                    "total_ingresos_bob": float(ing),
-                })
-            totales = {"total_unidades": total_uds, "total_ingresos_bob": float(total_ing)}
+        columnas, filas, totales, grafico_sugerido = await consultar(self.db, datos, empresa_id)
+        if datos.presentacion == "TABLA":
+            grafico_sugerido = "TABLA"
 
         latencia = int((time.monotonic() - inicio) * 1000)
         narrativa_origen = "DETERMINISTA"
-        if proveedor_usado.startswith("GEMINI"):
+        if settings.GEMINI_API_KEY:
             narrativa_ia = await self._generar_narrativa_gemini(tipo_final, filas, totales)
             narrativa_origen = "GEMINI" if narrativa_ia else "FALLBACK_DETERMINISTA"
             narrativa = narrativa_ia or f"Explicación IA no disponible. El cálculo con datos reales produjo {len(filas)} registros consolidados."
@@ -442,9 +276,8 @@ class IAAnaliticaService:
             tipo="REPORTE",
             entrada=datos.consulta,
             funcion=tipo_final,
-            parametros={"tipo": tipo_final, "sucursal_id": str(datos.sucursal_id) if datos.sucursal_id else None,
-                        "desde": datos.desde.isoformat() if datos.desde else None,
-                        "hasta": datos.hasta.isoformat() if datos.hasta else None},
+            parametros={**datos.model_dump(mode="json", exclude={"consulta"}), "tipo": tipo_final,
+                        "empresa_id": str(empresa_id), "zona_horaria": "America/La_Paz"},
             respuesta=narrativa,
             datos={"filas": filas, "totales": totales},
             latencia_ms=latencia,
@@ -464,6 +297,15 @@ class IAAnaliticaService:
                 "sucursal_nombre": sucursal.nombre if sucursal else None,
                 "proveedor": proveedor_usado,
                 "narrativa_origen": narrativa_origen,
+                "agrupacion": datos.agrupacion,
+                "limite": datos.limite,
+                "orden": datos.orden,
+                "presentacion": datos.presentacion,
+                "categoria_id": str(datos.categoria_id) if datos.categoria_id else None,
+                "producto_id": str(datos.producto_id) if datos.producto_id else None,
+                "zona_horaria": "America/La_Paz",
+                "periodo": "Inventario actual" if tipo_final == "MENOR_EXISTENCIA" else ("Histórico completo" if not datos.desde and not datos.hasta else "Fechas efectivas indicadas"),
+                "metrica": "disponible" if tipo_final == "MENOR_EXISTENCIA" else ("unidades_vendidas" if tipo_final == "RANKING_PRODUCTOS" else "total_ingresos_bob"),
                 "desde": datos.desde.isoformat() if datos.desde else None,
                 "hasta": datos.hasta.isoformat() if datos.hasta else None,
             },
