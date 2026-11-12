@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy import select, or_, and_, text, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.app.core.reloj import utcnow, asegurar_utc
 from backend.app.core.permisos import exigir_sucursal
@@ -90,8 +91,24 @@ class CajaService:
     ) -> TurnoHabilitacionDTO:
         self._validar_rol_caja(usuario, permitir_cajero=True)
 
+        titular = usuario
+        if dto.cajero_id and dto.cajero_id != usuario.id:
+            if (usuario.rol.nombre if usuario.rol else "").upper() != "ADMINISTRADOR":
+                raise HTTPException(403, detail="Solo el administrador empresarial puede asignar otro cajero")
+            titular = (await self.db.execute(select(Usuario).where(
+                Usuario.id == dto.cajero_id, Usuario.empresa_id == usuario.empresa_id,
+                Usuario.estado == "ACTIVO"
+            ).options(selectinload(Usuario.rol), selectinload(Usuario.empleado)))).scalars().first()
+            if titular is None or not titular.rol or titular.rol.nombre.upper() != "CAJERO":
+                raise HTTPException(403, detail="Cajero activo de la empresa requerido")
+            exigir_sucursal(titular, dto.sucursal_id)
+        if len({c.variante_id for c in dto.cupos}) != len(dto.cupos):
+            raise HTTPException(422, detail="Cada variante debe aparecer una sola vez en la habilitación")
+
         # 0. Idempotencia durable (CU06)
         payload_dict = dto.model_dump(mode="json") if hasattr(dto, "model_dump") else dto.dict()
+        if payload_dict.get("cajero_id") is None:
+            payload_dict.pop("cajero_id", None)  # Conserva el hash de habilitaciones anteriores.
         hash_sol = hash_payload(payload_dict)
         previo = await reclamar(
             self.db,
@@ -177,7 +194,7 @@ class CajaService:
             id=turno_id,
             empresa_id=usuario.empresa_id,
             sucursal_id=dto.sucursal_id,
-            cajero_id=usuario.id,
+            cajero_id=titular.id,
             dispositivo_id=dto.dispositivo_id,
             caja_codigo=dto.caja_id,
             estado="ABIERTO",
@@ -202,7 +219,10 @@ class CajaService:
             var_q = (
                 select(VarianteProducto, Producto)
                 .join(Producto, Producto.id == VarianteProducto.producto_id)
-                .where(VarianteProducto.id == c.variante_id)
+                .options(selectinload(VarianteProducto.talla), selectinload(VarianteProducto.color))
+                .where(VarianteProducto.id == c.variante_id,
+                       VarianteProducto.empresa_id == usuario.empresa_id,
+                       Producto.empresa_id == usuario.empresa_id)
             )
             var_res = (await self.db.execute(var_q)).first()
             if not var_res:
@@ -257,6 +277,8 @@ class CajaService:
                     variante_id=c.variante_id,
                     sku=var.sku,
                     producto_nombre=prod.nombre,
+                    talla=var.talla.nombre if var.talla and var.talla.empresa_id == var.empresa_id else None,
+                    color=var.color.nombre if var.color and var.color.empresa_id == var.empresa_id else None,
                     otorgado=c.cantidad,
                     consumido=0,
                     liberado=0,
@@ -281,7 +303,7 @@ class CajaService:
             caja_codigo=dto.caja_id,
             dispositivo_id=dto.dispositivo_id,
             sucursal_id=dto.sucursal_id,
-            cajero_id=usuario.id,
+            cajero_id=titular.id,
             estado="ABIERTO",
             inicio_en=ahora,
             vence_en=vence,
@@ -1072,6 +1094,7 @@ class CajaService:
             select(CupoCaja, VarianteProducto, Producto)
             .join(VarianteProducto, VarianteProducto.id == CupoCaja.variante_id)
             .join(Producto, Producto.id == VarianteProducto.producto_id)
+            .options(selectinload(VarianteProducto.talla), selectinload(VarianteProducto.color))
             .where(CupoCaja.turno_id == turno.id, CupoCaja.empresa_id == turno.empresa_id,
                    VarianteProducto.empresa_id == turno.empresa_id, Producto.empresa_id == turno.empresa_id)
         )
@@ -1084,6 +1107,8 @@ class CajaService:
                     variante_id=cupo.variante_id,
                     sku=var.sku,
                     producto_nombre=prod.nombre,
+                    talla=var.talla.nombre if var.talla and var.talla.empresa_id == var.empresa_id else None,
+                    color=var.color.nombre if var.color and var.color.empresa_id == var.empresa_id else None,
                     otorgado=cupo.otorgado,
                     consumido=cupo.consumido,
                     liberado=cupo.liberado,
@@ -1126,6 +1151,17 @@ class CajaService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno de caja no encontrado")
         self._validar_rol_caja(usuario, permitir_cajero=True, turno=turno)
         return await self._serializar_turno(turno)
+
+    async def listar_conciliacion(self, usuario: Usuario) -> List[TurnoHabilitacionDTO]:
+        self._validar_rol_caja(usuario, permitir_cajero=False)
+        q = select(TurnoCaja).where(TurnoCaja.empresa_id == usuario.empresa_id,
+                                   TurnoCaja.estado == "CONCILIACION")
+        if usuario.rol.nombre.upper() == "ENCARGADO":
+            sucursal_id = usuario.empleado.sucursal_id if usuario.empleado else None
+            exigir_sucursal(usuario, sucursal_id)
+            q = q.where(TurnoCaja.sucursal_id == sucursal_id)
+        turnos = (await self.db.execute(q.order_by(TurnoCaja.inicio_en.desc()))).scalars().all()
+        return [await self._serializar_turno(t) for t in turnos]
 
     async def obtener_turno_activo(
         self, usuario: Usuario, dispositivo_id: Optional[uuid.UUID] = None

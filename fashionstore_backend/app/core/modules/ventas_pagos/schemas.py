@@ -244,10 +244,11 @@ class TransicionPedidoDTO(BaseModel):
 
 class CupoItemDTO(BaseModel):
     variante_id: uuid.UUID = Field(..., description="ID de la variante")
-    cantidad: int = Field(..., gt=0, description="Cantidad exclusiva para la caja")
+    cantidad: int = Field(..., gt=0, strict=True, description="Cantidad exclusiva para la caja")
 
 
 class TurnoCrearDTO(BaseModel):
+    cajero_id: Optional[uuid.UUID] = None
     caja_id: str = Field(..., max_length=80, description="Código de la caja física")
     dispositivo_id: uuid.UUID = Field(..., description="Identificador único del dispositivo")
     sucursal_id: uuid.UUID = Field(..., description="Sucursal de operación")
@@ -256,6 +257,8 @@ class TurnoCrearDTO(BaseModel):
 
 
 class CupoRespuestaDTO(BaseModel):
+    talla: Optional[str] = None
+    color: Optional[str] = None
     variante_id: uuid.UUID
     sku: Optional[str] = None
     producto_nombre: Optional[str] = None

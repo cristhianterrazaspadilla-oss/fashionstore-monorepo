@@ -12,6 +12,7 @@ export interface CupoItem {
 }
 
 export interface TurnoCrear {
+  cajero_id?: string;
   caja_id: string;
   dispositivo_id: string; // UUID v4 obligatorio para evitar error 422
   sucursal_id: string;
@@ -20,6 +21,8 @@ export interface TurnoCrear {
 }
 
 export interface CupoRespuesta {
+  talla?: string;
+  color?: string;
   variante_id: string;
   sku?: string;
   producto_nombre?: string;
@@ -178,6 +181,10 @@ export class CajaService {
 
   consultarTurno(turnoId: string): Observable<TurnoHabilitacion> {
     return this.http.get<TurnoHabilitacion>(`${this.api}/cajas/turnos/${turnoId}`);
+  }
+
+  listarConciliacion(): Observable<TurnoHabilitacion[]> {
+    return this.http.get<TurnoHabilitacion[]>(`${this.api}/cajas/turnos/conciliacion`);
   }
 
   registrarVentaOffline(turnoId: string, dto: VentaOfflineCrear): Observable<VentaOfflineResultado> {

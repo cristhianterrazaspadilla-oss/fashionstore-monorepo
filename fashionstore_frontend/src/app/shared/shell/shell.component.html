@@ -6,6 +6,7 @@
 
   <!-- Navegacion principal de escritorio organizada por rol -->
   <nav class="nav-links" aria-label="Navegación principal">
+    <a *ngIf="puedeVerCaja() && !esAdmin() && !esCajero()" routerLink="/caja" routerLinkActive="active" class="nav-item">Caja y Turnos</a>
     <ng-container *ngIf="esPlataforma()">
       <a routerLink="/plataforma" routerLinkActive="active" class="nav-item">Panel de plataforma</a>
     </ng-container>
@@ -289,10 +290,10 @@
   <button type="button" (click)="instalarAplicacion()">Instalar</button>
 </div>
 <main class="main-content">
-  <section *ngIf="sinConexion && !enCatalogo" class="pwa-offline" role="status">
+  <section *ngIf="sinConexion && !enCatalogo && !enCaja" class="pwa-offline" role="status">
     <h1>Sin conexión</h1>
     <p>Puedes consultar el catálogo descargado y guardar una solicitud de pedido en este dispositivo. El stock, el precio y el pago se verificarán al reconectar.</p>
     <a routerLink="/catalogo">Ver catálogo guardado</a>
   </section>
-  <router-outlet *ngIf="!sinConexion || enCatalogo"></router-outlet>
+  <router-outlet *ngIf="!sinConexion || enCatalogo || enCaja"></router-outlet>
 </main>

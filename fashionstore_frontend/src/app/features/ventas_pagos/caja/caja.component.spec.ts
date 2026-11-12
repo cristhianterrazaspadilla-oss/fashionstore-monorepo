@@ -7,6 +7,7 @@ import { StripeService } from '../services/stripe.service';
 import { OrdenActivaCajaDTO } from '../models/venta-presencial.models';
 import { ReservaTrasladoService } from '../../reservas_traslados/services/reserva-traslado.service';
 import { AuthService } from '../../identidad_empresas/services/auth.service';
+import { UsuarioService } from '../../identidad_empresas/services/usuario.service';
 import { ProductoService } from '../../catalogo/services/producto.service';
 
 // Doble de persistencia para pruebas de interfaz; IDB real se prueba en tests_aislados_caja.
@@ -132,7 +133,9 @@ describe('CajaComponent (Persistencia Transaccional, Conciliación y Reintentos)
 
     cajaServiceSpy.obtenerDispositivoId.and.returnValue(mockUUID);
     cajaServiceSpy.obtenerTurnoLocal.and.resolveTo(mockTurno);
-    cajaServiceSpy.guardarTurnoLocal.and.resolveTo();
+    cajaServiceSpy.guardarTurnoLocal.and.callFake(async t => {
+      cajaServiceSpy.obtenerTurnoLocal.and.resolveTo(structuredClone(t));
+    });
     cajaServiceSpy.limpiarTurnoLocal.and.resolveTo();
     cajaServiceSpy.consultarTurnoActivo.and.returnValue(of(mockTurno));
     cajaServiceSpy.consultarTurno.and.returnValue(of(mockTurno));
@@ -166,6 +169,7 @@ describe('CajaComponent (Persistencia Transaccional, Conciliación y Reintentos)
       imports: [CajaComponent],
       providers: [
         { provide: CajaService, useValue: cajaServiceSpy },
+        { provide: UsuarioService, useValue: { gestionarUsuarios: () => of([]) } },
         { provide: VentaPresencialService, useValue: ventaPresencialSpy },
         { provide: ReservaTrasladoService, useValue: reservaServiceSpy },
         { provide: AuthService, useValue: authServiceSpy },
@@ -177,6 +181,7 @@ describe('CajaComponent (Persistencia Transaccional, Conciliación y Reintentos)
     fixture = TestBed.createComponent(CajaComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+    await fixture.whenStable();
   });
 
   it('debe inicializarse con dispositivo_id en formato UUID v4 y turno activo desde almacenamiento canónico', fakeAsync(() => {
@@ -499,10 +504,10 @@ describe('CajaComponent (Persistencia Transaccional, Conciliación y Reintentos)
   describe('Persistencia Garantizada de Apertura de Turno', () => {
     beforeEach(() => {
       authServiceSpy.obtenerUsuarioActual.and.returnValue({
-        id: 'usr-1',
+        id: mockTurno.cajero_id,
         email: 'cajero@fashionstore.test',
         nombre: 'Cajero Prueba',
-        rol: 'VENDEDOR',
+        rol: 'CAJERO',
         activo: true,
         sucursal_id: 'suc-111'
       } as any);
@@ -520,7 +525,7 @@ describe('CajaComponent (Persistencia Transaccional, Conciliación y Reintentos)
       // Comprobaciones críticas
       expect(component.turnoActivo).toBeNull();
       expect(component.turnoPendienteRecuperacion as any).toEqual(mockTurno);
-      expect(component.error).toContain('Fallo transaccional');
+      expect(component.error).toContain('no se pudo guardar el turno');
       expect(component.mensajeExito).toBe('');
 
       // Comprobación de que no se permiten cobros offline en este estado

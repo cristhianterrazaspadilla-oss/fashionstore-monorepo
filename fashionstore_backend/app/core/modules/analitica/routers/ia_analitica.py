@@ -24,9 +24,9 @@ router = APIRouter()
     response_model=ReporteInterpretadoResultadoDTO,
     status_code=status.HTTP_200_OK,
     summary="Reporte tipado interpretado (CU24)",
-    description="Solo Administrador empresarial con capacidad de reportes generativos. Interpreta consultas a 4 tipos permitidos, "
+    description="Solo Administrador empresarial con capacidad de reportes generativos. Interpreta consultas a 5 tipos permitidos, "
     "ejecuta consultas tipadas parametrizadas (nunca SQL generado por IA) y persiste snapshot.",
-    responses={400: E400, 401: E401, 403: E403, 404: E404},
+    responses={400: E400, 401: E401, 403: E403, 404: E404, 422: E422},
 )
 async def solicitarReporteInterpretado(
     datos: ReporteInterpretadoPeticionDTO,

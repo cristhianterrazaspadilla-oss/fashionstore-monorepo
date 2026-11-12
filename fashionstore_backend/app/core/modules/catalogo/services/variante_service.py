@@ -2,8 +2,9 @@ import uuid
 from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
 from sqlalchemy.exc import IntegrityError
-from backend.app.core.modules.catalogo.models import VarianteProducto
+from backend.app.core.modules.catalogo.models import VarianteProducto, Producto, Talla, Color
 from backend.app.core.modules.catalogo.schemas import VarianteCrearDTO, VarianteDTO, VarianteActualizarDTO, VariantePublicaDTO
 from backend.app.core.modules.catalogo.repositories.variante_repository import VarianteRepository
 from backend.app.core.modules.catalogo.repositories.producto_repository import ProductoRepository
@@ -108,7 +109,16 @@ class VarianteService:
             offset=offset,
             empresa_id=empresa_id,
         )
-        return [VarianteDTO.model_validate(v) for v in variantes]
+        etiquetas = await self._etiquetas(variantes)
+        return [VarianteDTO.model_validate(v).model_copy(update=etiquetas.get(v.id, {})) for v in variantes]
+
+    async def _etiquetas(self, variantes):
+        nombres = (await self.db.execute(select(VarianteProducto.id, Producto.nombre, Talla.nombre, Color.nombre)
+            .outerjoin(Producto, and_(Producto.id == VarianteProducto.producto_id, Producto.empresa_id == VarianteProducto.empresa_id))
+            .outerjoin(Talla, and_(Talla.id == VarianteProducto.talla_id, Talla.empresa_id == VarianteProducto.empresa_id))
+            .outerjoin(Color, and_(Color.id == VarianteProducto.color_id, Color.empresa_id == VarianteProducto.empresa_id))
+            .where(VarianteProducto.id.in_([v.id for v in variantes])))).all()
+        return {vid: dict(producto_nombre=p, talla_nombre=t, color_nombre=c) for vid, p, t, c in nombres}
 
     async def listarPublico(
         self,
@@ -125,7 +135,8 @@ class VarianteService:
             offset=offset,
             empresa_id=empresa_id,
         )
-        return [VariantePublicaDTO.model_validate(v) for v in variantes]
+        etiquetas = await self._etiquetas(variantes)
+        return [VariantePublicaDTO.model_validate(v).model_copy(update=etiquetas.get(v.id, {})) for v in variantes]
 
     async def obtenerPorId(self, variante_id: uuid.UUID, empresa_id: Optional[uuid.UUID] = None) -> VarianteDTO:
         variante = await self.variante_repo.buscarPorId(variante_id)

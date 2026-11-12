@@ -13,6 +13,8 @@ import {
   ComprobanteCajaOffline
 } from '../services/caja.service';
 import { AuthService } from '../../identidad_empresas/services/auth.service';
+import { UsuarioService } from '../../identidad_empresas/services/usuario.service';
+import { UsuarioListadoDTO } from '../../identidad_empresas/models/usuario.models';
 import { ProductoService } from '../../catalogo/services/producto.service';
 import { Reserva } from '../../reservas_traslados/models/reserva-traslado.models';
 import {
@@ -70,6 +72,10 @@ export class CajaComponent implements OnInit, OnDestroy {
   turnoActivo: TurnoHabilitacion | null = null;
   turnoPendienteRecuperacion: TurnoHabilitacion | null = null;
   cajaId = 'CAJA-01';
+  cajeroSeleccionado = '';
+  cajeros: UsuarioListadoDTO[] = [];
+  private readonly usuarios = inject(UsuarioService);
+  get puedeAsignarCajero(): boolean { return this.auth.obtenerUsuarioActual()?.rol === 'ADMINISTRADOR'; }
   dispositivoId = '';
   cupoVarianteSeleccionada = '';
   cupoCantidadSolicitada = 1;
@@ -82,6 +88,9 @@ export class CajaComponent implements OnInit, OnDestroy {
   efectivoRecibido = 0;
   cambioEntregado = 0;
   ventasPendientesSync = 0;
+  pendientesPorVariante: Record<string, number> = {};
+  etiquetaCupo(c: CupoRespuesta): string { return [c.producto_nombre, c.talla, c.color, c.sku].filter(Boolean).join(' · ') || this.v(c.variante_id); }
+  disponibleCupo(c: CupoRespuesta): number { return c.otorgado - c.consumido - c.liberado - (c.mermado || 0); }
   comprobanteOffline?: ComprobanteCajaOffline;
   operacionIdActual: string | null = null;
   medioPagoCaja: 'EFECTIVO' | 'SALDO' | 'STRIPE_TEST' = 'EFECTIVO';
@@ -112,6 +121,41 @@ export class CajaComponent implements OnInit, OnDestroy {
   // Cierre de Turno y Arqueo
   mostrarDialogoCierre = false;
   cierreSupervisado = false;
+  supervisandoTurno = false;
+  turnosConciliacion: TurnoHabilitacion[] = [];
+  errorSupervision = '';
+  private turnoOperacionPrevio: TurnoHabilitacion | null = null;
+
+  cargarConciliaciones(): void {
+    if (!this.puedeSupervisarCierre || !navigator.onLine) return;
+    this.cajaService.listarConciliacion().subscribe({
+      next: turnos => { this.turnosConciliacion = turnos; this.errorSupervision = ''; },
+      error: e => this.errorSupervision = this.msg(e)
+    });
+  }
+
+  async resolverTurnoSupervisado(turno: TurnoHabilitacion): Promise<void> {
+    if (!this.puedeSupervisarCierre || !navigator.onLine || this.procesando) return;
+    try {
+      const actualizado = await firstValueFrom(this.cajaService.consultarTurno(turno.turno_id));
+      if (actualizado.estado !== 'CONCILIACION') {
+        this.errorSupervision = 'El turno cambió de estado. Actualiza la lista.';
+        this.cargarConciliaciones();
+        return;
+      }
+      this.turnoOperacionPrevio = this.turnoActivo;
+      this.supervisandoTurno = true;
+      this.vistaModo = 'TURNO_OFFLINE';
+      this.turnoActivo = actualizado; // Consulta de supervisión en memoria, sin habilitación offline.
+      this.abrirModalCierre(true);
+    } catch (e) { this.errorSupervision = this.msg(e); }
+  }
+
+  volverAMiCaja(): void {
+    if (this.supervisandoTurno) this.turnoActivo = this.turnoOperacionPrevio;
+    this.turnoOperacionPrevio = null;
+    this.supervisandoTurno = false;
+  }
   arqueoEfectivoBob = 0;
   motivoSupervision = '';
   referenciaActa = '';
@@ -130,10 +174,17 @@ export class CajaComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     this.dispositivoId = this.cajaService.obtenerDispositivoId();
     this.cargarVariantes();
+    if (this.puedeAsignarCajero && navigator.onLine) {
+      this.usuarios.gestionarUsuarios(undefined, 'ACTIVO').subscribe({
+        next: usuarios => this.cajeros = usuarios.filter(u => u.rol_nombre === 'CAJERO' && !!u.sucursal_id),
+        error: e => this.error = this.msg(e)
+      });
+    }
     await this.cargarTurnoActivo();
     await this.actualizarContadorPendientes();
     this.diagnosticoLegado = (await this.cajaService.diagnosticosRecuperacion()).join(' ');
     this.recuperarOrdenActivaCaja();
+    this.cargarConciliaciones();
   }
 
   cargarVariantes() {
@@ -164,6 +215,10 @@ export class CajaComponent implements OnInit, OnDestroy {
       this.cajaService.consultarTurnoActivo(this.dispositivoId).subscribe({
         next: async t => {
           if (t && (t.estado === 'ABIERTO' || t.estado === 'CONCILIACION')) {
+            if (t.cajero_id !== this.auth.obtenerUsuarioActual()?.id || t.dispositivo_id !== this.dispositivoId) {
+              this.turnoPendienteRecuperacion = null;
+              return; // Se consulta desde la lista de supervisión, no se persiste como caja propia.
+            }
             if (this.turnoActivo && this.turnoActivo.turno_id === t.turno_id) {
               t.ultima_secuencia_local = this.turnoActivo.ultima_secuencia_local ?? 0;
               t.total_operaciones_locales = this.turnoActivo.total_operaciones_locales ?? 0;
@@ -201,6 +256,12 @@ export class CajaComponent implements OnInit, OnDestroy {
   async actualizarContadorPendientes() {
     const pendientes = await this.cajaService.obtenerVentasOfflinePendientes();
     this.ventasPendientesSync = pendientes ? pendientes.length : 0;
+    this.pendientesPorVariante = {};
+    for (const p of pendientes || []) if (p['turno_id'] === this.turnoActivo?.turno_id) {
+      for (const l of p['cuerpo']?.lineas || []) {
+        this.pendientesPorVariante[l.variante_id] = (this.pendientesPorVariante[l.variante_id] || 0) + l.cantidad;
+      }
+    }
   }
 
   /**
@@ -389,7 +450,7 @@ export class CajaComponent implements OnInit, OnDestroy {
       this.error = 'Seleccione una prenda para solicitar cupo.';
       return;
     }
-    if (this.cupoCantidadSolicitada < 1) {
+    if (!Number.isInteger(this.cupoCantidadSolicitada) || this.cupoCantidadSolicitada < 1) {
       this.error = 'La cantidad debe ser mayor a 0.';
       return;
     }
@@ -412,10 +473,12 @@ export class CajaComponent implements OnInit, OnDestroy {
 
   abrirTurno() {
     const u = this.auth.obtenerUsuarioActual();
+    const cajero = this.cajeros.find(c => c.id === this.cajeroSeleccionado);
+    const sucursalId = this.puedeAsignarCajero && cajero ? cajero.sucursal_id : u?.sucursal_id;
     this.error = '';
     this.mensajeExito = '';
 
-    if (!u?.sucursal_id) {
+    if (!sucursalId) {
       this.error = 'El usuario no tiene una sucursal asignada para operar en caja.';
       return;
     }
@@ -427,16 +490,32 @@ export class CajaComponent implements OnInit, OnDestroy {
       this.error = 'Debe solicitar al menos un cupo exclusivo de prendas para operar la caja.';
       return;
     }
+    if (!navigator.onLine || this.cuposSolicitados.some(c => !Number.isInteger(c.cantidad) || c.cantidad < 1)) {
+      this.error = 'La habilitación requiere conexión y cantidades enteras positivas en todas las líneas.';
+      return;
+    }
 
     this.procesando = true;
     this.cajaService.habilitarTurno({
       caja_id: this.cajaId.trim(),
       dispositivo_id: this.dispositivoId,
-      sucursal_id: u.sucursal_id,
+      sucursal_id: sucursalId,
+      cajero_id: this.puedeAsignarCajero && cajero ? cajero.id : undefined,
       cupos: this.cuposSolicitados,
       revision: 1
     }).subscribe({
       next: async turno => {
+        if (!u?.id || turno.cajero_id !== (cajero?.id || u.id) || turno.dispositivo_id !== this.dispositivoId || turno.sucursal_id !== sucursalId) {
+          this.error = 'La habilitación recibida no coincide con el cajero, sucursal y dispositivo solicitados. Requiere revisión central.';
+          this.procesando = false;
+          return;
+        }
+        if (turno.cajero_id !== u?.id) {
+          this.cuposSolicitados = [];
+          this.mensajeExito = `Caja ${turno.caja_codigo} asignada. El cajero debe iniciar sesión EN ESTE DISPOSITIVO con conexión y guardar el turno antes de vender offline.`;
+          this.procesando = false;
+          return;
+        }
         turno.ultima_secuencia_local = 0;
         turno.total_operaciones_locales = 0;
         await this.persistirTurnoLocalmente(turno);
@@ -491,7 +570,7 @@ export class CajaComponent implements OnInit, OnDestroy {
       this.error = 'Seleccione una prenda del inventario de caja.';
       return;
     }
-    if (this.cantidadVentaOffline < 1) {
+    if (!Number.isInteger(this.cantidadVentaOffline) || this.cantidadVentaOffline < 1) {
       this.error = 'La cantidad debe ser mayor a 0.';
       return;
     }
@@ -513,7 +592,9 @@ export class CajaComponent implements OnInit, OnDestroy {
     }
 
     const precio = Number(cupo.precio_autorizado_bob) || 0;
-    this.lineasVentaOffline.push({
+    const existente = this.lineasVentaOffline.find(l => l.variante_id === this.varianteVentaOffline);
+    if (existente) existente.cantidad += this.cantidadVentaOffline;
+    else this.lineasVentaOffline.push({
       variante_id: this.varianteVentaOffline,
       cantidad: this.cantidadVentaOffline,
       precio_bob: precio
@@ -623,6 +704,7 @@ export class CajaComponent implements OnInit, OnDestroy {
   }
 
   iniciarStripeCaja(): void {
+    if (this.supervisandoTurno) { this.error = 'La consulta de supervisión no habilita ventas.'; return; }
     if (!this.turnoActivo) {
       this.error = 'No hay un turno de caja activo para procesar ventas.';
       return;
@@ -822,6 +904,7 @@ export class CajaComponent implements OnInit, OnDestroy {
   }
 
   async cobrarVentaContado() {
+    if (this.supervisandoTurno) { this.error = 'La consulta de supervisión no habilita ventas.'; return; }
     this.error = '';
     this.mensajeExito = '';
     if (!this.turnoActivo) {
@@ -1071,7 +1154,7 @@ export class CajaComponent implements OnInit, OnDestroy {
 
   get formularioSupervisionValido(): boolean {
     if (!this.turnoActivo || !this.cierreSupervisado) return true;
-    if (!this.referenciaActa.trim() || this.motivoSupervision.trim().length < 3) return false;
+    if (this.referenciaActa.trim().length < 3 || this.motivoSupervision.trim().length < 10) return false;
     if (!Number.isFinite(this.arqueoEfectivoBob) || this.arqueoEfectivoBob < 0) return false;
     const conteoValido = this.turnoActivo.cupos.every(cupo => {
       const cantidad = this.conteoFisicoPorVariante[cupo.variante_id];
@@ -1107,6 +1190,7 @@ export class CajaComponent implements OnInit, OnDestroy {
   cancelarCierre() {
     this.mostrarDialogoCierre = false;
     this.cierreSupervisado = false;
+    this.volverAMiCaja();
   }
 
   async confirmarCierreTurno() {
@@ -1134,6 +1218,10 @@ export class CajaComponent implements OnInit, OnDestroy {
         arqueo_efectivo_bob: arqueo
       };
 
+      if (this.supervisandoTurno) {
+        delete dto.ultima_secuencia_local;
+        delete dto.total_operaciones_locales;
+      }
       if (this.cierreSupervisado) {
         dto.supervision_forzada = true;
         dto.motivo_supervision = this.motivoSupervision.trim();
@@ -1163,6 +1251,12 @@ export class CajaComponent implements OnInit, OnDestroy {
       if (resultado.estado === 'CERRADO') {
         const unidadesDevueltas = resultado.cupos_devueltos.reduce((total, cupo) => total + (cupo.devuelto || 0), 0);
         this.mensajeExito = `Turno cerrado. Se liberaron ${unidadesDevueltas} unidad(es) confirmadas por el conteo.`;
+        if (this.supervisandoTurno) {
+          this.volverAMiCaja();
+          this.cierreSupervisado = false;
+          this.cargarConciliaciones();
+          return;
+        }
         this.turnoActivo = null;
         this.turnoPendienteRecuperacion = null;
         this.cierreSupervisado = false;
@@ -1176,6 +1270,13 @@ export class CajaComponent implements OnInit, OnDestroy {
 
       // The response is an action summary. Refresh the central cupo balances before another resolution.
       const actualizado = await firstValueFrom(this.cajaService.consultarTurno(turnoId));
+      if (this.supervisandoTurno) {
+        this.turnoActivo = actualizado;
+        this.cierreSupervisado = false;
+        this.error = 'El turno conserva faltantes por conciliar. Revisa el resultado central y vuelve a registrar el conteo.';
+        this.cargarConciliaciones();
+        return;
+      }
       actualizado.ultima_secuencia_local = this.turnoActivo.ultima_secuencia_local ?? 0;
       actualizado.total_operaciones_locales = this.turnoActivo.total_operaciones_locales ?? 0;
       await this.cajaService.guardarTurnoLocal(actualizado);
@@ -1267,11 +1368,13 @@ export class CajaComponent implements OnInit, OnDestroy {
       this.error = 'Seleccione una variante antes de agregar.';
       return;
     }
-    if (this.cantidad < 1) {
+    if (!Number.isInteger(this.cantidad) || this.cantidad < 1) {
       this.error = 'La cantidad debe ser al menos 1.';
       return;
     }
-    this.items.push({ variante_id: this.variante, cantidad: this.cantidad });
+    const existente = this.items.find(i => i.variante_id === this.variante);
+    if (existente) existente.cantidad += this.cantidad;
+    else this.items.push({ variante_id: this.variante, cantidad: this.cantidad });
     this.variante = '';
     this.cantidad = 1;
   }
@@ -1533,7 +1636,10 @@ export class CajaComponent implements OnInit, OnDestroy {
   }
 
   v(id: string) {
-    return this.variantes.find(x => x.id === id)?.sku || (id ? 'Prenda' : '—');
+    const variante = this.variantes.find(x => x.id === id);
+    if (variante) return [variante.producto_nombre, variante.talla_nombre, variante.color_nombre, variante.sku].filter(x => x?.trim()).join(' · ');
+    const cupo = this.obtenerCupo(id);
+    return cupo ? [cupo.producto_nombre, cupo.talla, cupo.color, cupo.sku].filter(x => x?.trim()).join(' · ') || id : (id || '—');
   }
 
   vender() {

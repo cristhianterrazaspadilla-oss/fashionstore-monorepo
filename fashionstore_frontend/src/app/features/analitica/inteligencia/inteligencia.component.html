@@ -154,6 +154,7 @@
             <span class="report-origin-badge">Origen: {{ reporteTipado.origen }}</span>
             <span class="report-origin-badge">Ámbito: {{ reporteTipado.filtros_efectivos['sucursal_nombre'] || 'Todas las sucursales autorizadas' }}</span>
             <span class="report-origin-badge">Período: {{ reporteTipado.filtros_efectivos['desde'] || 'Sin inicio' }} / {{ reporteTipado.filtros_efectivos['hasta'] || 'Sin fin' }}</span>
+            <span class="report-origin-badge">{{ reporteTipado.filtros_efectivos['periodo'] }} · {{ reporteTipado.filtros_efectivos['zona_horaria'] }} · Agrupación: {{ reporteTipado.filtros_efectivos['agrupacion'] }} · Límite por grupo: {{ reporteTipado.filtros_efectivos['limite'] }}</span>
           </div>
           <div class="header-actions">
             <button type="button" class="cycle-secondary small" [disabled]="!exportacionDisponible || exportando" (click)="exportarCsv()">
@@ -175,6 +176,9 @@
         </div>
 
         <!-- Tabla de datos del snapshot -->
+        <app-horizontal-bars *ngIf="reporteTipado.filtros_efectivos['presentacion'] === 'GRAFICO'"
+          [items]="barrasReporteTipado" [ariaLabel]="tituloReporte"></app-horizontal-bars>
+        <p>{{ reporteTipado.totales['alcance'] }}</p>
         <div class="table-wrap ia-table-wrap">
           <table class="cycle-table">
             <thead>

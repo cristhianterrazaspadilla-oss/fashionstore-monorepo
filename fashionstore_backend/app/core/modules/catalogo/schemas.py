@@ -266,6 +266,9 @@ class PromocionAplicableDTO(BaseModel):
 
 
 class VariantePublicaDTO(BaseModel):
+    producto_nombre: Optional[str] = None
+    talla_nombre: Optional[str] = None
+    color_nombre: Optional[str] = None
     """Vista pública de variante: sin costo_promedio, costo_ultimo u otros campos internos."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -350,6 +353,9 @@ class VarianteActualizarDTO(BaseModel):
 
 
 class VarianteDTO(BaseModel):
+    producto_nombre: Optional[str] = None
+    talla_nombre: Optional[str] = None
+    color_nombre: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     producto_id: uuid.UUID

@@ -40,6 +40,7 @@ export class ShellComponent implements OnInit {
   dropdownActivo: string | null = null;
   sinConexion = false;
   enCatalogo = false;
+  get enCaja(): boolean { return this.router.url.split('?')[0] === '/caja'; }
   actualizacionLista = false;
   instalacionDisponible = false;
   private installPrompt: InstallPromptEvent | null = null;
@@ -229,7 +230,7 @@ export class ShellComponent implements OnInit {
   puedeVerInventario(): boolean { return ['ADMINISTRADOR','ENCARGADO','CAJERO'].includes(this.usuarioActual?.rol || ''); }
   puedeVerReservas(): boolean { return ['CLIENTE', 'ADMINISTRADOR', 'ENCARGADO'].includes(this.usuarioActual?.rol || ''); }
   puedeVerTraslados(): boolean { return ['ADMINISTRADOR','ENCARGADO'].includes(this.usuarioActual?.rol || ''); }
-  puedeVerCaja(): boolean { return ['ADMINISTRADOR','CAJERO'].includes(this.usuarioActual?.rol || ''); }
+  puedeVerCaja(): boolean { return ['ADMINISTRADOR','CAJERO','ENCARGADO','PROPIETARIO'].includes(this.usuarioActual?.rol || ''); }
   puedeVerOperaciones(): boolean { return ['ADMINISTRADOR','ENCARGADO'].includes(this.usuarioActual?.rol || ''); }
   puedeVerHistorial(): boolean { return this.usuarioActual?.rol === 'CLIENTE'; }
   puedeVerSaldo(): boolean { return this.esCliente(); }
