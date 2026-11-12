@@ -50,6 +50,17 @@
 
   <!-- ========================================== -->
   <!-- SECCIÓN 1: CAJA REGISTRADORA Y TURNOS       -->
+  <section *ngIf="puedeSupervisarCierre" class="cycle-card">
+    <h2>Turnos pendientes de conciliación</h2>
+    <button type="button" class="cycle-secondary" (click)="cargarConciliaciones()" [disabled]="procesando">Actualizar turnos</button>
+    <p *ngIf="errorSupervision" role="alert">{{ errorSupervision }}</p>
+    <p *ngIf="!turnosConciliacion.length">No hay turnos en conciliación en tu ámbito autorizado.</p>
+    <div *ngFor="let turno of turnosConciliacion">
+      <span>{{ turno.caja_codigo }} · {{ turno.sucursal_id }} · Cajero {{ turno.cajero_id }} · {{ turno.inicio_en | date:'short' }}</span>
+      <button type="button" class="cycle-primary" [disabled]="procesando || supervisandoTurno" (click)="resolverTurnoSupervisado(turno)">Resolver conciliación</button>
+    </div>
+    <button *ngIf="supervisandoTurno" type="button" (click)="volverAMiCaja()">Volver a mi caja</button>
+  </section>
   <!-- ========================================== -->
   <ng-container *ngIf="vistaModo === 'TURNO_OFFLINE'">
     <!-- Alerta de Turno Pendiente de Persistencia Local en IndexedDB -->
@@ -113,6 +124,13 @@
       </div>
 
       <div class="form-grid">
+        <label *ngIf="puedeAsignarCajero">
+          <span>Cajero titular (en este dispositivo)</span>
+          <select [(ngModel)]="cajeroSeleccionado">
+            <option value="">Operar como usuario actual</option>
+            <option *ngFor="let cajero of cajeros" [value]="cajero.id">{{ cajero.nombre_completo }} · {{ cajero.sucursal_nombre }}</option>
+          </select>
+        </label>
         <label>
           <span>Identificador de caja</span>
           <input [(ngModel)]="cajaId" placeholder="Ej. CAJA-01" required>
@@ -128,8 +146,8 @@
         <div class="line-builder">
           <select [(ngModel)]="cupoVarianteSeleccionada" aria-label="Seleccionar prenda para cupo">
             <option value="">Selecciona una prenda</option>
-            <option *ngFor="let v of variantes" [value]="v.id">
-              {{ v.sku }} · Bs {{ v.precio }}
+            <option *ngFor="let variante of variantes" [value]="variante.id">
+              {{ v(variante.id) }} · Bs {{ variante.precio | number:'1.2-2' }}
             </option>
           </select>
           <input
@@ -155,7 +173,7 @@
             <tbody>
               <tr *ngFor="let c of cuposSolicitados; index as i">
                 <td>{{ v(c.variante_id) }}</td>
-                <td>{{ c.cantidad }} unid.</td>
+                <td><input type="number" min="1" step="1" [(ngModel)]="c.cantidad" aria-label="Cantidad asignada"></td>
                 <td>
                   <button type="button" class="cycle-link danger" (click)="quitarCupoSolicitado(i)">
                     Quitar
@@ -244,18 +262,18 @@
                 <th>Prenda en caja</th>
                 <th>Precio unitario</th>
                 <th>Otorgado</th>
-                <th>Vendido</th>
+                <th>Vendido (incluye pendientes)</th><th>Pendiente de confirmar</th>
                 <th>Disponible en caja</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let c of turnoActivo.cupos">
-                <td>{{ c.sku || v(c.variante_id) }}</td>
+                <td>{{ etiquetaCupo(c) }}</td>
                 <td>Bs {{ c.precio_autorizado_bob | number:'1.2-2' }}</td>
                 <td>{{ c.otorgado }}</td>
-                <td>{{ c.consumido }}</td>
+                <td>{{ c.consumido }}</td><td>{{ pendientesPorVariante[c.variante_id] || 0 }}</td>
                 <td>
-                  <strong>{{ c.otorgado - c.consumido }}</strong>
+                  <strong>{{ disponibleCupo(c) }}</strong>
                 </td>
               </tr>
             </tbody>
@@ -264,7 +282,7 @@
       </section>
 
       <!-- Formulario de Venta Contado -->
-      <section *ngIf="!comprobanteOffline" class="cycle-card">
+      <section *ngIf="!comprobanteOffline && !supervisandoTurno" class="cycle-card">
         <h2>Nueva Venta al Contado</h2>
         <p>Agrega prendas asignadas a esta caja para registrar el cobro en efectivo y entrega de prendas.</p>
 
@@ -274,9 +292,9 @@
             <option
               *ngFor="let c of turnoActivo.cupos"
               [value]="c.variante_id"
-              [disabled]="(c.otorgado - c.consumido) <= 0"
+              [disabled]="(disponibleCupo(c)) <= 0"
             >
-              {{ c.sku || v(c.variante_id) }} · Bs {{ c.precio_autorizado_bob }} (Quedan {{ c.otorgado - c.consumido }})
+              {{ etiquetaCupo(c) }} · Bs {{ c.precio_autorizado_bob }} (Quedan {{ disponibleCupo(c) }})
             </option>
           </select>
           <input
@@ -645,7 +663,7 @@
                 <p>Registra las unidades no vendidas que encontraste. El conteo no puede superar el cupo aún pendiente.</p>
                 <div class="conteo-fisico-fila" *ngFor="let cupo of turnoActivo.cupos">
                   <div class="conteo-fisico-producto">
-                    <strong>{{ cupo.sku || cupo.producto_nombre || v(cupo.variante_id) }}</strong>
+                    <strong>{{ etiquetaCupo(cupo) }}</strong>
                     <span>Por verificar: {{ Math.max(0, cupo.otorgado - cupo.consumido - cupo.liberado - (cupo.mermado || 0)) }} unid.</span>
                   </div>
                   <label class="conteo-fisico-cantidad">
@@ -656,7 +674,7 @@
                       [max]="Math.max(0, cupo.otorgado - cupo.consumido - cupo.liberado - (cupo.mermado || 0))"
                       step="1"
                       [(ngModel)]="conteoFisicoPorVariante[cupo.variante_id]"
-                      [attr.aria-label]="'Unidades encontradas de ' + (cupo.sku || cupo.producto_nombre || v(cupo.variante_id))"
+                      [attr.aria-label]="'Unidades encontradas de ' + (etiquetaCupo(cupo))"
                     >
                   </label>
                 </div>
@@ -666,7 +684,7 @@
                 <h4>Resolver prendas faltantes</h4>
                 <p>Indica si esperas recibir una venta pendiente o si confirmas que las prendas no están disponibles.</p>
                 <div class="faltante-fisico-fila" *ngFor="let cupo of cuposConFaltanteFisico">
-                  <strong>{{ cupo.sku || cupo.producto_nombre || v(cupo.variante_id) }}</strong>
+                  <strong>{{ etiquetaCupo(cupo) }}</strong>
                   <label class="modal-label">
                     <span>Resolución</span>
                     <select [(ngModel)]="resolucionFaltantePorVariante[cupo.variante_id]">
@@ -681,7 +699,7 @@
                       [(ngModel)]="motivoFaltantePorVariante[cupo.variante_id]"
                       rows="2"
                       maxlength="500"
-                      [attr.aria-label]="'Motivo del faltante para ' + (cupo.sku || cupo.producto_nombre || v(cupo.variante_id))"
+                      [attr.aria-label]="'Motivo del faltante para ' + (etiquetaCupo(cupo))"
                     ></textarea>
                   </label>
                 </div>

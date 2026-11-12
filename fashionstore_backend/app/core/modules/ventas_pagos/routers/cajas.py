@@ -58,6 +58,18 @@ async def consultar_turno_activo(
 
 
 @router.get(
+    "/turnos/conciliacion",
+    response_model=list[TurnoHabilitacionDTO],
+    summary="Turnos en conciliación del ámbito del supervisor",
+)
+async def listar_conciliacion(
+    db: AsyncSession = Depends(get_db),
+    usuario: Usuario = Depends(require_rol_empresarial(*ROLES_SUPERVISION_CAJA)),
+):
+    return await CajaService(db).listar_conciliacion(usuario)
+
+
+@router.get(
     "/turnos/{turno_id}",
     response_model=TurnoHabilitacionDTO,
     summary="Consultar turno específico por ID (CU06)",

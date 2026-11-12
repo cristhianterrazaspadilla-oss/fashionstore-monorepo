@@ -48,6 +48,9 @@ export interface ImagenProductoDTO {
 }
 
 export interface VarianteDTO {
+  producto_nombre?: string;
+  talla_nombre?: string;
+  color_nombre?: string;
   id: string;
   producto_id: string;
   talla_id: string;

@@ -177,7 +177,7 @@ export const routes: Routes = [
     path: 'caja',
     loadComponent: () => import('./features/ventas_pagos/caja/caja.component').then(m => m.CajaComponent),
     canActivate: [authGuard],
-    data: { roles: ['ADMINISTRADOR', 'CAJERO'] },
+    data: { roles: ['ADMINISTRADOR', 'CAJERO', 'ENCARGADO', 'PROPIETARIO'] },
     title: 'Caja — FashionStore'
   },
   {
